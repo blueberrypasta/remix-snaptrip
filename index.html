@@ -1,0 +1,85 @@
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-6HXG49LC4S"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-6HXG49LC4S');
+    </script>
+    
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>스냅트립 SnapTrip - AI 여행 도슨트</title>
+    
+    <!-- PWA & Mobile Icons -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SnapTrip">
+    
+    <!-- Unified Favicon (New Design) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg viewBox=%220 0 100 100%22 xmlns=%22http://www.w3.org/2000/svg%22><circle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23f5f2eb%22/><path d=%22M42 39 L46 42 L43 45 L39 44 Z%22 fill=%22%23bfa47e%22/><path d=%22M43 50 L37 48 L28 57 L31 70 L35 70 Z%22 fill=%22%232d2d2d%22/><path d=%22M43 50 L54 51 L71 43 L69 40 L60 45 L53 35 Z%22 fill=%22%232d2d2d%22/></svg>">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    
+    <!-- Scripts -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                        "card-dark": "#192633",
+                        "text-secondary-dark": "#92adc9",
+                    },
+                    fontFamily: { 
+                        "display": ["Plus Jakarta Sans", "Noto Sans", "sans-serif"],
+                        "serif": ["Playfair Display", "serif"]
+                    },
+                    screens: {
+                        "xs": "400px",
+                    }
+                },
+            },
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+    
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "@google/genai": "https://esm.sh/@google/genai@1.20.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
+  }
+}
+</script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        html, body { height: 100dvh; background-color: #070A0E; margin: 0; padding: 0; overflow-x: hidden; }
+        #root { min-height: 100dvh; display: flex; flex-direction: column; }
+    </style>
+  <link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-background-dark text-white font-display antialiased">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
