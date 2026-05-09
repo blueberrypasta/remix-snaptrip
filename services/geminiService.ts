@@ -3,12 +3,11 @@ import { GoogleGenAI, Type } from "@google/genai";
 import type { AnalysisResultData, Language, LocationData, GroundingSource, LocationSource } from '../types';
 
 const getApiKey = () => {
-    // Check localStorage first
     if (typeof window !== 'undefined') {
         const localKey = localStorage.getItem('SNAPTRIP_API_KEY');
         if (localKey && localKey.trim() !== '' && localKey.trim() !== 'null' && localKey.trim() !== 'undefined') return localKey.trim();
     }
-    return process.env.API_KEY || '';
+    return '';
 };
 
 const getAI = () => new GoogleGenAI({ apiKey: getApiKey() });
