@@ -321,6 +321,19 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
+  const handleClearHistory = async () => {
+    if (user) {
+      const cleared = await historyService.clearAll(user.id);
+      if (!cleared) {
+        console.error('[SnapTrip] Failed to clear history from database');
+        window.alert(t('error'));
+        return;
+      }
+    }
+
+    setHistory([]);
+  };
+
   const handleStartGuide = (landmarkName: string) => {
     setGuideLandmark(landmarkName);
     setGuideLocationHint(nearbyAreaName);
@@ -410,7 +423,7 @@ const App: React.FC = () => {
           )}
         </div>
       </main>
-      <HistorySidebar history={history} onSelect={handleHistorySelection} isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} language={language} onClearHistory={() => setHistory([])} user={user} isSyncing={isSyncing} onRefresh={() => user && syncUserData(user.id)} />
+      <HistorySidebar history={history} onSelect={handleHistorySelection} isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} language={language} onClearHistory={handleClearHistory} user={user} isSyncing={isSyncing} onRefresh={() => user && syncUserData(user.id)} />
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setLoginModalOpen(false)} onLogin={() => {}} language={language} />
       </div>
     </div>

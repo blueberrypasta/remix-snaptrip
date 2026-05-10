@@ -97,7 +97,7 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ language, onBack }) =>
             Powered by Google Gemini 3 Flash & Pro
           </p>
           <p className="text-[10px] font-bold mt-2 text-slate-500">
-            © 2025 SnapTrip. Handcrafted with love.
+            © {new Date().getFullYear()} SnapTrip. Handcrafted with love.
           </p>
         </footer>
       </div>

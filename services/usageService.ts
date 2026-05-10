@@ -23,6 +23,10 @@ const getTodayString = () => {
 
 const getLocalKey = (userId: string) => `snaptrip_profile_${userId}`;
 
+const isValidApiKeyFormat = (key: string | null | undefined): boolean => {
+  return /^AIza[0-9A-Za-z_-]{35}$/.test(key ?? '');
+};
+
 export const usageService = {
   /**
    * 사용자의 크레딧 및 언어 설정을 가져오고, 날짜가 바뀌었으면 충전합니다.
@@ -158,7 +162,7 @@ export const usageService = {
 
   async canAnalyze(userId: string): Promise<boolean> {
     // 0. 본인 API 키가 있으면 항상 허용
-    if (typeof window !== 'undefined' && localStorage.getItem('SNAPTRIP_API_KEY')) {
+    if (typeof window !== 'undefined' && isValidApiKeyFormat(localStorage.getItem('SNAPTRIP_API_KEY'))) {
       return true;
     }
     const profile = await this.getUserCredits(userId);

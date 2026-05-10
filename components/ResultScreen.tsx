@@ -144,7 +144,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             onClick={() => onDelete(result.id)}
             className="w-10 h-10 bg-black/40 backdrop-blur-xl rounded-full text-[#F4EFE6]/60 border border-white/10 active:scale-95 transition-all shadow-xl flex items-center justify-center"
           >
-            <span className="material-symbols-outlined text-[20px]">bookmark</span>
+            <span className="material-symbols-outlined text-[20px]">delete</span>
           </button>
         </div>
       </nav>

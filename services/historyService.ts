@@ -130,5 +130,29 @@ export const historyService = {
       console.error('[SnapTrip DB] Delete Error:', error);
       return false;
     }
+  },
+
+  /**
+   * 사용자의 모든 히스토리 삭제
+   */
+  async clearAll(userId: string): Promise<boolean> {
+    try {
+      if (!userId || userId === 'guest') return true;
+
+      const { error } = await supabase
+        .from('analysis_history')
+        .delete()
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('[SnapTrip DB] Clear All failed:', error.message);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('[SnapTrip DB] Clear All Error:', error);
+      return false;
+    }
   }
 };

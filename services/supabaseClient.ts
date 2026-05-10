@@ -11,7 +11,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
     flowType: 'pkce',
     storageKey: 'snaptrip-auth-token-v2',
-    storage: window.localStorage,
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
     debug: false
   }
 });
