@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ResultScreen } from './components/ResultScreen';
@@ -65,29 +64,71 @@ const App: React.FC = () => {
     isSyncingInProgress.current = true;
     setIsSyncing(true);
     try {
-      const profileData = await usageService.getUserCredits(userId);
+      // 타임아웃으로 무한 대기 방지 (8초)
+      const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
+        Promise.race([
+          promise,
+          new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Sync timeout')), ms))
+        ]);
+
+      const profileData = await withTimeout(usageService.getUserCredits(userId), 8000);
       setCredits(profileData.credits);
       if (profileData.language) {
         setLanguage(profileData.language);
       }
-      const dbHistory = await historyService.getUserHistory(userId);
+      const dbHistory = await withTimeout(historyService.getUserHistory(userId), 8000);
       setHistory(prev => {
         const localOnlyItems = prev.filter(l => l.id.startsWith('temp_') || (l.status === 'success' && !dbHistory.some(d => d.id === l.id)));
         const combined = [...localOnlyItems, ...dbHistory.filter(d => !localOnlyItems.some(l => l.id === d.id))];
         return combined.sort((a, b) => b.timestamp - a.timestamp);
       });
-    } catch (e) { 
-      console.error("[SnapTrip] Sync Error:", e); 
-    } finally { 
-      setIsSyncing(false); 
-      isSyncingInProgress.current = false; 
+    } catch (e) {
+      console.error("[SnapTrip] Sync Error:", e);
+    } finally {
+      setIsSyncing(false);
+      isSyncingInProgress.current = false;
     }
   }, []);
 
   useEffect(() => {
     let mounted = true;
+    let authHandledByInit = false;
+
+    const setUserFromSession = (session: any) => {
+      const suUser = session.user;
+      setUser({
+        id: suUser.id,
+        name: suUser.user_metadata.full_name || suUser.email,
+        email: suUser.email || '',
+        avatar: `https://ui-avatars.com/api/?name=${suUser.email}`,
+        credits: 0,
+        isPremium: false
+      });
+      return suUser.id;
+    };
+
     const initAuth = async () => {
       try {
+        // 0. PKCE 코드 교환을 명시적으로 처리 (detectSessionInUrl: false)
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        if (code) {
+          try {
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            // URL 정리 (code 파라미터 제거)
+            window.history.replaceState({}, '', window.location.pathname);
+            if (!error && data.session && mounted) {
+              authHandledByInit = true;
+              const userId = setUserFromSession(data.session);
+              await syncUserData(userId);
+              return; // 코드 교환 성공 — 아래 getSession 불필요
+            }
+          } catch (codeErr) {
+            console.warn("[SnapTrip] Code exchange failed:", codeErr);
+            window.history.replaceState({}, '', window.location.pathname);
+          }
+        }
+
         // 1. 게스트 정보를 즉시 로드하여 기본 상태를 빠르게 세팅
         const guestProfile = await usageService.getUserCredits('guest');
         if (mounted) {
@@ -95,24 +136,17 @@ const App: React.FC = () => {
           setLanguage(guestProfile.language);
         }
 
-        // 2. 로그인 세션 확인 (비동기)
+        // 2. 기존 세션 확인 (localStorage에서)
         const { data: { session } } = await supabase.auth.getSession();
         if (session && mounted) {
-          const suUser = session.user;
-          setUser({ 
-            id: suUser.id, 
-            name: suUser.user_metadata.full_name || suUser.email, 
-            email: suUser.email || '', 
-            avatar: `https://ui-avatars.com/api/?name=${suUser.email}`, 
-            credits: 0, 
-            isPremium: false 
-          });
-          await syncUserData(suUser.id);
+          authHandledByInit = true;
+          const userId = setUserFromSession(session);
+          await syncUserData(userId);
         }
-      } catch (e) { 
-        console.error("[SnapTrip] Auth Init Error:", e); 
-      } finally { 
-        if (mounted) setIsSyncing(false); 
+      } catch (e) {
+        console.error("[SnapTrip] Auth Init Error:", e);
+      } finally {
+        if (mounted) setIsSyncing(false);
       }
     };
     initAuth();
@@ -124,21 +158,18 @@ const App: React.FC = () => {
         const guestProfile = await usageService.getUserCredits('guest');
         setCredits(guestProfile.credits);
       } else if (event === 'SIGNED_IN' && session) {
-        const suUser = session.user;
-        setUser({ 
-          id: suUser.id, 
-          name: suUser.user_metadata.full_name || suUser.email, 
-          email: suUser.email || '', 
-          avatar: `https://ui-avatars.com/api/?name=${suUser.email}`, 
-          credits: 0, 
-          isPremium: false 
-        });
-        await syncUserData(suUser.id);
+        // initAuth에서 이미 처리했으면 중복 sync 방지
+        if (authHandledByInit) {
+          authHandledByInit = false;
+          return;
+        }
+        const userId = setUserFromSession(session);
+        await syncUserData(userId);
       }
     });
 
-    return () => { 
-      mounted = false; 
+    return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, [syncUserData]);
