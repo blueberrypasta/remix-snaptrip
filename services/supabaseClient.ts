@@ -8,7 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
+    detectSessionInUrl: false,
     flowType: 'pkce',
     storageKey: 'snaptrip-auth-token-v2',
     storage: window.localStorage,
