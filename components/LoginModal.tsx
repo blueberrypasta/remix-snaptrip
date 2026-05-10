@@ -28,7 +28,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, languag
     setIsLoading(true);
     setError(null);
     try {
-      const redirectTo = window.location.origin;
+      const redirectTo = window.location.origin + '/remix-snaptrip/';
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
