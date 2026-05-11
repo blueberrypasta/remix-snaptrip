@@ -124,7 +124,7 @@ export const analyzeImageStream = async (
             const textPart = { text: userText };
             const ai = getAI();
             const responseStream = await ai.models.generateContentStream({
-                model: 'gemini-3.1-flash-lite-preview',
+                model: 'gemini-3.1-flash-lite',
                 contents: { parts: [imagePart, textPart] },
                 config: { systemInstruction, tools: [{ googleSearch: {} }] }
             });
@@ -166,7 +166,7 @@ export const analyzeImageStream = async (
         ];
 
         const data = await callGeminiProxy(
-            'gemini-2.5-flash',
+            'gemini-3.1-flash-lite',
             contents,
             { systemInstruction: { parts: [{ text: systemInstruction }] } },
             [{ googleSearch: {} }]
@@ -204,7 +204,7 @@ export const fetchGuidePointList = async (landmarkName: string, language: Langua
     if (hasUserKey()) {
         const ai = getAI();
         const response = await ai.models.generateContent({
-            model: "gemini-3.1-flash-lite-preview",
+            model: "gemini-3.1-flash-lite",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
@@ -230,7 +230,7 @@ export const fetchGuidePointList = async (landmarkName: string, language: Langua
 
     // --- Proxy path ---
     const contents = [{ role: "user", parts: [{ text: prompt }] }];
-    const data = await callGeminiProxy('gemini-2.5-flash', contents, {
+    const data = await callGeminiProxy('gemini-3.1-flash-lite', contents, {
         responseMimeType: "application/json"
     });
     return JSON.parse(extractText(data) || "[]");
@@ -260,7 +260,7 @@ export const streamGuideDetail = async (
     if (hasUserKey()) {
         const ai = getAI();
         const stream = await ai.models.generateContentStream({
-            model: "gemini-3.1-flash-lite-preview",
+            model: "gemini-3.1-flash-lite",
             contents: userPrompt,
             config: { systemInstruction: instruction }
         });
@@ -276,7 +276,7 @@ export const streamGuideDetail = async (
 
     // --- Proxy path ---
     const contents = [{ role: "user", parts: [{ text: userPrompt }] }];
-    const data = await callGeminiProxy('gemini-2.5-flash', contents, {
+    const data = await callGeminiProxy('gemini-3.1-flash-lite', contents, {
         systemInstruction: { parts: [{ text: instruction }] }
     });
     const full = extractText(data);
@@ -296,7 +296,7 @@ export const fetchNearbyPlaces = async (location: LocationData, language: Langua
     if (hasUserKey()) {
         const ai = getAI();
         const response = await ai.models.generateContent({
-            model: "gemini-3.1-flash-lite-preview",
+            model: "gemini-3.1-flash-lite",
             contents: prompt,
             config: {
                 tools: [{ googleSearch: {} }],
@@ -307,7 +307,7 @@ export const fetchNearbyPlaces = async (location: LocationData, language: Langua
     } else {
         // --- Proxy path ---
         const contents = [{ role: "user", parts: [{ text: prompt }] }];
-        const data = await callGeminiProxy('gemini-2.5-flash', contents, {
+        const data = await callGeminiProxy('gemini-3.1-flash-lite', contents, {
             responseMimeType: "application/json"
         }, [{ googleSearch: {} }]);
         responseText = extractText(data) || "{}";
@@ -342,7 +342,7 @@ export const fetchMoreNearbyPlaces = async (location: LocationData, language: La
         if (hasUserKey()) {
             const ai = getAI();
             const response = await ai.models.generateContent({
-                model: "gemini-3.1-flash-lite-preview",
+                model: "gemini-3.1-flash-lite",
                 contents: prompt,
                 config: {
                     tools: [{ googleSearch: {} }],
@@ -353,7 +353,7 @@ export const fetchMoreNearbyPlaces = async (location: LocationData, language: La
         } else {
             // --- Proxy path ---
             const contents = [{ role: "user", parts: [{ text: prompt }] }];
-            const data = await callGeminiProxy('gemini-2.5-flash', contents, {
+            const data = await callGeminiProxy('gemini-3.1-flash-lite', contents, {
                 responseMimeType: "application/json"
             }, [{ googleSearch: {} }]);
             responseText = extractText(data) || "{}";
