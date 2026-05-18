@@ -20,7 +20,7 @@ const getAI = () => new GoogleGenAI({ apiKey: getApiKey() });
 // --- Edge Function Proxy ---
 
 const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL || 'https://cshxkzgpuurursnhejnw.supabase.co'}/functions/v1/gemini-proxy`;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'missing-supabase-anon-key';
 
 const callGeminiProxy = async (model: string, contents: unknown, generationConfig?: unknown, tools?: unknown) => {
     const body: Record<string, unknown> = { model, contents };

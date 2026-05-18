@@ -122,9 +122,11 @@ export const usageService = {
     } catch (e) {
       console.warn("[SnapTrip] Profile Sync Fallback:", e);
       if (localData) {
+        console.warn("[SnapTrip] Using cached local credits:", localData.credits);
         return { credits: localData.credits, isPremium: localData.is_premium, promoUsed: localData.promo_used, language: localData.language || systemLang };
       }
-      return { credits: DAILY_FREE_CREDITS, isPremium: false, promoUsed: false, language: systemLang };
+      console.warn("[SnapTrip] No local cache — returning credits: 0 to avoid fake quota display");
+      return { credits: 0, isPremium: false, promoUsed: false, language: systemLang };
     }
   },
 
