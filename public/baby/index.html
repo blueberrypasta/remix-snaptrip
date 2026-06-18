@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>산전검사 트래커 | US Prenatal Care Timeline</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#faf6f2;--card:#ffffff;--primary:#d4819c;--primary-light:#f5e1ea;
+  --accent:#6bb8b2;--accent-light:#e0f2f0;
+  --done:#7bc47f;--done-bg:#e8f5e9;
+  --current:#f0a642;--current-bg:#fff3e0;
+  --upcoming:#bdbdbd;--upcoming-bg:#f5f5f5;
+  --text:#3a3a3a;--text-light:#757575;--text-white:#fff;
+  --shadow:0 2px 12px rgba(0,0,0,.08);
+  --radius:16px;
+}
+body{font-family:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;-webkit-font-smoothing:antialiased}
+a{color:var(--primary);text-decoration:none}
+
+/* Hero */
+.hero{background:linear-gradient(135deg,#f5e1ea 0%,#e0f2f0 100%);padding:48px 20px 36px;text-align:center;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.3)}
+.hero::after{content:'';position:absolute;bottom:-40px;left:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.2)}
+.hero h1{font-size:28px;font-weight:800;color:var(--text);margin-bottom:6px;position:relative;z-index:1}
+.hero p{font-size:14px;color:var(--text-light);position:relative;z-index:1}
+.hero .emoji{font-size:48px;margin-bottom:12px;display:block;position:relative;z-index:1}
+
+/* Status Bar */
+.status-bar{background:var(--card);margin:0 16px;margin-top:-20px;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);position:relative;z-index:2}
+.date-input-group{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.date-input-group label{font-size:13px;font-weight:600;color:var(--text-light);white-space:nowrap}
+.date-input-group input[type="date"]{flex:1;padding:10px 14px;border:2px solid #e8e0dc;border-radius:10px;font-size:15px;font-family:inherit;color:var(--text);background:var(--bg);min-width:150px}
+.date-input-group input:focus{outline:none;border-color:var(--primary)}
+.status-info{display:none;padding-top:16px;border-top:1px solid #f0ebe7}
+.status-info.active{display:block}
+.status-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center}
+.status-item{padding:10px 6px;background:var(--bg);border-radius:12px}
+.status-item .num{font-size:28px;font-weight:800;color:var(--primary)}
+.status-item .label{font-size:11px;color:var(--text-light);margin-top:2px}
+.progress-bar{margin-top:16px;height:8px;background:#e8e0dc;border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--primary));border-radius:4px;transition:width .8s ease}
+.trimester-label{display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text-light)}
+
+/* Quick buttons */
+.quick-btns{display:flex;gap:8px;margin:16px 16px 0;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+.quick-btns::-webkit-scrollbar{display:none}
+.quick-btn{flex-shrink:0;padding:8px 16px;border-radius:20px;border:1.5px solid #e0dbd6;background:var(--card);font-size:12px;font-weight:600;color:var(--text-light);cursor:pointer;transition:all .2s}
+.quick-btn.active{background:var(--primary);color:var(--text-white);border-color:var(--primary)}
+.quick-btn:hover{border-color:var(--primary)}
+
+/* Section */
+.section{padding:20px 16px 8px}
+.section-title{font-size:18px;font-weight:800;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.section-sub{font-size:12px;color:var(--text-light);margin-bottom:16px}
+.trimester-header{font-size:14px;font-weight:700;color:var(--accent);padding:8px 0 12px;display:flex;align-items:center;gap:6px}
+
+/* Test Card */
+.test-card{background:var(--card);border-radius:var(--radius);margin-bottom:12px;box-shadow:var(--shadow);overflow:hidden;transition:all .3s;border-left:4px solid var(--upcoming)}
+.test-card.done{border-left-color:var(--done)}
+.test-card.current{border-left-color:var(--current);box-shadow:0 2px 16px rgba(240,166,66,.2)}
+.test-card.upcoming{border-left-color:var(--upcoming)}
+.test-card-header{padding:16px;cursor:pointer;display:flex;align-items:flex-start;gap:12px}
+.test-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.test-card.done .test-icon{background:var(--done-bg)}
+.test-card.current .test-icon{background:var(--current-bg)}
+.test-card.upcoming .test-icon{background:var(--upcoming-bg)}
+.test-info{flex:1;min-width:0}
+.test-info h3{font-size:15px;font-weight:700;margin-bottom:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.test-info .en{font-size:11px;color:var(--text-light);font-weight:400}
+.test-week{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:4px}
+.test-card.done .test-week{background:var(--done-bg);color:var(--done)}
+.test-card.current .test-week{background:var(--current-bg);color:var(--current)}
+.test-card.upcoming .test-week{background:var(--upcoming-bg);color:var(--upcoming)}
+.test-desc{font-size:13px;color:var(--text-light);line-height:1.6}
+.test-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;flex-shrink:0;align-self:center}
+.test-card.done .test-badge{background:var(--done-bg);color:var(--done)}
+.test-card.current .test-badge{background:var(--current-bg);color:var(--current)}
+.test-card.upcoming .test-badge{background:var(--upcoming-bg);color:var(--upcoming)}
+.test-details{display:none;padding:0 16px 16px;border-top:1px solid #f5f0ec;margin-top:0}
+.test-details.open{display:block}
+.test-details-inner{padding-top:12px}
+.detail-section{margin-bottom:12px}
+.detail-section h4{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:4px;display:flex;align-items:center;gap:4px}
+.detail-section p,.detail-section li{font-size:12.5px;color:var(--text);line-height:1.7}
+.detail-section ul{padding-left:16px}
+.detail-section li{margin-bottom:3px}
+.tip-box{background:var(--primary-light);padding:12px;border-radius:10px;font-size:12px;color:var(--text);margin-top:8px}
+.tip-box strong{color:var(--primary)}
+.tip-box.green{background:var(--accent-light)}
+.tip-box.green strong{color:var(--accent)}
+.chevron{transition:transform .3s;color:var(--text-light);flex-shrink:0;align-self:center;font-size:12px}
+.test-card-header.expanded .chevron{transform:rotate(180deg)}
+
+/* Tips Section */
+.tips-section{padding:20px 16px}
+.tip-card{background:var(--card);border-radius:var(--radius);padding:20px;margin-bottom:12px;box-shadow:var(--shadow)}
+.tip-card h3{font-size:15px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.tip-card p{font-size:13px;color:var(--text-light);line-height:1.7}
+.tip-card .highlight{color:var(--primary);font-weight:600}
+
+/* Comparison Table */
+.compare-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;margin-top:12px;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+.compare-table th{background:var(--primary);color:var(--text-white);padding:10px 8px;font-weight:600;text-align:center}
+.compare-table th:first-child{text-align:left;background:var(--accent)}
+.compare-table td{padding:10px 8px;border-bottom:1px solid #f0ebe7;vertical-align:top}
+.compare-table tr:last-child td{border-bottom:none}
+.compare-table tr:nth-child(even) td{background:#faf8f6}
+
+/* Footer */
+.footer{padding:24px 16px 40px;text-align:center}
+.footer p{font-size:11px;color:var(--text-light);line-height:1.7}
+.disclaimer{background:#fff5f5;padding:16px;border-radius:12px;margin:16px;font-size:11px;color:#c62828;line-height:1.7}
+
+/* Scroll to current animation */
+@keyframes pulse{0%,100%{box-shadow:0 2px 16px rgba(240,166,66,.2)}50%{box-shadow:0 2px 24px rgba(240,166,66,.35)}}
+.test-card.current{animation:pulse 2s ease-in-out infinite}
+
+/* Filter hidden */
+.test-card.filter-hidden{display:none}
+
+@media(min-width:600px){
+  .hero{padding:60px 20px 48px}
+  .hero h1{font-size:36px}
+  .status-bar{margin:0 auto;margin-top:-20px;max-width:560px}
+  .section,.tips-section,.disclaimer{max-width:600px;margin-left:auto;margin-right:auto}
+  .quick-btns{max-width:600px;margin-left:auto;margin-right:auto;justify-content:center}
+  .footer{max-width:600px;margin:0 auto}
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <span class="emoji">👶🏻</span>
+  <h1>산전검사 트래커</h1>
+  <p>미국 ACOG 기준 · Prenatal Care Timeline</p>
+</div>
+
+<div class="status-bar">
+  <div class="date-input-group">
+    <label>📅 출산 예정일 (Due Date)</label>
+    <input type="date" id="dueDate" onchange="updateTimeline()">
+  </div>
+  <div class="status-info" id="statusInfo">
+    <div class="status-grid">
+      <div class="status-item">
+        <div class="num" id="currentWeek">-</div>
+        <div class="label">현재 주차</div>
+      </div>
+      <div class="status-item">
+        <div class="num" id="daysLeft">-</div>
+        <div class="label">남은 일수</div>
+      </div>
+      <div class="status-item">
+        <div class="num" id="trimester">-</div>
+        <div class="label">Trimester</div>
+      </div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="trimester-label"><span>1st</span><span>2nd</span><span>3rd</span><span>출산</span></div>
+  </div>
+</div>
+
+<div class="quick-btns" id="filterBtns">
+  <button class="quick-btn active" data-filter="all">전체</button>
+  <button class="quick-btn" data-filter="done">✅ 완료</button>
+  <button class="quick-btn" data-filter="current">🟡 지금</button>
+  <button class="quick-btn" data-filter="upcoming">⬜ 예정</button>
+  <button class="quick-btn" data-filter="ultrasound">🔊 초음파</button>
+  <button class="quick-btn" data-filter="blood">🩸 혈액</button>
+  <button class="quick-btn" data-filter="vaccine">💉 백신</button>
+</div>
+
+<div class="section">
+  <div class="section-title">📋 검사 타임라인</div>
+  <div class="section-sub" id="timelineSub">예정일을 입력하면 검사 상태가 자동으로 표시됩니다</div>
+  <div id="timeline"></div>
+</div>
+
+<div class="tips-section">
+  <div class="section-title" style="margin-bottom:16px">💡 미국 산전관리 꿀팁</div>
+
+  <div class="tip-card">
+    <h3>🏥 첫 진료가 8~10주?</h3>
+    <p>미국 산부인과는 보통 <span class="highlight">임신 8~10주</span>에 첫 대면 진료를 잡아줍니다. 한국처럼 5주에 바로 초음파를 보는 것과 다릅니다. 단, 이전 유산 이력이나 비정상 출혈이 있으면 <span class="highlight">OB Triage 조기진료</span>를 강력히 요구하세요.</p>
+  </div>
+
+  <div class="tip-card">
+    <h3>💰 NIPT 비용 폭탄 대처법</h3>
+    <p>유전 검사 기관이 보험사에 <span class="highlight">$3,900~$12,000</span>을 청구하면 환자에게 고지서가 올 수 있습니다. <strong>절대 바로 결제하지 마세요!</strong> 검사 기관(Natera, Labcorp 등)에 전화해서 <span class="highlight">"Self-Pay Rate"로 전환</span>을 요청하면 $99~$300으로 삭감됩니다.</p>
+  </div>
+
+  <div class="tip-card">
+    <h3>🌟 캘리포니아 PNS 프로그램</h3>
+    <p>CA 거주자라면 주정부 산전선별검사 프로그램으로 <span class="highlight">cfDNA $344 + MSAFP $85</span>를 보험이 코페이/디덕터블 없이 전액 보장합니다. 고위험 판정 시 정밀초음파·유전상담·양수검사까지 <span class="highlight">무료</span>입니다.</p>
+  </div>
+
+  <div class="tip-card">
+    <h3>📊 초음파 횟수 차이</h3>
+    <p>한국은 매 방문마다 초음파 (평균 <span class="highlight">15~18회</span>), 미국은 의학적 필요 시에만 (평균 <span class="highlight">2~3회</span>). 추가 초음파를 원하면 주치의에게 보험적용 가능 여부를 먼저 확인하세요.</p>
+  </div>
+
+  <div class="tip-card">
+    <h3>🧬 유전 보인자 검사 (Carrier Screening)</h3>
+    <p>한국에는 없는 검사! 미국은 인종에 상관없이 <span class="highlight">모든 임산부</span>에게 낭포성 섬유증(CF), 척수성 근위축증(SMA), 지중해빈혈 보인자 검사를 권장합니다. 부모가 무증상 보인자인지 확인해 태아 유전 확률을 계산합니다.</p>
+  </div>
+
+  <div class="tip-card">
+    <h3>👩‍⚕️ 조산사(CNM) 케어 활용</h3>
+    <p>저위험군이라면 의사 대신 <span class="highlight">Certified Nurse-Midwife</span>와 분만 계획을 세울 수 있습니다. 더 세심하고 환자 중심적인 경험이 가능하며, Hoag Irvine Fudge Family Suites 같은 최신 시설도 이용 가능합니다.</p>
+  </div>
+</div>
+
+<div class="disclaimer">
+  ⚠️ <strong>면책조항:</strong> 본 페이지는 일반적인 정보 제공 목적으로 작성되었으며, 개인의 건강 상태에 따른 맞춤형 의학적 조언이나 진단을 대신할 수 없습니다. 구체적인 검사 계획은 담당 전문의와 상담하세요.
+</div>
+
+<div class="footer">
+  <p>미국 ACOG 2025-2026 가이드라인 · CDC 백신 권장 · CA CDPH PNS 기준<br>
+  Sources: ACOG, CDC, CDPH, NCBI, Kaiser Permanente</p>
+  <p style="margin-top:12px;font-size:10px;color:#ccc">slatrip.com/baby</p>
+</div>
+
+<script>
+const TESTS = [
+  // ===== 1st Trimester =====
+  {
+    id:1, weekStart:4, weekEnd:8, trimester:1,
+    title:"임신 확인 & 초진 예약",
+    titleEn:"Pregnancy Confirmation & Scheduling",
+    icon:"🤰",
+    category:"visit",
+    desc:"임신 테스트기 양성 → 산부인과에 전화. 미국은 보통 8~10주에 첫 대면 진료 예약.",
+    details:`<div class="detail-section"><h4>📌 핵심 포인트</h4>
+<ul><li>미국은 한국과 달리 양성 확인 즉시 병원을 가지 않습니다</li>
+<li>전화 문진(Phone Intake)으로 기초 건강이력 먼저 평가</li>
+<li>산전 비타민(Prenatal Vitamin) 즉시 시작: 엽산 600μg, 철분 27mg, DHA</li></ul></div>
+<div class="tip-box"><strong>💡 팁:</strong> 이전 유산 이력, 자궁외임신, 극심한 복통/출혈이 있으면 "OB Triage" 조기진료를 강력히 요구하세요!</div>`
+  },
+  {
+    id:2, weekStart:8, weekEnd:10, trimester:1,
+    title:"첫 대면 진료 & 기본 검사",
+    titleEn:"First Prenatal Visit & Labs",
+    icon:"🏥",
+    category:"blood",
+    desc:"신체검사, 기본 혈액검사, 감염 스크리닝. 첫 초음파로 심박동 확인 및 예정일 산출.",
+    details:`<div class="detail-section"><h4>🩸 기본 혈액검사 항목</h4>
+<ul><li>혈액형 & Rh 인자 확인</li>
+<li>CBC (빈혈 검사)</li>
+<li>Rubella(풍진) 항체, Varicella(수두) 면역력</li>
+<li>HIV, B/C형 간염, 매독, 클라미디아</li>
+<li>소변검사 & Pap Smear (자궁경부암)</li>
+<li>TSH (갑상선 기능)</li></ul></div>
+<div class="detail-section"><h4>🔊 Dating Ultrasound</h4>
+<p>첫 초음파로 태아 심박동 확인, CRL 측정으로 정확한 출산 예정일(EDD) 산출. 미국에서는 이 초음파가 전체 임신 기간 중 첫 번째이자 가장 이른 시기의 초음파입니다.</p></div>`
+  },
+  {
+    id:3, weekStart:8, weekEnd:12, trimester:1,
+    title:"유전 보인자 선별검사",
+    titleEn:"Carrier Screening",
+    icon:"🧬",
+    category:"blood",
+    desc:"낭포성 섬유증(CF), 척수성 근위축증(SMA), 지중해빈혈 등 보인자 여부 확인.",
+    details:`<div class="detail-section"><h4>📌 한국에는 없는 검사!</h4>
+<ul><li>미국은 인종에 관계없이 <strong>모든 임산부</strong>에게 권장</li>
+<li>부모가 특정 유전자의 무증상 보인자인지 확인</li>
+<li>양쪽 부모 모두 보인자일 경우 태아에게 25% 확률로 유전</li>
+<li>검사 대상: CF, SMA, Hemoglobinopathies(지중해빈혈 포함)</li></ul></div>
+<div class="tip-box"><strong>💰 비용 팁:</strong> 보험사 거절 시 검사 기관에 Self-Pay Rate 요청 → $99~$250 선. 절대 보험 청구 금액($3,000+) 그대로 내지 마세요!</div>`
+  },
+  {
+    id:4, weekStart:10, weekEnd:13, trimester:1,
+    title:"1분기 선별검사 / NIPT",
+    titleEn:"First Trimester Screen / NIPT (cfDNA)",
+    icon:"🔬",
+    category:"screening",
+    desc:"NT 초음파 + 혈액 또는 NIPT(비침습적 산전검사)로 다운증후군 등 염색체 이상 선별.",
+    details:`<div class="detail-section"><h4>🔊 NT (목덜미 투명대) 초음파</h4>
+<p>태아 목 뒤 투명한 공간의 두께를 측정. 두꺼울수록 다운증후군 등의 위험↑. 혈액검사(PAPP-A, free β-hCG)와 결합 분석.</p></div>
+<div class="detail-section"><h4>🧬 NIPT / cfDNA 검사</h4>
+<ul><li>모체 혈액 속 태아 DNA 분석 — 99%+ 정확도</li>
+<li>다운증후군(T21), 에드워드(T18), 파타우(T13) + 성별 확인</li>
+<li>미국은 고위험뿐 아니라 <strong>저위험군에게도 1차 스크리닝</strong>으로 널리 제공</li>
+<li>한국은 고위험군 판정 후 2차 보완적 활용</li></ul></div>
+<div class="tip-box green"><strong>🌟 CA 거주자:</strong> 캘리포니아 PNS 프로그램으로 cfDNA $344 보험 전액보장(코페이/디덕터블 없음). 고위험 판정 시 정밀진단까지 무료!</div>`
+  },
+  // ===== 2nd Trimester =====
+  {
+    id:5, weekStart:15, weekEnd:20, trimester:2,
+    title:"2분기 혈액 선별검사",
+    titleEn:"Quad Screen / Sequential Screen Part 2",
+    icon:"🩸",
+    category:"blood",
+    desc:"AFP, hCG, uE3, Inhibin A 측정. 1분기 결과와 통합 분석하여 최종 위험도 평가.",
+    details:`<div class="detail-section"><h4>📌 검사 방식</h4>
+<ul><li><strong>통합선별(Sequential/Integrated):</strong> 1분기 NT+혈액과 결합 분석</li>
+<li><strong>Quad Screen:</strong> 2분기 단독 시행 (1분기 검사 놓친 경우)</li>
+<li>AFP 단독(MSAFP): 신경관 결손증(이분척추 등) 선별</li></ul></div>
+<div class="detail-section"><h4>⚠️ 고위험 판정 시</h4>
+<p>양수검사(Amniocentesis, 15~20주) 또는 NIPT 확인검사 진행. 양수검사는 확진 검사로 99.9% 정확.</p></div>`
+  },
+  {
+    id:6, weekStart:18, weekEnd:22, trimester:2,
+    title:"정밀 구조 초음파",
+    titleEn:"Level II Anatomy Scan",
+    icon:"🔊",
+    category:"ultrasound",
+    desc:"미국 산전관리의 핵심! 태아 전신 장기·골격 구조 정밀 실사.",
+    details:`<div class="detail-section"><h4>🔊 검사 항목 (30~45분 소요)</h4>
+<ul><li>뇌 구조 (소뇌, 뇌실, 맥락총)</li>
+<li>얼굴 (구순구개열 확인)</li>
+<li>심장 4-chamber view + 대혈관</li>
+<li>척추, 복벽, 신장, 방광</li>
+<li>사지 (팔·다리 뼈 길이)</li>
+<li>태반 위치, 양수량, 제대혈관 수</li>
+<li>자궁경부 길이 측정 (조산 위험 평가)</li></ul></div>
+<div class="tip-box"><strong>💡 팁:</strong> 미국에서 가장 비중 있는 초음파 검사. 이 검사에서 이상 발견 시 Fetal Echocardiography(태아 심초음파) 등 추가 검사로 연결됩니다.</div>`
+  },
+  {
+    id:7, weekStart:24, weekEnd:28, trimester:2,
+    title:"임신성 당뇨 선별검사",
+    titleEn:"Glucose Challenge Test (GCT)",
+    icon:"🍬",
+    category:"blood",
+    desc:"50g 포도당 용액 복용 1시간 후 혈당 측정. 기준치 초과 시 3시간 확진검사.",
+    details:`<div class="detail-section"><h4>📌 검사 과정</h4>
+<ul><li><strong>1차 선별(1-hour GCT):</strong> 50g 글루코스 드링크 → 1시간 후 채혈</li>
+<li>기준: 130~140mg/dL 이상 시 양성</li>
+<li><strong>확진(3-hour GTT):</strong> 금식 후 100g 글루코스 → 매 시간 채혈 (3회)</li>
+<li>4개 중 2개 이상 기준 초과 시 임신성 당뇨 확진</li></ul></div>
+<div class="detail-section"><h4>🩸 동시 시행 검사</h4>
+<ul><li>CBC 재검 (중기 빈혈 확인)</li>
+<li>Rh 음성(−) 산모: <strong>RhoGAM 주사</strong> (28주)</li>
+<li>항체 스크린 재검사</li></ul></div>`
+  },
+  {
+    id:8, weekStart:27, weekEnd:36, trimester:2,
+    title:"Tdap 백신 (백일해)",
+    titleEn:"Tdap Vaccine (Pertussis)",
+    icon:"💉",
+    category:"vaccine",
+    desc:"매 임신마다 27~36주 사이 접종. 항체가 태아에게 전달되어 신생아 백일해 예방.",
+    details:`<div class="detail-section"><h4>📌 왜 매번 맞아야 하나?</h4>
+<ul><li>임신 중 접종 → 모체 항체가 태반을 통해 태아에게 전달</li>
+<li>생후 2개월 미만 영아의 백일해 위험 <strong>78% 감소</strong></li>
+<li>가능하면 27~36주 중 <strong>이른 시기</strong>에 접종이 효과적</li>
+<li>이전 임신에서 맞았더라도 매 임신마다 다시 접종</li></ul></div>
+<div class="tip-box"><strong>💡 팁:</strong> 파트너·동거 가족도 Tdap 접종을 권장합니다(Cocooning Strategy). 출산 전에 미리 챙기세요!</div>`
+  },
+  // ===== 3rd Trimester =====
+  {
+    id:9, weekStart:28, weekEnd:32, trimester:3,
+    title:"3분기 시작 & 정기 검진 주기 변경",
+    titleEn:"3rd Trimester Check-ups (Biweekly)",
+    icon:"📅",
+    category:"visit",
+    desc:"28주부터 2주마다 정기 검진. 혈압, 체중, 자궁저고, 태아 심박동 모니터링.",
+    details:`<div class="detail-section"><h4>📌 방문 시 체크사항</h4>
+<ul><li>혈압 측정 — 임신중독증(Preeclampsia) 조기 발견</li>
+<li>소변 단백질 검사</li>
+<li>자궁저고(Fundal Height) 측정 → 태아 성장 추적</li>
+<li>태동 횟수(Kick Counts) 교육: 2시간 내 10회 이상</li>
+<li>부종(Edema) 관찰</li></ul></div>
+<div class="detail-section"><h4>📝 이 시기 준비할 것들</h4>
+<ul><li>28주: 제대혈 보존(Cord Blood Banking) 결정</li>
+<li>30주: 분만 교실(Childbirth Class) 등록</li>
+<li>32주: 소아과 의사(Pediatrician) 선정</li>
+<li>Birth Plan(분만 계획서) 작성 시작</li></ul></div>`
+  },
+  {
+    id:10, weekStart:32, weekEnd:36, trimester:3,
+    title:"RSV 백신 (호흡기세포융합바이러스)",
+    titleEn:"RSV Vaccine (Abrysvo)",
+    icon:"💉",
+    category:"vaccine",
+    desc:"32~36주, 9~1월(RSV 시즌)에 1회 접종. 신생아 RSV 중증 감염 예방.",
+    details:`<div class="detail-section"><h4>📌 2024년 신규 권장 백신</h4>
+<ul><li>Pfizer Abrysvo — FDA 승인, ACOG·CDC 권장</li>
+<li><strong>32주 0일 ~ 36주 6일</strong> 사이 1회 접종</li>
+<li><strong>계절 한정:</strong> 9월~1월(RSV 유행 시즌)에만 접종</li>
+<li>분만 2주 전까지는 맞아야 항체 전달 효과 있음</li>
+<li>이전 임신에서 맞았으면 다음 임신에서는 불필요</li></ul></div>
+<div class="tip-box"><strong>💡 팁:</strong> RSV 백신 또는 출생 후 nirsevimab(영아용 항체) 중 택1. 담당의와 상의하세요.</div>`
+  },
+  {
+    id:11, weekStart:35, weekEnd:37, trimester:3,
+    title:"GBS 선별검사",
+    titleEn:"Group B Streptococcus Swab",
+    icon:"🦠",
+    category:"screening",
+    desc:"질·항문 스왑으로 GBS균 보유 여부 확인. 양성 시 분만 중 예방적 항생제 투여.",
+    details:`<div class="detail-section"><h4>📌 왜 중요한가?</h4>
+<ul><li>GBS는 성인에게 무해하지만 신생아에게 패혈증·수막염 유발 가능</li>
+<li>임산부 약 25%가 GBS 보균자</li>
+<li>양성 시: 진통 시작과 동시에 IV 항생제(보통 Penicillin) 투여</li>
+<li>제왕절개 예정이더라도 검사 시행</li></ul></div>`
+  },
+  {
+    id:12, weekStart:36, weekEnd:37, trimester:3,
+    title:"막달 검사 (Final Labs)",
+    titleEn:"Late Pregnancy Labs",
+    icon:"🩸",
+    category:"blood",
+    desc:"분만 대비 최종 혈액검사. CBC, 간/신장 기능, 혈액응고 검사.",
+    details:`<div class="detail-section"><h4>🩸 검사 항목</h4>
+<ul><li>CBC (빈혈 최종 확인)</li>
+<li>간기능(AST/ALT), 신기능(BUN/Cr)</li>
+<li>혈액응고 검사 (PT/PTT) — 수술 대비</li>
+<li>STI 재검사 (HIV, 매독 — 일부 주 법적 요구)</li>
+<li>Rh 음성 산모: 항체 재확인</li></ul></div>`
+  },
+  {
+    id:13, weekStart:36, weekEnd:40, trimester:3,
+    title:"주간 정기 검진 & 내진",
+    titleEn:"Weekly Visits & Cervical Checks",
+    icon:"🔍",
+    category:"visit",
+    desc:"36주부터 매주 방문. 자궁경부 연화도(Cervical Ripening) 측정, NST 필요 시 시행.",
+    details:`<div class="detail-section"><h4>📌 매주 체크</h4>
+<ul><li>내진(Cervical Exam): 개대(Dilation), 소실(Effacement), 하강도(Station)</li>
+<li>혈압 & 부종 — 임신중독증 감시</li>
+<li>태동 & 태아 심박동</li>
+<li>NST(비수축검사): 고위험군 또는 예정일 초과 시</li></ul></div>
+<div class="detail-section"><h4>📝 분만 준비 체크리스트</h4>
+<ul><li>Birth Plan 최종 확정 & 담당의 공유</li>
+<li>병원 가방(Hospital Bag) 준비</li>
+<li>카시트 설치 (퇴원 시 필수!)</li>
+<li>소아과 의사 첫 방문 예약 (생후 2~3일 내)</li></ul></div>`
+  },
+  {
+    id:14, weekStart:39, weekEnd:41, trimester:3,
+    title:"예정일 전후 관리 & 유도분만 논의",
+    titleEn:"Due Date Management & Induction Discussion",
+    icon:"🏥",
+    category:"visit",
+    desc:"39주 이후 유도분만(Induction) 옵션 논의. 41주 초과 시 NST·양수량 집중 모니터링.",
+    details:`<div class="detail-section"><h4>📌 예정일 초과 시</h4>
+<ul><li>41주까지: 주 2회 NST + 양수량 측정(AFI)</li>
+<li>42주 이전 유도분만 강력 권장 (ARRIVE Trial 근거)</li>
+<li>39주 Elective Induction: 최근 연구에서 안전성 입증</li>
+<li>Bishop Score 기반 자궁경부 성숙도 평가 후 방법 결정</li></ul></div>
+<div class="tip-box"><strong>💡 팁:</strong> 유도분만 여부, 방법(Pitocin, Cervical Ripening, Membrane Sweep 등)은 담당의와 충분히 상의하세요. Birth Plan에 선호 사항을 미리 적어두면 좋습니다.</div>`
+  }
+];
+
+function updateTimeline(){
+  const input = document.getElementById('dueDate');
+  const statusInfo = document.getElementById('statusInfo');
+  if(!input.value){statusInfo.classList.remove('active');renderTimeline(null);return}
+  const dueDate = new Date(input.value + 'T00:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const lmp = new Date(dueDate); lmp.setDate(lmp.getDate() - 280);
+  const diffDays = Math.floor((today - lmp) / 86400000);
+  const currentWeek = Math.max(0, Math.floor(diffDays / 7));
+  const currentDay = Math.max(0, diffDays % 7);
+  const daysLeft = Math.max(0, Math.ceil((dueDate - today) / 86400000));
+  const trimester = currentWeek < 14 ? 1 : currentWeek < 28 ? 2 : 3;
+  const progress = Math.min(100, Math.max(0, (currentWeek / 40) * 100));
+
+  document.getElementById('currentWeek').textContent = currentWeek + 'w' + currentDay + 'd';
+  document.getElementById('daysLeft').textContent = daysLeft;
+  document.getElementById('trimester').textContent = trimester;
+  document.getElementById('progressFill').style.width = progress + '%';
+  statusInfo.classList.add('active');
+
+  const sub = document.getElementById('timelineSub');
+  if(currentWeek >= 40) sub.textContent = '🎉 축하합니다! 출산 예정일이 지났습니다.';
+  else sub.textContent = `현재 ${currentWeek}주 ${currentDay}일 · ${trimester}분기 · D-${daysLeft}`;
+
+  renderTimeline(currentWeek);
+
+  // Save to localStorage
+  try{localStorage.setItem('babyDueDate', input.value)}catch(e){}
+}
+
+function renderTimeline(currentWeek){
+  const container = document.getElementById('timeline');
+  let html = '';
+  let lastTrimester = 0;
+  const trimesterNames = {1:'1st Trimester (1~13주)', 2:'2nd Trimester (14~27주)', 3:'3rd Trimester (28~40주)'};
+  const trimesterEmoji = {1:'🌱', 2:'🌿', 3:'🌸'};
+
+  TESTS.forEach(test => {
+    if(test.trimester !== lastTrimester){
+      lastTrimester = test.trimester;
+      html += `<div class="trimester-header">${trimesterEmoji[test.trimester]} ${trimesterNames[test.trimester]}</div>`;
+    }
+
+    let status = 'upcoming', badge = '예정', statusLabel = 'upcoming';
+    if(currentWeek !== null){
+      if(currentWeek > test.weekEnd) { status = 'done'; badge = '✅ 완료'; statusLabel = 'done'; }
+      else if(currentWeek >= test.weekStart) { status = 'current'; badge = '🟡 지금!'; statusLabel = 'current'; }
+    }
+
+    html += `<div class="test-card ${status}" data-status="${statusLabel}" data-category="${test.category}" id="test-${test.id}">
+      <div class="test-card-header" onclick="toggleDetails(this)">
+        <div class="test-icon">${test.icon}</div>
+        <div class="test-info">
+          <div class="test-week">${test.weekStart}~${test.weekEnd}주</div>
+          <h3>${test.title} <span class="en">${test.titleEn}</span></h3>
+          <div class="test-desc">${test.desc}</div>
+        </div>
+        <span class="test-badge">${badge}</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="test-details"><div class="test-details-inner">${test.details}</div></div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+
+  // Scroll to current
+  if(currentWeek !== null){
+    setTimeout(() => {
+      const currentCard = container.querySelector('.test-card.current');
+      if(currentCard) currentCard.scrollIntoView({behavior:'smooth', block:'center'});
+    }, 300);
+  }
+}
+
+function toggleDetails(header){
+  const details = header.nextElementSibling;
+  const isOpen = details.classList.contains('open');
+  // Close all
+  document.querySelectorAll('.test-details.open').forEach(d => {d.classList.remove('open'); d.previousElementSibling.classList.remove('expanded')});
+  if(!isOpen){details.classList.add('open'); header.classList.add('expanded')}
+}
+
+// Filter buttons
+document.getElementById('filterBtns').addEventListener('click', e => {
+  if(!e.target.classList.contains('quick-btn')) return;
+  document.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  const filter = e.target.dataset.filter;
+  document.querySelectorAll('.test-card').forEach(card => {
+    const status = card.dataset.status;
+    const cat = card.dataset.category;
+    if(filter === 'all') card.classList.remove('filter-hidden');
+    else if(['done','current','upcoming'].includes(filter)) card.classList.toggle('filter-hidden', status !== filter);
+    else card.classList.toggle('filter-hidden', cat !== filter);
+  });
+  // Show/hide trimester headers
+  document.querySelectorAll('.trimester-header').forEach(h => {
+    const next = h.nextElementSibling;
+    if(next && next.classList.contains('test-card')){
+      let hasVisible = false;
+      let el = h.nextElementSibling;
+      while(el && el.classList.contains('test-card')){
+        if(!el.classList.contains('filter-hidden')) hasVisible = true;
+        el = el.nextElementSibling;
+      }
+      h.style.display = hasVisible ? '' : 'none';
+    }
+  });
+});
+
+// Init
+(function(){
+  try{
+    const saved = localStorage.getItem('babyDueDate');
+    if(saved){document.getElementById('dueDate').value = saved; updateTimeline()}
+    else renderTimeline(null);
+  }catch(e){renderTimeline(null)}
+})();
+</script>
+</body>
+</html>
