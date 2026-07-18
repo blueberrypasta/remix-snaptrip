@@ -8,6 +8,16 @@ const GUEST_STORAGE_KEY = 'snaptrip_guest_profile';
 
 const SUPPORTED_LANGUAGES: Language[] = ['en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'it'];
 
+const parseStoredObject = (value: string | null): Record<string, any> | null => {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
 // 시스템 언어 감지
 const getSystemLanguage = (): Language => {
   const browserLang = navigator.language.split('-')[0] as any;
@@ -38,7 +48,7 @@ export const usageService = {
     // 1. 비로그인 게스트 처리
     if (!userId || userId === 'guest') {
       const guestDataRaw = localStorage.getItem(GUEST_STORAGE_KEY);
-      let guestData = guestDataRaw ? JSON.parse(guestDataRaw) : null;
+      let guestData = parseStoredObject(guestDataRaw);
       
       // 데이터가 아예 없으면 초기값 생성 (시스템 언어 반영)
       if (!guestData) {
@@ -64,7 +74,7 @@ export const usageService = {
     // 2. 로그인 사용자 처리
     const localKey = getLocalKey(userId);
     const localDataRaw = localStorage.getItem(localKey);
-    const localData = localDataRaw ? JSON.parse(localDataRaw) : null;
+    const localData = parseStoredObject(localDataRaw);
 
     try {
       const { data, error } = await supabase
@@ -132,17 +142,20 @@ export const usageService = {
 
   async updateUserLanguage(userId: string, language: Language): Promise<void> {
     const guestDataRaw = localStorage.getItem(GUEST_STORAGE_KEY);
-    const guestData = guestDataRaw ? JSON.parse(guestDataRaw) : { credits: 1, last_reset_at: getTodayString() };
+    const guestData = parseStoredObject(guestDataRaw) || { credits: 1, last_reset_at: getTodayString() };
     guestData.language = language;
     localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(guestData));
 
     if (userId && userId !== 'guest') {
       try {
-        await supabase.from('profiles').update({ language, updated_at: new Date().toISOString() }).eq('id', userId);
+        const { error } = await supabase.from('profiles').update({ language, updated_at: new Date().toISOString() }).eq('id', userId);
+        if (error) throw error;
         const localKey = getLocalKey(userId);
-        const currentLocal = JSON.parse(localStorage.getItem(localKey) || '{}');
+        const currentLocal = parseStoredObject(localStorage.getItem(localKey)) || {};
         localStorage.setItem(localKey, JSON.stringify({ ...currentLocal, language }));
-      } catch (e) {}
+      } catch (e) {
+        console.warn('[SnapTrip] Language sync fallback:', e);
+      }
     }
   },
 

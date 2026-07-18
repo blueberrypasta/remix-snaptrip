@@ -61,6 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
   const langRef = useRef<HTMLDivElement>(null);
   const promoRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -69,7 +70,8 @@ export const Header: React.FC<HeaderProps> = ({
         settingsRef.current?.contains(target) ||
         langRef.current?.contains(target) ||
         promoRef.current?.contains(target) ||
-        profileRef.current?.contains(target);
+        profileRef.current?.contains(target) ||
+        mobileMenuRef.current?.contains(target);
 
       if (!clickedInsideMenu) {
         setOpenMenu(null);
@@ -357,15 +359,15 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="material-symbols-outlined text-[22px]">bookmarks</span>
            </button>
 
-           <div className="relative sm:hidden">
-             <button aria-label="Menu" aria-expanded={openMenu === 'mobile'} onClick={() => setOpenMenu(openMenu === 'mobile' ? null : 'mobile')} className="w-11 h-11 flex items-center justify-center rounded-full text-slate-200 hover:bg-white/10">
+           <div className="relative sm:hidden" ref={mobileMenuRef}>
+             <button aria-label={t('menu')} aria-expanded={openMenu === 'mobile'} onClick={() => setOpenMenu(openMenu === 'mobile' ? null : 'mobile')} className="w-11 h-11 flex items-center justify-center rounded-full text-slate-200 hover:bg-white/10">
                <span aria-hidden="true" className="material-symbols-outlined">more_horiz</span>
              </button>
              {openMenu === 'mobile' && (
                <div className="fixed top-[70px] left-4 right-4 z-[120] rounded-3xl border border-white/10 bg-slate-900/95 backdrop-blur-xl p-4 shadow-2xl animate-fade-in-up">
                  <p className="px-1 pb-3 text-[10px] font-black uppercase tracking-widest text-primary">{t('selectLanguage')}</p>
                  <div className="grid grid-cols-4 gap-2">
-                   {LANGUAGES.map((lang) => <button key={lang.code} onClick={() => setLanguage(lang.code)} className={`min-h-11 rounded-xl text-xs font-black ${language === lang.code ? 'bg-primary text-[#1B130A]' : 'bg-white/5 text-slate-200'}`}>{lang.code.toUpperCase()}</button>)}
+                   {LANGUAGES.map((lang) => <button key={lang.code} onClick={() => { setLanguage(lang.code); setOpenMenu(null); }} className={`min-h-11 rounded-xl text-xs font-black ${language === lang.code ? 'bg-primary text-[#1B130A]' : 'bg-white/5 text-slate-200'}`}>{lang.code.toUpperCase()}</button>)}
                  </div>
                  <div className="my-4 h-px bg-white/10" />
                  <div className="grid grid-cols-3 gap-2">

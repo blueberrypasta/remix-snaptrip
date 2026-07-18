@@ -41,6 +41,7 @@ const App: React.FC = () => {
 
   const t = useTranslations(language);
   const isSyncingInProgress = useRef(false);
+  const hasUserSelectedLanguage = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,6 +56,7 @@ const App: React.FC = () => {
   };
 
   const handleSetLanguage = (lang: Language) => {
+    hasUserSelectedLanguage.current = true;
     setLanguage(lang);
     const userId = user?.id || 'guest';
     usageService.updateUserLanguage(userId, lang);
@@ -74,7 +76,7 @@ const App: React.FC = () => {
 
       const profileData = await withTimeout(usageService.getUserCredits(userId), 8000);
       setCredits(profileData.credits);
-      if (profileData.language) {
+      if (profileData.language && !hasUserSelectedLanguage.current) {
         setLanguage(profileData.language);
       }
       const dbHistory = await withTimeout(historyService.getUserHistory(userId), 8000);
@@ -134,7 +136,9 @@ const App: React.FC = () => {
         const guestProfile = await usageService.getUserCredits('guest');
         if (mounted) {
           setCredits(guestProfile.credits);
-          setLanguage(guestProfile.language);
+          if (!hasUserSelectedLanguage.current) {
+            setLanguage(guestProfile.language);
+          }
         }
 
         // 2. 기존 세션 확인 (localStorage에서)

@@ -93,6 +93,11 @@ export const translations: Translations = {
   saveKey: { en: 'Save Key', ko: '키 저장', ja: 'キーを保存', zh: '保存密钥', es: 'Guardar clave', fr: 'Enregistrer la clé', de: 'Key speichern', it: 'Salva chiave' },
   savedLocally: { en: 'Saved Locally', ko: '로컬에 저장됨', ja: 'ローカルに保存済み', zh: '已保存到本地', es: 'Guardado localmente', fr: 'Enregistré localement', de: 'Lokal gespeichert', it: 'Salvato localmente' },
   selectLanguage: { en: 'Select Language', ko: '언어 선택', ja: '言語を選択', zh: '选择语言', es: 'Seleccionar idioma', fr: 'Choisir la langue', de: 'Sprache auswählen', it: 'Seleziona lingua' },
+  menu: { en: 'Menu', ko: '메뉴', ja: 'メニュー', zh: '菜单', es: 'Menú', fr: 'Menu', de: 'Menü', it: 'Menu' },
+  docentReady: { en: 'Your guide is ready', ko: '도슨트 준비 완료', ja: 'ガイドの準備ができました', zh: '导览已准备就绪', es: 'Tu guía está lista', fr: 'Votre guide est prêt', de: 'Ihr Guide ist bereit', it: 'La guida è pronta' },
+  landmark: { en: 'Landmark', ko: '랜드마크', ja: 'ランドマーク', zh: '地标', es: 'Monumento', fr: 'Monument', de: 'Sehenswürdigkeit', it: 'Luogo d’interesse' },
+  cafe: { en: 'Cafe', ko: '카페', ja: 'カフェ', zh: '咖啡馆', es: 'Café', fr: 'Café', de: 'Café', it: 'Caffè' },
+  restaurant: { en: 'Restaurant', ko: '식당', ja: 'レストラン', zh: '餐厅', es: 'Restaurante', fr: 'Restaurant', de: 'Restaurant', it: 'Ristorante' },
   loginBenefitMsg: { 
     en: 'Login to sync your history and get more daily credits!', 
     ko: '로그인하면 내 활동이 저장되고 매일 더 많은 크레딧을 받을 수 있어요!',
