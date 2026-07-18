@@ -2,6 +2,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { AnalysisResultData, Language, LocationData, GroundingSource, LocationSource } from '../types';
 import { supabase } from './supabaseClient';
+import { isValidGeminiApiKey } from '../utils/apiKeyUtils';
 
 // --- API Key & Mode ---
 
@@ -13,7 +14,7 @@ const getApiKey = () => {
     return '';
 };
 
-const hasUserKey = () => getApiKey() !== '';
+const hasUserKey = () => isValidGeminiApiKey(getApiKey());
 
 const getAI = () => new GoogleGenAI({ apiKey: getApiKey() });
 

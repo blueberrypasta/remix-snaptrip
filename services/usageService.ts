@@ -1,6 +1,7 @@
 
 import { supabase } from './supabaseClient';
 import type { Language } from '../types';
+import { isValidGeminiApiKey } from '../utils/apiKeyUtils';
 
 const PROMO_CODE = 'joshjoshjosh';
 const DAILY_FREE_CREDITS = 10;
@@ -32,10 +33,6 @@ const getTodayString = () => {
 };
 
 const getLocalKey = (userId: string) => `snaptrip_profile_${userId}`;
-
-const isValidApiKeyFormat = (key: string | null | undefined): boolean => {
-  return /^AIza[0-9A-Za-z_-]{35}$/.test(key ?? '');
-};
 
 export const usageService = {
   /**
@@ -88,7 +85,8 @@ export const usageService = {
       // 버그로 인해 10 크레딧 이상을 받은 유저들(단, 프로모 코드를 쓰지 않은 경우) 10으로 롤백
       if (data && data.credits > 10 && !data.promo_used) {
          data.credits = 10;
-         await supabase.from('profiles').update({ credits: 10 }).eq('id', userId);
+         const { error: rollbackError } = await supabase.from('profiles').update({ credits: 10 }).eq('id', userId);
+         if (rollbackError) throw rollbackError;
       }
 
       if (!data) {
@@ -100,7 +98,8 @@ export const usageService = {
           language: localData?.language || systemLang,
           updated_at: new Date().toISOString()
         };
-        await supabase.from('profiles').upsert(initial);
+        const { error: insertError } = await supabase.from('profiles').upsert(initial);
+        if (insertError) throw insertError;
         localStorage.setItem(localKey, JSON.stringify(initial));
         return { credits: 10, isPremium: false, promoUsed: false, language: initial.language as Language };
       }
@@ -113,7 +112,8 @@ export const usageService = {
           last_reset_at: today,
           updated_at: new Date().toISOString() 
         };
-        await supabase.from('profiles').update(updateData).eq('id', userId);
+        const { error: refillError } = await supabase.from('profiles').update(updateData).eq('id', userId);
+        if (refillError) throw refillError;
         
         const merged = { ...data, ...updateData };
         localStorage.setItem(localKey, JSON.stringify(merged));
@@ -167,9 +167,10 @@ export const usageService = {
     if (profile.promoUsed) return { success: false, message: 'alreadyUsed' };
     try {
       const newCredits = profile.credits + 100;
-      await supabase.from('profiles').update({ credits: newCredits, promo_used: true, updated_at: new Date().toISOString() }).eq('id', userId);
+      const { error } = await supabase.from('profiles').update({ credits: newCredits, promo_used: true, updated_at: new Date().toISOString() }).eq('id', userId);
+      if (error) throw error;
       const localKey = getLocalKey(userId);
-      const currentLocal = JSON.parse(localStorage.getItem(localKey) || '{}');
+      const currentLocal = parseStoredObject(localStorage.getItem(localKey)) || {};
       localStorage.setItem(localKey, JSON.stringify({ ...currentLocal, credits: newCredits, promo_used: true }));
       return { success: true, message: 'success' };
     } catch (e) { return { success: false, message: 'error' }; }
@@ -177,7 +178,7 @@ export const usageService = {
 
   async canAnalyze(userId: string): Promise<boolean> {
     // 0. 본인 API 키가 있으면 항상 허용
-    if (typeof window !== 'undefined' && isValidApiKeyFormat(localStorage.getItem('SNAPTRIP_API_KEY'))) {
+    if (typeof window !== 'undefined' && isValidGeminiApiKey(localStorage.getItem('SNAPTRIP_API_KEY'))) {
       return true;
     }
     const profile = await this.getUserCredits(userId);
@@ -186,14 +187,14 @@ export const usageService = {
 
   async deductCredit(userId: string): Promise<number> {
     // 0. 본인 API 키가 있으면 크레딧 차감 안함
-    if (typeof window !== 'undefined' && localStorage.getItem('SNAPTRIP_API_KEY')) {
+    if (typeof window !== 'undefined' && isValidGeminiApiKey(localStorage.getItem('SNAPTRIP_API_KEY'))) {
       const profile = await this.getUserCredits(userId);
       return profile.credits;
     }
 
     if (!userId || userId === 'guest') {
       const guestDataRaw = localStorage.getItem(GUEST_STORAGE_KEY);
-      const guestData = guestDataRaw ? JSON.parse(guestDataRaw) : { credits: 1, last_reset_at: getTodayString() };
+      const guestData = parseStoredObject(guestDataRaw) || { credits: 1, last_reset_at: getTodayString() };
       const newCredits = Math.max(0, guestData.credits - 1);
       guestData.credits = newCredits;
       localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(guestData));
@@ -202,9 +203,10 @@ export const usageService = {
     try {
       const profile = await this.getUserCredits(userId);
       const newCredits = Math.max(0, profile.credits - 1);
-      await supabase.from('profiles').update({ credits: newCredits, updated_at: new Date().toISOString() }).eq('id', userId);
+      const { error } = await supabase.from('profiles').update({ credits: newCredits, updated_at: new Date().toISOString() }).eq('id', userId);
+      if (error) throw error;
       const localKey = getLocalKey(userId);
-      const currentLocal = JSON.parse(localStorage.getItem(localKey) || '{}');
+      const currentLocal = parseStoredObject(localStorage.getItem(localKey)) || {};
       localStorage.setItem(localKey, JSON.stringify({ ...currentLocal, credits: newCredits }));
       return newCredits;
     } catch (e) { return 0; }

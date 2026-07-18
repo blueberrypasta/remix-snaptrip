@@ -4,6 +4,7 @@ import type { Language, User } from '../types';
 import { useTranslations, translations } from '../translations';
 import { SnapTripLogo } from './SnapTripLogo';
 import { usageService } from '../services/usageService';
+import { isValidGeminiApiKey } from '../utils/apiKeyUtils';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -54,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
     return '';
   });
 
-  const hasValidApiKey = localApiKey && localApiKey.trim() !== '' && localApiKey.trim() !== 'null' && localApiKey.trim() !== 'undefined';
+  const hasValidApiKey = isValidGeminiApiKey(localApiKey);
   const [showKeySaved, setShowKeySaved] = useState(false);
   
   const settingsRef = useRef<HTMLDivElement>(null);

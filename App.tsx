@@ -42,6 +42,7 @@ const App: React.FC = () => {
   const t = useTranslations(language);
   const isSyncingInProgress = useRef(false);
   const hasUserSelectedLanguage = useRef(false);
+  const nearbyLanguageRef = useRef(language);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -329,6 +330,16 @@ const App: React.FC = () => {
     if (cachedLocation && nearbyGems.length === 0 && !isNearbyLoading && locationStatus === 'ready') loadNearbyGems(cachedLocation, language);
   }, [cachedLocation, language, nearbyGems.length, isNearbyLoading, locationStatus, loadNearbyGems]);
 
+  useEffect(() => {
+    if (nearbyLanguageRef.current === language) return;
+    nearbyLanguageRef.current = language;
+    if (!cachedLocation) return;
+    setNearbyGems([]);
+    setNearbyAreaName('');
+    setNearbyWeather(null);
+    void loadNearbyGems(cachedLocation, language);
+  }, [cachedLocation, language, loadNearbyGems]);
+
   useEffect(() => { getCurrentCoords(); }, [getCurrentCoords]);
 
   const handleHistorySelection = (item: HistoryItem) => {
@@ -355,6 +366,25 @@ const App: React.FC = () => {
     setGuideLocationHint(nearbyAreaName);
     setAppState('guide');
     window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file) void handleStartAnalysis(file);
+  };
+
+  const handleDeleteResult = async (id: string) => {
+    if (!window.confirm(t('confirmDelete'))) return;
+    if (user) {
+      const deleted = await historyService.deleteResult(user.id, id);
+      if (!deleted) {
+        window.alert(t('error'));
+        return;
+      }
+    }
+    setHistory(prev => prev.filter(item => item.id !== id));
+    setAppState('welcome');
   };
 
   return (
@@ -405,8 +435,8 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <input type="file" ref={fileInputRef} accept="image/*" onChange={(e) => e.target.files?.[0] && handleStartAnalysis(e.target.files[0])} className="hidden" />
-      <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" onChange={(e) => e.target.files?.[0] && handleStartAnalysis(e.target.files[0])} className="hidden" />
+      <input type="file" ref={fileInputRef} accept="image/*" onChange={handleFileInputChange} className="hidden" />
+      <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" onChange={handleFileInputChange} className="hidden" />
       
       <main className="flex-1 relative">
         <div className="flex flex-col flex-1">
@@ -429,7 +459,7 @@ const App: React.FC = () => {
               onReset={() => { setAppState('welcome'); setCurrentResultId(null); }} 
               onNewPhoto={() => { setAppState('welcome'); setCurrentResultId(null); setTimeout(() => cameraInputRef.current?.click(), 300); }} 
               language={language} credits={credits} 
-              onDelete={(id: string) => { if (!window.confirm(t('confirmDelete'))) return; if (user) historyService.deleteResult(user.id, id); setHistory(prev => prev.filter(item => item.id !== id)); setAppState('welcome'); }} 
+              onDelete={handleDeleteResult}
             />
           )}
           {appState === 'guide' && guideLandmark && (

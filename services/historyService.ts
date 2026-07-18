@@ -2,6 +2,16 @@
 import { supabase } from './supabaseClient';
 import type { HistoryItem } from '../types';
 
+const parseSources = (value: unknown) => {
+  if (!value) return undefined;
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+};
+
 export const historyService = {
   /**
    * 사용자의 모든 분석 히스토리를 DB에서 가져옵니다.
@@ -27,7 +37,7 @@ export const historyService = {
         fact: item.fact || '',
         story: item.story || '',
         // DB에서 가져온 데이터가 이미 객체(JSONB)일 수도, 문자열일 수도 있으므로 안전하게 처리
-        sources: item.sources ? (typeof item.sources === 'string' ? JSON.parse(item.sources) : item.sources) : undefined,
+        sources: parseSources(item.sources),
         isAutoSaved: true 
       }));
     } catch (error) {
