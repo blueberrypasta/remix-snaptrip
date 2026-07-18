@@ -34,7 +34,7 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ language, onBack }) =>
           <div className="w-20 h-20 bg-primary/10 rounded-[2rem] flex items-center justify-center mb-6 shadow-2xl border border-primary/20">
              <SnapTripLogo className="w-10 h-10 text-primary" />
           </div>
-          <h3 className="text-3xl font-black text-white mb-4 tracking-tight">SnapTrip</h3>
+          <h3 className="text-3xl font-black text-white mb-4 tracking-tight">SlapTrip</h3>
           <div className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-4">
              Built with Vibe Coding
           </div>
@@ -97,7 +97,7 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ language, onBack }) =>
             Powered by Google Gemini 3 Flash & Pro
           </p>
           <p className="text-[10px] font-bold mt-2 text-slate-500">
-            © {new Date().getFullYear()} SnapTrip. Handcrafted with love.
+            © {new Date().getFullYear()} SlapTrip. Handcrafted with love.
           </p>
         </footer>
       </div>

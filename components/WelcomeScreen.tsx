@@ -18,6 +18,7 @@ interface WelcomeScreenProps {
   nearbyAreaName?: string;
   nearbyWeather?: {emoji: string, tempC: number} | null;
   isNearbyLoading?: boolean;
+  locationStatus?: 'idle' | 'loading' | 'ready' | 'denied' | 'unavailable' | 'error' | 'empty';
   onRefreshLocation?: () => void;
   onStartGuide?: (landmarkName: string) => void;
   onShowMoreNearby?: () => void;
@@ -26,7 +27,7 @@ interface WelcomeScreenProps {
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ 
   onUploadClick, onCameraClick, language, user, onLogin, recentHistory, onSelectHistory, credits, onReload, isSyncing = false,
-  nearbyGems = [], nearbyAreaName = '', nearbyWeather = null, isNearbyLoading = false, onRefreshLocation, onStartGuide,
+  nearbyGems = [], nearbyAreaName = '', nearbyWeather = null, isNearbyLoading = false, locationStatus = 'idle', onRefreshLocation, onStartGuide,
   onShowMoreNearby, isMoreNearbyLoading = false
 }) => {
   const t = useTranslations(language);
@@ -107,7 +108,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   return (
     <div className="flex flex-col w-full max-w-xl mx-auto pb-32 animate-fade-in min-h-[500px]">
       <section className="p-4 w-full">
-        <div className="relative w-full overflow-hidden rounded-[2.5rem] shadow-2xl aspect-[4/5] sm:aspect-video flex flex-col items-center justify-center p-6 text-center group min-h-[300px] border border-white/5">
+        <div className="relative w-full overflow-hidden rounded-[2.25rem] sm:rounded-[2.5rem] shadow-2xl h-[390px] sm:h-auto sm:aspect-video flex flex-col items-center justify-center p-5 sm:p-6 text-center group min-h-[300px] border border-white/5">
           <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=1000')" }}></div>
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/90"></div>
           
@@ -123,9 +124,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D9B26A]">{t('docentReady') || 'Docent Ready'}</span>
           </div>
 
-          <div className="relative z-10 flex flex-col items-center gap-4 mt-auto w-full mb-4">
-            <h2 className="text-3xl sm:text-5xl font-serif italic text-[#F4EFE6] leading-tight break-keep drop-shadow-2xl">{t('welcomeMessage')}</h2>
-            <p className="text-[#F4EFE6]/60 text-[11px] sm:text-xs font-medium max-w-[320px] mx-auto leading-relaxed mb-4 break-keep font-sans tracking-wide uppercase tracking-[0.1em]">{t('welcomeSub')}</p>
+          <div className="relative z-10 flex flex-col items-center gap-3 mt-auto w-full mb-2 sm:mb-4">
+            <h2 className="text-[28px] sm:text-5xl font-serif italic text-[#F4EFE6] leading-tight break-keep drop-shadow-2xl">{t('welcomeMessage')}</h2>
+            <p className="text-[#D5DCE3] text-[11px] sm:text-xs font-semibold max-w-[340px] mx-auto leading-relaxed mb-2 sm:mb-4 break-keep font-sans tracking-wide">{t('welcomeSub')}</p>
             
             <div className="flex w-full gap-3 px-2">
               <button 
@@ -138,7 +139,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-[20px]">photo_camera</span>
-                    {t('takePhoto')}
+                    {t('identifyCamera')}
                   </>
                 )}
               </button>
@@ -152,7 +153,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-[20px]">upload_file</span>
-                    {t('uploadPhoto')}
+                    {t('choosePhoto')}
                   </>
                 )}
               </button>
@@ -190,7 +191,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         {t('nearbyGems')}
                     </h3>
                     <div className="flex items-center gap-1.5">
-                        <button onClick={(e) => { e.stopPropagation(); onRefreshLocation?.(); }} className={`w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/10 active:scale-90 ${isNearbyLoading ? 'text-emerald-400' : 'text-slate-400'}`}><span className={`material-symbols-outlined text-[20px] ${isNearbyLoading ? 'animate-spin' : ''}`}>refresh</span></button>
+                        <button aria-label={t('retryLocation')} onClick={(e) => { e.stopPropagation(); onRefreshLocation?.(); }} className={`w-11 h-11 rounded-full flex items-center justify-center hover:bg-white/10 active:scale-90 ${isNearbyLoading ? 'text-emerald-400' : 'text-slate-300'}`}><span aria-hidden="true" className={`material-symbols-outlined text-[20px] ${isNearbyLoading ? 'animate-spin' : ''}`}>refresh</span></button>
                         <span className={`material-symbols-outlined text-slate-400 transition-transform ${isNearbyExpanded ? 'rotate-180 text-emerald-400' : ''}`}>expand_more</span>
                     </div>
                 </div>
@@ -204,12 +205,12 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                 </button>
                             )}
                         </>
-                    ) : (isNearbyLoading ? (
+                    ) : (isNearbyLoading || locationStatus === 'loading' || locationStatus === 'idle' ? (
                         <div className="flex items-center gap-2 animate-pulse">
                            <div className="w-3 h-3 bg-emerald-500/20 rounded-full animate-bounce"></div>
-                           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">{t('findingGems')}</span>
+                           <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">{t('findingGems')}</span>
                         </div>
-                    ) : <span className="text-[11px] font-bold text-slate-500 ml-1">{t('fetchingLocation')}</span>)}
+                    ) : <span className="text-[11px] font-bold text-slate-300 ml-1">{locationStatus === 'denied' ? t('locationDenied') : locationStatus === 'empty' ? t('noGemsFound') : t('locationUnavailable')}</span>)}
                 </div>
             </div>
 
@@ -302,10 +303,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         </div>
                     ) : (
                         <div className="py-12 flex flex-col items-center justify-center text-center px-6 gap-4">
-                            <span className="material-symbols-outlined text-amber-500 text-4xl opacity-50">explore_off</span>
+                            <span className="material-symbols-outlined text-emerald-400 text-4xl opacity-70">{locationStatus === 'denied' ? 'location_off' : locationStatus === 'empty' ? 'explore_off' : 'wifi_off'}</span>
                             <div className="flex flex-col gap-1">
-                                <p className="text-sm font-black text-white">{t('noGemsFound')}</p>
-                                <p className="text-[11px] text-slate-500 font-bold leading-relaxed">{t('locationPermissionGuide')}</p>
+                                <p className="text-sm font-black text-white">{locationStatus === 'denied' ? t('locationDenied') : locationStatus === 'empty' ? t('noGemsFound') : t('locationUnavailable')}</p>
+                                <p className="text-[11px] text-slate-300 font-bold leading-relaxed">{locationStatus === 'empty' ? t('emptyNearbyGuide') : t('locationPermissionGuide')}</p>
+                            </div>
+                            <div className="flex flex-wrap justify-center gap-2">
+                              <button onClick={onRefreshLocation} className="min-h-11 px-5 rounded-full border border-emerald-400/30 text-emerald-300 text-xs font-black hover:bg-emerald-400/10">{t('retryLocation')}</button>
+                              <button onClick={onCameraClick} className="min-h-11 px-5 rounded-full bg-[#D9B26A] text-[#1B130A] text-xs font-black">{t('identifyCamera')}</button>
                             </div>
                         </div>
                     )}
@@ -341,7 +346,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </article>
           ))
         ) : (
-          <div className="py-20 text-center flex flex-col items-center opacity-30 gap-4"><span className="material-symbols-outlined text-6xl">travel_explore</span><p className="font-black text-xs uppercase tracking-widest">{isSyncing ? t('loadingHistory') : t('noHistory')}</p></div>
+          <div className="py-14 text-center flex flex-col items-center gap-4 text-slate-300"><span className="material-symbols-outlined text-5xl text-[#D9B26A]/70">travel_explore</span><div><p className="font-black text-sm text-white">{isSyncing ? t('loadingHistory') : t('noHistory')}</p>{!isSyncing && <p className="mt-1 text-xs text-slate-300">{t('historyEmptyGuide')}</p>}</div>{!isSyncing && <button onClick={onCameraClick} className="min-h-11 px-6 rounded-full bg-[#D9B26A] text-[#1B130A] text-xs font-black shadow-lg">{t('scanFirstLandmark')}</button>}</div>
         )}
       </section>
     </div>

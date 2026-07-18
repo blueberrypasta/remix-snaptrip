@@ -42,10 +42,16 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
   return (
     <>
       <div 
+        aria-hidden={!isOpen}
         className={`fixed inset-0 bg-background-dark/80 backdrop-blur-md z-[60] transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
         onClick={onClose}
       ></div>
       <aside 
+        aria-hidden={!isOpen}
+        inert={!isOpen ? true : undefined}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('history')}
         className={`fixed top-0 bottom-0 right-0 w-full max-w-sm bg-[#0B0F14] shadow-[0_0_80px_rgba(0,0,0,0.5)] z-[70] transform transition-transform duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)] border-l border-white/5 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="p-8 border-b border-white/5 flex justify-between items-center bg-black/20 backdrop-blur-md">
@@ -60,12 +66,13 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                 <button 
                   onClick={onRefresh} 
                   disabled={isSyncing}
-                  className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center text-[#F4EFE6]/40"
+                  aria-label={t('syncing')}
+                  className="w-11 h-11 rounded-full hover:bg-white/5 flex items-center justify-center text-[#F4EFE6]/70"
                 >
                   <span className={`material-symbols-outlined text-[20px] ${isSyncing ? 'animate-spin text-[#D9B26A]' : ''}`}>sync</span>
                 </button>
             )}
-            <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center text-[#F4EFE6]/40">
+            <button aria-label={t('cancel')} onClick={onClose} className="w-11 h-11 rounded-full hover:bg-white/5 flex items-center justify-center text-[#F4EFE6]/70">
               <span className="material-symbols-outlined text-[24px]">close</span>
             </button>
           </div>

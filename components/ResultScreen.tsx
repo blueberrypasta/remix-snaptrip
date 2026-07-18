@@ -53,19 +53,19 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
     try {
         const blob = await generateBlob();
         if (!blob) throw new Error();
-        const file = new File([blob], `SnapTrip_${result.title}.png`, { type: 'image/png' });
+        const file = new File([blob], `SlapTrip_${result.title}.png`, { type: 'image/png' });
         
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({ 
               files: [file], 
-              title: 'SnapTrip Discovery', 
-              text: `[SnapTrip] ${result.title}` 
+              title: 'SlapTrip Discovery',
+              text: `[SlapTrip] ${result.title}`
             });
         } else {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `SnapTrip_${result.title}.png`;
+            link.download = `SlapTrip_${result.title}.png`;
             link.click();
             URL.revokeObjectURL(url);
             setNotification(t('savedSuccess'));

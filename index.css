@@ -1,5 +1,14 @@
-html, body, #root { margin: 0; padding: 0; background: #070A0E; }
+html, body, #root { margin: 0; padding: 0; background: #0D151D; }
 body { font-family: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif; }
+
+button:focus-visible, a:focus-visible, input:focus-visible {
+  outline: 2px solid #D9B26A;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+}
 
 /* ---------- Aurora ---------- */
 .st-aurora-a, .st-aurora-b {

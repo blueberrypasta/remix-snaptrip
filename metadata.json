@@ -1,5 +1,5 @@
 {
-  "name": "Remix: SnapTrip",
+  "name": "SlapTrip",
   "description": "An AI-powered application that generates interesting stories and hidden facts about your travel photos. Simply upload or take a photo to get started.",
   "requestFramePermissions": [
     "camera",

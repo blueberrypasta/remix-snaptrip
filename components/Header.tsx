@@ -42,7 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
   onShowAbout
 }) => {
   const t = useTranslations(language);
-  const [openMenu, setOpenMenu] = useState<null | 'language' | 'promo' | 'settings' | 'profile'>(null);
+  const [openMenu, setOpenMenu] = useState<null | 'language' | 'promo' | 'settings' | 'profile' | 'mobile'>(null);
   const [promoCode, setPromoCode] = useState('');
   const [promoMessage, setPromoMessage] = useState({ text: '', type: '' });
   const [isApplying, setIsApplying] = useState(false);
@@ -117,7 +117,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const handleContactDev = () => {
-    window.location.href = 'mailto:blueberrypastaco@gmail.com?subject=[SnapTrip Support] Inquiry';
+    window.location.href = 'mailto:blueberrypastaco@gmail.com?subject=[SlapTrip Support] Inquiry';
   };
 
   const handleSupportDev = () => {
@@ -130,16 +130,16 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Logo Section */}
         <div className="flex items-center gap-2.5 cursor-pointer active:opacity-70 transition-opacity shrink-0" onClick={() => window.location.reload()}>
           <SnapTripLogo className="size-7 text-primary" />
-          <h1 className="text-lg font-black tracking-tighter text-white hidden xs:block st-shimmer">{t('appName')}</h1>
+          <h1 className="text-base sm:text-lg font-black tracking-tighter text-white st-shimmer">{t('appName')}</h1>
         </div>
 
         {/* Action Section */}
         <div className="flex items-center gap-1 sm:gap-2 flex-1 justify-end ml-4">
            {/* Language Selector (Dropdown) */}
-           <div className="relative" ref={langRef}>
+           <div className="relative hidden sm:block" ref={langRef}>
               <button 
                 onClick={() => setOpenMenu(openMenu === 'language' ? null : 'language')}
-                className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${openMenu === 'language' ? 'bg-primary text-white shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
+                className={`w-11 h-11 flex items-center justify-center rounded-full transition-all ${openMenu === 'language' ? 'bg-primary text-[#1B130A] shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
                 aria-label={t('selectLanguage')}
               >
                 <span className="material-symbols-outlined text-[24px]">language</span>
@@ -179,7 +179,8 @@ export const Header: React.FC<HeaderProps> = ({
            <div className="relative" ref={promoRef}>
               <button 
                 onClick={() => setOpenMenu(openMenu === 'promo' ? null : 'promo')}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 rounded-full border border-primary/20 mr-1 hover:bg-primary/20 transition-all active:scale-95 shadow-[0_0_15px_rgba(19,127,236,0.1)]"
+                aria-label={`${t('credits')}: ${hasValidApiKey ? 'API' : (credits || 0)}`}
+                className="min-h-11 flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 rounded-full border border-primary/20 mr-1 hover:bg-primary/20 transition-all active:scale-95"
               >
                   <span className="material-symbols-outlined text-[16px] text-primary">{hasValidApiKey ? 'key' : 'diamond'}</span>
                   <span className="text-[13px] font-black text-white">{hasValidApiKey ? 'API' : (credits || 0)}</span>
@@ -226,10 +227,11 @@ export const Header: React.FC<HeaderProps> = ({
               )}
            </div>
 
-           <div className="relative" ref={settingsRef}>
+           <div className="relative hidden sm:block" ref={settingsRef}>
               <button 
                 onClick={() => setOpenMenu(openMenu === 'settings' ? null : 'settings')} 
-                className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${openMenu === 'settings' ? 'bg-primary text-white shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
+                aria-label="Settings"
+                className={`w-11 h-11 flex items-center justify-center rounded-full transition-all ${openMenu === 'settings' ? 'bg-primary text-[#1B130A] shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
               >
                 <span className="material-symbols-outlined text-[24px]">settings</span>
               </button>
@@ -323,13 +325,13 @@ export const Header: React.FC<HeaderProps> = ({
               )}
            </div>
 
-           <div className="relative w-8 h-8 flex items-center justify-center shrink-0" ref={profileRef}>
+           <div className="relative w-11 h-11 hidden sm:flex items-center justify-center shrink-0" ref={profileRef}>
              {user ? (
-               <button onClick={() => setOpenMenu(openMenu === 'profile' ? null : 'profile')} className="w-7 h-7 rounded-full overflow-hidden border border-primary/30 transition-transform active:scale-95 text-left">
+               <button aria-label={user.name} onClick={() => setOpenMenu(openMenu === 'profile' ? null : 'profile')} className="w-11 h-11 p-1.5 rounded-full overflow-hidden border border-primary/30 transition-transform active:scale-95 text-left">
                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
                </button>
              ) : (
-               <button onClick={onLogin} className="text-slate-300 hover:text-white transition-all active:scale-95">
+               <button aria-label={t('login')} onClick={onLogin} className="w-11 h-11 flex items-center justify-center text-slate-300 hover:text-white transition-all active:scale-95">
                  <span className="material-symbols-outlined text-[24px]">account_circle</span>
                </button>
              )}
@@ -351,9 +353,33 @@ export const Header: React.FC<HeaderProps> = ({
              )}
            </div>
            
-           <button onClick={onToggleSidebar} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/5 text-slate-300 shrink-0">
+           <button aria-label={t('history')} onClick={onToggleSidebar} className="w-11 h-11 hidden sm:flex items-center justify-center rounded-full hover:bg-white/5 text-slate-300 shrink-0">
               <span className="material-symbols-outlined text-[22px]">bookmarks</span>
            </button>
+
+           <div className="relative sm:hidden">
+             <button aria-label="Menu" aria-expanded={openMenu === 'mobile'} onClick={() => setOpenMenu(openMenu === 'mobile' ? null : 'mobile')} className="w-11 h-11 flex items-center justify-center rounded-full text-slate-200 hover:bg-white/10">
+               <span aria-hidden="true" className="material-symbols-outlined">more_horiz</span>
+             </button>
+             {openMenu === 'mobile' && (
+               <div className="fixed top-[70px] left-4 right-4 z-[120] rounded-3xl border border-white/10 bg-slate-900/95 backdrop-blur-xl p-4 shadow-2xl animate-fade-in-up">
+                 <p className="px-1 pb-3 text-[10px] font-black uppercase tracking-widest text-primary">{t('selectLanguage')}</p>
+                 <div className="grid grid-cols-4 gap-2">
+                   {LANGUAGES.map((lang) => <button key={lang.code} onClick={() => setLanguage(lang.code)} className={`min-h-11 rounded-xl text-xs font-black ${language === lang.code ? 'bg-primary text-[#1B130A]' : 'bg-white/5 text-slate-200'}`}>{lang.code.toUpperCase()}</button>)}
+                 </div>
+                 <div className="my-4 h-px bg-white/10" />
+                 <div className="grid grid-cols-3 gap-2">
+                   <button onClick={() => { setOpenMenu(null); onToggleSidebar(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><span className="material-symbols-outlined block text-[20px]">bookmarks</span>{t('history')}</button>
+                   <button onClick={() => { setOpenMenu(null); onShowAbout(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><span className="material-symbols-outlined block text-[20px]">info</span>{t('aboutSnapTrip')}</button>
+                   <button onClick={() => { setOpenMenu(null); if (user) onLogout(); else onLogin(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><span className="material-symbols-outlined block text-[20px]">account_circle</span>{user ? t('logout') : t('login')}</button>
+                 </div>
+                 <div className="mt-3 flex gap-2">
+                   <input aria-label="Gemini API Key" type="password" value={localApiKey} onChange={(e) => setLocalApiKey(e.target.value)} placeholder="Gemini API Key" className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white outline-none focus:border-primary" />
+                   <button onClick={() => { const cleanKey = localApiKey.trim(); localStorage.setItem('SNAPTRIP_API_KEY', cleanKey); setLocalApiKey(cleanKey); setShowKeySaved(true); }} className="min-h-11 rounded-xl bg-primary px-4 text-xs font-black text-[#1B130A]">{showKeySaved ? t('savedLocally') : t('saveKey')}</button>
+                 </div>
+               </div>
+             )}
+           </div>
         </div>
       </div>
     </header>

@@ -8,7 +8,7 @@ interface Translations {
 }
 
 export const translations: Translations = {
-  appName: { en: 'SnapTrip', ko: '스냅트립', ja: 'スナップトリップ', zh: '快旅', es: 'SnapTrip', fr: 'SnapTrip', de: 'SnapTrip', it: 'SnapTrip' },
+  appName: { en: 'SlapTrip', ko: '슬랩트립', ja: 'スラップトリップ', zh: 'SlapTrip', es: 'SlapTrip', fr: 'SlapTrip', de: 'SlapTrip', it: 'SlapTrip' },
   languageName: { 
     en: 'English', ko: '한국어', ja: '日本語', zh: '中文', es: 'Español', fr: 'Français', de: 'Deutsch', it: 'Italiano' 
   },
@@ -23,8 +23,8 @@ export const translations: Translations = {
     it: 'Più sai, più vedi.'
   },
   welcomeSub: { 
-    en: 'Discover hidden stories and local secrets behind landmarks.', 
-    ko: '랜드마크 뒤에 숨겨진 이야기와 현지인만 아는 비밀을 들려드려요.',
+    en: 'Point your camera at a landmark, sign, or artwork to uncover its story.',
+    ko: '랜드마크·간판·작품을 카메라로 비추면 숨은 이야기를 알려드려요.',
     ja: 'ランドマークの裏に隠れた物語や、地元の人だけが知る秘密を見つけましょう。',
     zh: '发现地标背后隐藏的故事和当地秘密。',
     es: 'Descubre historias ocultas y secretos locales detrás de los monumentos.',
@@ -34,6 +34,14 @@ export const translations: Translations = {
   },
   uploadPhoto: { en: 'Gallery', ko: '갤러리', ja: 'ギャラリー', zh: '相册', es: 'Galería', fr: 'Galerie', de: 'Galerie', it: 'Galleria' },
   takePhoto: { en: 'Camera', ko: '사진 찍기', ja: 'カメラ', zh: '相机', es: 'Cámara', fr: 'Appareil photo', de: 'Kamera', it: 'Fotocamera' },
+  identifyCamera: { en: 'Scan Landmark', ko: '카메라로 스캔', ja: 'カメラで調べる', zh: '相机识别', es: 'Escanear lugar', fr: 'Scanner le lieu', de: 'Ort scannen', it: 'Scansiona luogo' },
+  choosePhoto: { en: 'Choose a Photo', ko: '사진 선택하기', ja: '写真を選ぶ', zh: '选择照片', es: 'Elegir una foto', fr: 'Choisir une photo', de: 'Foto auswählen', it: 'Scegli una foto' },
+  retryLocation: { en: 'Retry location', ko: '위치 다시 시도', ja: '位置情報を再試行', zh: '重试定位', es: 'Reintentar ubicación', fr: 'Réessayer la localisation', de: 'Standort erneut versuchen', it: 'Riprova posizione' },
+  locationDenied: { en: 'Location access is off', ko: '위치 접근이 꺼져 있어요', ja: '位置情報へのアクセスがオフです', zh: '定位权限已关闭', es: 'El acceso a la ubicación está desactivado', fr: 'L’accès à la localisation est désactivé', de: 'Standortzugriff ist deaktiviert', it: 'L’accesso alla posizione è disattivato' },
+  locationUnavailable: { en: 'Location is unavailable', ko: '현재 위치를 확인할 수 없어요', ja: '現在地を取得できません', zh: '无法获取位置', es: 'La ubicación no está disponible', fr: 'La localisation est indisponible', de: 'Standort ist nicht verfügbar', it: 'La posizione non è disponibile' },
+  emptyNearbyGuide: { en: 'Try again or identify a landmark with your camera.', ko: '다시 시도하거나 카메라로 랜드마크를 알아보세요.', ja: '再試行するか、カメラでランドマークを調べてください。', zh: '请重试或使用相机识别地标。', es: 'Reintenta o identifica un lugar con la cámara.', fr: 'Réessayez ou identifiez un lieu avec la caméra.', de: 'Erneut versuchen oder einen Ort mit der Kamera erkennen.', it: 'Riprova o identifica un luogo con la fotocamera.' },
+  historyEmptyGuide: { en: 'Your discoveries will appear here.', ko: '발견한 장소가 여기에 저장돼요.', ja: '見つけた場所がここに表示されます。', zh: '你的发现会显示在这里。', es: 'Tus descubrimientos aparecerán aquí.', fr: 'Vos découvertes apparaîtront ici.', de: 'Deine Entdeckungen erscheinen hier.', it: 'Le tue scoperte appariranno qui.' },
+  scanFirstLandmark: { en: 'Scan your first landmark', ko: '첫 랜드마크 알아보기', ja: '最初のランドマークを調べる', zh: '识别第一个地标', es: 'Escanea tu primer lugar', fr: 'Scanner votre premier lieu', de: 'Ersten Ort scannen', it: 'Scansiona il primo luogo' },
   analyzing: { en: 'Analyzing...', ko: '분석 중...', ja: '分析中...', zh: '分析中...', es: 'Analizando...', fr: 'Analyse...', de: 'Analysieren...', it: 'Analisi...' },
   processing: { en: 'Processing', ko: '처리 중', ja: '처리중', zh: '处理中', es: 'Procesando', fr: 'Traitement', de: 'Verarbeitung', it: 'In elaborazione' },
   failed: { en: 'Analysis Failed', ko: '분석 실패', ja: '分析失敗', zh: '分析失败', es: 'Error de análisis', fr: 'Échec de l\'analyse', de: 'Analyse fehlgeschlagen', it: 'Analisi fallita' },
@@ -68,15 +76,15 @@ export const translations: Translations = {
   quotaExceeded: { en: 'Quota Exceeded', ko: '할당량 초과', ja: 'クォータ超過', zh: '配额已超', es: 'Cuota excedida', fr: 'Quota dépassé', de: 'Kontingent überschritten', it: 'Quota superata' },
   useOwnKey: { en: 'Use Own Key', ko: '내 API 키 사용', ja: '自分のキーを使用', zh: '使用自己的密钥', es: 'Usar mi propia clave', fr: 'Utiliser ma propre clé', de: 'Eigener Key', it: 'Usa la tua chiave' },
   guide: { en: 'Guide', ko: '가이드', ja: 'ガイド', zh: '指南', es: 'Guía', fr: 'Guide', de: 'Guide', it: 'Guida' },
-  aboutSnapTrip: { en: 'About SnapTrip', ko: '스냅트립 소개', ja: 'SnapTripについて', zh: '关于 SnapTrip', es: 'Sobre SnapTrip', fr: 'À propos', de: 'Über SnapTrip', it: 'Info su SnapTrip' },
+  aboutSnapTrip: { en: 'About SlapTrip', ko: '슬랩트립 소개', ja: 'SlapTripについて', zh: '关于 SlapTrip', es: 'Sobre SlapTrip', fr: 'À propos de SlapTrip', de: 'Über SlapTrip', it: 'Info su SlapTrip' },
   aboutOriginTitle: { en: 'Origin / The Story', ko: '시작과 이야기', ja: 'はじまり / 物語', zh: '起源 / 故事', es: 'Origen / La historia', fr: 'Origine / L\'histoire', de: 'Ursprung / Die Geschichte', it: 'Origine / La storia' },
-  aboutOriginDesc: { en: 'SnapTrip began with a simple idea: every place has a story worth noticing.', ko: '스냅트립은 모든 장소에는 발견할 만한 이야기가 있다는 단순한 생각에서 시작되었습니다.', ja: 'SnapTripは、どんな場所にも気づく価値のある物語があるというシンプルな発想から生まれました。', zh: 'SnapTrip 源于一个简单的想法：每个地方都有值得留意的故事。', es: 'SnapTrip nació de una idea sencilla: cada lugar tiene una historia que vale la pena descubrir.', fr: 'SnapTrip est né d\'une idée simple : chaque lieu a une histoire qui mérite d\'être remarquée.', de: 'SnapTrip entstand aus einer einfachen Idee: Jeder Ort hat eine Geschichte, die es wert ist, entdeckt zu werden.', it: 'SnapTrip nasce da un\'idea semplice: ogni luogo ha una storia che merita di essere notata.' },
+  aboutOriginDesc: { en: 'SlapTrip began with a simple idea: every place has a story worth noticing.', ko: '슬랩트립은 모든 장소에는 발견할 만한 이야기가 있다는 단순한 생각에서 시작되었습니다.', ja: 'SlapTripは、どんな場所にも気づく価値のある物語があるというシンプルな発想から生まれました。', zh: 'SlapTrip 源于一个简单的想法：每个地方都有值得留意的故事。', es: 'SlapTrip nació de una idea sencilla: cada lugar tiene una historia que vale la pena descubrir.', fr: 'SlapTrip est né d\'une idée simple : chaque lieu a une histoire qui mérite d\'être remarquée.', de: 'SlapTrip entstand aus einer einfachen Idee: Jeder Ort hat eine Geschichte, die es wert ist, entdeckt zu werden.', it: 'SlapTrip nasce da un\'idea semplice: ogni luogo ha una storia che merita di essere notata.' },
   aboutTipTitle: { en: 'Tips', ko: '사용 팁', ja: '使い方のコツ', zh: '使用小贴士', es: 'Consejos', fr: 'Conseils', de: 'Tipps', it: 'Suggerimenti' },
   aboutTipDesc: { en: 'Take clear photos of landmarks, signs, or details to uncover richer local context.', ko: '랜드마크, 표지판, 디테일을 선명하게 찍으면 더 풍부한 현지 정보를 발견할 수 있어요.', ja: 'ランドマークや看板、細部をはっきり撮ると、より豊かな現地の背景が見つかります。', zh: '清晰拍摄地标、标识或细节，可以发现更丰富的当地背景。', es: 'Toma fotos claras de monumentos, letreros o detalles para descubrir más contexto local.', fr: 'Prenez des photos nettes des monuments, panneaux ou détails pour révéler un contexte local plus riche.', de: 'Fotografieren Sie Sehenswürdigkeiten, Schilder oder Details klar, um mehr lokalen Kontext zu entdecken.', it: 'Scatta foto nitide di monumenti, insegne o dettagli per scoprire un contesto locale più ricco.' },
   aboutCreditsTitle: { en: 'Credits / Acknowledgements', ko: '크레딧 / 감사의 말', ja: 'クレジット / 謝辞', zh: '鸣谢 / 致谢', es: 'Créditos / Agradecimientos', fr: 'Crédits / Remerciements', de: 'Credits / Danksagungen', it: 'Crediti / Ringraziamenti' },
   aboutCreditsDesc: { en: 'Built with appreciation for travelers, local guides, historians, and creators who keep stories alive.', ko: '여행자, 현지 가이드, 역사가, 그리고 이야기를 이어가는 창작자들에게 감사의 마음을 담아 만들었습니다.', ja: '旅人、現地ガイド、歴史家、そして物語を受け継ぐクリエイターへの感謝を込めて作りました。', zh: '谨向旅行者、当地向导、历史研究者以及延续故事的创作者致谢。', es: 'Creado con gratitud hacia viajeros, guías locales, historiadores y creadores que mantienen vivas las historias.', fr: 'Conçu avec gratitude pour les voyageurs, guides locaux, historiens et créateurs qui font vivre les histoires.', de: 'Mit Dank an Reisende, lokale Guides, Historiker und Kreative, die Geschichten lebendig halten.', it: 'Creato con gratitudine per viaggiatori, guide locali, storici e creator che mantengono vive le storie.' },
   aboutSupportTitle: { en: 'Support / Help', ko: '지원 / 도움말', ja: 'サポート / ヘルプ', zh: '支持 / 帮助', es: 'Soporte / Ayuda', fr: 'Assistance / Aide', de: 'Support / Hilfe', it: 'Supporto / Aiuto' },
-  aboutSupportDesc: { en: 'Questions, feedback, or issues? Contact the developer to help improve SnapTrip.', ko: '질문, 의견, 문제가 있다면 개발자에게 연락해 스냅트립 개선에 도움을 주세요.', ja: '質問やフィードバック、不具合があれば、開発者に連絡してSnapTripの改善にご協力ください。', zh: '有问题、反馈或故障？请联系开发者，帮助改进 SnapTrip。', es: '¿Tienes preguntas, comentarios o problemas? Contacta al desarrollador para ayudar a mejorar SnapTrip.', fr: 'Questions, retours ou problèmes ? Contactez le développeur pour aider à améliorer SnapTrip.', de: 'Fragen, Feedback oder Probleme? Kontaktieren Sie den Entwickler, um SnapTrip zu verbessern.', it: 'Domande, feedback o problemi? Contatta lo sviluppatore per aiutare a migliorare SnapTrip.' },
+  aboutSupportDesc: { en: 'Questions, feedback, or issues? Contact the developer to help improve SlapTrip.', ko: '질문, 의견, 문제가 있다면 개발자에게 연락해 슬랩트립 개선에 도움을 주세요.', ja: '質問やフィードバック、不具合があれば、開発者に連絡してSlapTripの改善にご協力ください。', zh: '有问题、反馈或故障？请联系开发者，帮助改进 SlapTrip。', es: '¿Tienes preguntas, comentarios o problemas? Contacta al desarrollador para ayudar a mejorar SlapTrip.', fr: 'Questions, retours ou problèmes ? Contactez le développeur pour aider à améliorer SlapTrip.', de: 'Fragen, Feedback oder Probleme? Kontaktieren Sie den Entwickler, um SlapTrip zu verbessern.', it: 'Domande, feedback o problemi? Contatta lo sviluppatore per aiutare a migliorare SlapTrip.' },
   supportDev: { en: 'Support Developer', ko: '개발자 후원하기', ja: '開発者を支援', zh: '支持开发者', es: 'Apoyar desarrollador', fr: 'Soutenir le dév', de: 'Entwickler unterstützen', it: 'Sostieni lo sviluppatore' },
   findMore: { en: 'Find More', ko: '더 찾기', ja: 'もっと見る', zh: '寻找更多', es: 'Buscar más', fr: 'En savoir plus', de: 'Mehr finden', it: 'Trova altro' },
   readMore: { en: 'Read More', ko: '더보기', ja: '続きを読む', zh: '阅读更多', es: 'Leer más', fr: 'Lire la suite', de: 'Weiterlesen', it: 'Leggi tutto' },

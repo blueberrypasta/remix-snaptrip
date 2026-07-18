@@ -36,6 +36,7 @@ const App: React.FC = () => {
   const [nearbyAreaName, setNearbyAreaName] = useState<string>('');
   const [nearbyWeather, setNearbyWeather] = useState<{emoji: string, tempC: number} | null>(null);
   const [isNearbyLoading, setIsNearbyLoading] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'ready' | 'denied' | 'unavailable' | 'error' | 'empty'>('idle');
   const [isMoreNearbyLoading, setIsMoreNearbyLoading] = useState(false);
 
   const t = useTranslations(language);
@@ -177,14 +178,22 @@ const App: React.FC = () => {
   const getCurrentCoords = useCallback((force: boolean = false): Promise<LocationData | null> => {
     return new Promise((resolve) => {
       if (!force && cachedLocation) return resolve(cachedLocation);
-      if (!navigator.geolocation) return resolve(null);
+      setLocationStatus('loading');
+      if (!navigator.geolocation) {
+        setLocationStatus('unavailable');
+        return resolve(null);
+      }
       navigator.geolocation.getCurrentPosition(
         (pos) => { 
           const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude }; 
           setCachedLocation(loc); 
+          setLocationStatus('ready');
           resolve(loc); 
         },
-        () => resolve(null),
+        (error) => {
+          setLocationStatus(error.code === error.PERMISSION_DENIED ? 'denied' : 'unavailable');
+          resolve(null);
+        },
         { timeout: 7000, enableHighAccuracy: true }
       );
     });
@@ -279,14 +288,17 @@ const App: React.FC = () => {
 
   const loadNearbyGems = useCallback(async (loc: LocationData, lang: Language) => {
     setIsNearbyLoading(true);
+    setLocationStatus('loading');
     try {
       const result = await fetchNearbyPlaces(loc, lang);
       setNearbyGems(result.places);
       setNearbyAreaName(result.areaName);
       setNearbyWeather(result.weather);
+      setLocationStatus(result.places.length > 0 ? 'ready' : 'empty');
     } catch (error: any) { 
       // Do nothing globally to prevent full-screen quota error on startup
       console.warn("Nearby places error:", error);
+      setLocationStatus('error');
     } finally { setIsNearbyLoading(false); }
   }, []);
 
@@ -310,8 +322,8 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    if (cachedLocation && nearbyGems.length === 0 && !isNearbyLoading) loadNearbyGems(cachedLocation, language);
-  }, [cachedLocation, language, nearbyGems.length, isNearbyLoading, loadNearbyGems]);
+    if (cachedLocation && nearbyGems.length === 0 && !isNearbyLoading && locationStatus === 'ready') loadNearbyGems(cachedLocation, language);
+  }, [cachedLocation, language, nearbyGems.length, isNearbyLoading, locationStatus, loadNearbyGems]);
 
   useEffect(() => { getCurrentCoords(); }, [getCurrentCoords]);
 
@@ -403,6 +415,7 @@ const App: React.FC = () => {
               credits={credits} onReload={handleReload} isSyncing={isSyncing}
               nearbyGems={nearbyGems} nearbyAreaName={nearbyAreaName} nearbyWeather={nearbyWeather}
               isNearbyLoading={isNearbyLoading} onRefreshLocation={handleRefreshLocation}
+              locationStatus={locationStatus}
               onStartGuide={handleStartGuide} onShowMoreNearby={handleLoadMoreNearby} isMoreNearbyLoading={isMoreNearbyLoading}
             />
           )}
