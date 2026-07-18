@@ -39,6 +39,14 @@ export interface AnalysisResultData {
   title: string;
   fact: string;
   story: string;
+  identificationStatus?: 'confirmed' | 'probable' | 'uncertain' | 'needs_retake';
+  confidence?: number;
+  visit?: {
+    atAGlance?: string;
+    bestLight?: string;
+    crowds?: string;
+  };
+  retakeReason?: string;
   recommendations?: string;
   sources?: GroundingSource[];
 }
@@ -63,6 +71,14 @@ export interface HistoryItem {
   title?: string;
   fact?: string;
   story?: string;
+  identificationStatus?: 'confirmed' | 'probable' | 'uncertain' | 'needs_retake';
+  confidence?: number;
+  visit?: {
+    atAGlance?: string;
+    bestLight?: string;
+    crowds?: string;
+  };
+  retakeReason?: string;
   recommendations?: string;
   error?: string;
   isAutoSaved?: boolean;

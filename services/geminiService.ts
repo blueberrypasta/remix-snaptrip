@@ -94,6 +94,35 @@ const sanitizeText = (text: string): string => {
         .replace(/thought\s*[:\s][\s\S]*?(?=\n\n|\n[가-힣]|\n[A-Z]|$)/gi, '')
         .trim();
 };
+
+const parseAnalysis = (raw: string, sources: GroundingSource[]): AnalysisResultData => {
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    const jsonText = start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned;
+    const parsed = JSON.parse(jsonText);
+    const allowedStatuses = new Set(['confirmed', 'probable', 'uncertain', 'needs_retake']);
+    const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0));
+    const identificationStatus = allowedStatuses.has(parsed.identificationStatus)
+        ? parsed.identificationStatus
+        : (confidence >= 0.8 ? 'confirmed' : confidence >= 0.6 ? 'probable' : 'uncertain');
+    const lowConfidence = identificationStatus === 'uncertain' || identificationStatus === 'needs_retake' || confidence < 0.55;
+
+    return {
+        title: sanitizeText(parsed.title) || (lowConfidence ? '' : 'Discovery'),
+        fact: sanitizeText(parsed.fact || parsed.summary),
+        story: lowConfidence ? sanitizeText(parsed.uncertaintyExplanation || parsed.summary) : sanitizeText(parsed.story),
+        identificationStatus,
+        confidence,
+        visit: lowConfidence ? undefined : {
+            atAGlance: sanitizeText(parsed.visit?.atAGlance),
+            bestLight: sanitizeText(parsed.visit?.bestLight),
+            crowds: sanitizeText(parsed.visit?.crowds)
+        },
+        retakeReason: sanitizeText(parsed.retakeReason),
+        sources
+    };
+};
 // --- Main Functions ---
 
 export const analyzeImageStream = async (
@@ -115,43 +144,34 @@ export const analyzeImageStream = async (
         }
 
         const langLabel = getLanguageLabel(language);
-        const systemInstruction = `You are a friendly travel docent. Respond in ${langLabel}. Always start with [TITLE]:, then [FACT]:, then [STORY]:. ${locationContext}`;
-        const userText = `Analyze this landmark. Format: [TITLE]: Name [FACT]: One-line tip [STORY]: Full guide.`;
+        const systemInstruction = `You identify landmarks from one traveler photo and write as a friendly travel docent in ${langLabel}. ${locationContext}
+Accuracy rules:
+- Prefer an uncertain result over a plausible guess. Confidence measures identity certainty, not image quality.
+- Carefully read visible signs, plaques, storefront names, inscriptions and street text. Cross-check the visual evidence, location and Google Search.
+- Use confirmed only when visual/location evidence and public sources agree; probable for a strong but incomplete match.
+- If a closer readable sign, plaque, or name would resolve ambiguity, use needs_retake. If the scene has no identifiable landmark or several candidates remain, use uncertain.
+- Never invent a name, date, visit tip or source. Never use generic filler such as Historically significant site, Golden Hour, or Moderate.
+- Omit any visit field you cannot support for this specific place. For uncertain/needs_retake, omit visit and keep the explanation short.
+Return JSON only with this shape: {"title":"", "fact":"", "story":"", "identificationStatus":"confirmed|probable|uncertain|needs_retake", "confidence":0.0, "uncertaintyExplanation":"", "retakeReason":"", "visit":{"atAGlance":"", "bestLight":"", "crowds":""}}.`;
+        const userText = `Identify this place. If visible text is too small, blurred, angled, cropped, or reflective, explicitly ask for a close, head-on photo of that text in retakeReason. Return only the JSON object.`;
 
         // --- BYOK path: use SDK with streaming ---
         if (hasUserKey()) {
             const imagePart = { inlineData: { data: base64Image, mimeType } };
             const textPart = { text: userText };
             const ai = getAI();
-            const responseStream = await ai.models.generateContentStream({
+            const response = await ai.models.generateContent({
                 model: 'gemini-3.1-flash-lite',
                 contents: { parts: [imagePart, textPart] },
-                config: { systemInstruction, tools: [{ googleSearch: {} }] }
+                config: { systemInstruction, tools: [{ googleSearch: {} }], temperature: 0.2 }
             });
-
-            let fullText = "";
-            let sources: GroundingSource[] = [];
-            for await (const chunk of responseStream) {
-                if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
-                    const chunks = chunk.candidates[0].groundingMetadata.groundingChunks;
-                    chunks.filter(c => c.web).forEach(c => {
-                        if (!sources.some(s => s.uri === c.web!.uri)) sources.push({ uri: c.web!.uri, title: c.web!.title });
-                    });
-                }
-                if (chunk.text) {
-                    fullText += chunk.text;
-                    const title = fullText.match(/\[TITLE\]:?\s*([\s\S]*?)(?=\n\s*\[|$)/i)?.[1];
-                    const fact = fullText.match(/\[FACT\]:?\s*([\s\S]*?)(?=\n\s*\[|$)/i)?.[1];
-                    const story = fullText.match(/\[STORY\]:?\s*([\s\S]*)$/i)?.[1];
-                    onChunk({ title: sanitizeText(title), fact: sanitizeText(fact), story: sanitizeText(story), sources });
-                }
-            }
-            return {
-                title: sanitizeText(fullText.match(/\[TITLE\]:?\s*([\s\S]*?)(?=\n\s*\[|$)/i)?.[1]) || "Discovery",
-                fact: sanitizeText(fullText.match(/\[FACT\]:?\s*([\s\S]*?)(?=\n\s*\[|$)/i)?.[1]) || "Searching for secrets",
-                story: sanitizeText(fullText.match(/\[STORY\]:?\s*([\s\S]*)$/i)?.[1]) || fullText,
-                sources
-            };
+            const sources: GroundingSource[] = [];
+            response.candidates?.[0]?.groundingMetadata?.groundingChunks?.filter(c => c.web).forEach(c => {
+                if (!sources.some(s => s.uri === c.web!.uri)) sources.push({ uri: c.web!.uri, title: c.web!.title });
+            });
+            const result = parseAnalysis(response.text || '{}', sources);
+            onChunk(result);
+            return result;
         }
 
         // --- Proxy path: use Edge Function (non-streaming) ---
@@ -168,19 +188,14 @@ export const analyzeImageStream = async (
         const data = await callGeminiProxy(
             'gemini-3.1-flash-lite',
             contents,
-            { systemInstruction: { parts: [{ text: systemInstruction }] } },
+            { systemInstruction: { parts: [{ text: systemInstruction }] }, temperature: 0.2 },
             [{ googleSearch: {} }]
         );
 
         const fullText = extractText(data);
         const sources = extractSources(data);
 
-        const result: AnalysisResultData = {
-            title: sanitizeText(fullText.match(/\[TITLE\]:?\s*([\s\S]*?)(?=\n\s*\[|$)/i)?.[1]) || "Discovery",
-            fact: sanitizeText(fullText.match(/\[FACT\]:?\s*([\s\S]*?)(?=\n\s*\[|$)/i)?.[1]) || "Searching for secrets",
-            story: sanitizeText(fullText.match(/\[STORY\]:?\s*([\s\S]*)$/i)?.[1]) || fullText,
-            sources
-        };
+        const result = parseAnalysis(fullText, sources);
         onChunk(result);
         return result;
 

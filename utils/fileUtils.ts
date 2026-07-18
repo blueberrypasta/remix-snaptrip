@@ -42,8 +42,8 @@ export const fileToBase64 = async (file: File): Promise<{ base64: string; mimeTy
       img.src = event.target?.result as string;
       
       img.onload = () => {
-        // 이미지 토큰 비용 최적화를 위해 320px로 하향 조정 (Gemini 분석에 충분한 해상도)
-        const MAX_SIZE = 320;
+        // 표지판/명판의 작은 글자도 읽을 수 있도록 분석 해상도를 보존한다.
+        const MAX_SIZE = 960;
         
         let width = img.width;
         let height = img.height;
@@ -72,8 +72,7 @@ export const fileToBase64 = async (file: File): Promise<{ base64: string; mimeTy
         
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Quality를 0.3으로 유지하여 전송 비용 및 토큰 효율화
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.3);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
         const base64 = dataUrl.split(',')[1];
         resolve({ base64, mimeType: 'image/jpeg', location });
       };

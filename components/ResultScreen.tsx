@@ -90,6 +90,15 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
   const cleanTitle = clean(result.title) || (isStreaming ? t('analyzing') : '');
   const cleanFact = clean(result.fact);
+  const status = result.identificationStatus || 'confirmed';
+  const isLowConfidence = !isStreaming && (status === 'uncertain' || status === 'needs_retake' || (result.confidence ?? 1) < 0.55);
+  const isProbable = !isStreaming && !isLowConfidence && (status === 'probable' || (result.confidence ?? 1) < 0.8);
+  const confidencePercent = Math.round((result.confidence ?? 1) * 100);
+  const visitCards = [
+    result.visit?.atAGlance && { label: t('atAGlance'), value: result.visit.atAGlance, icon: 'near_me' },
+    result.visit?.bestLight && { label: t('bestLight'), value: result.visit.bestLight, icon: 'light_mode' },
+    result.visit?.crowds && { label: t('crowds'), value: result.visit.crowds, icon: 'groups' }
+  ].filter(Boolean) as { label: string; value: string; icon: string }[];
 
   // 위치 출처에 따른 배지 정보 설정
   const getLocationBadge = () => {
@@ -168,7 +177,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                 {result.locationData ? `${result.locationData.latitude.toFixed(4)}°, ${result.locationData.longitude.toFixed(4)}°` : 'Discovery'}
               </span>
            </div>
-           <h1 className="text-4xl sm:text-5xl font-serif font-medium text-[#F4EFE6] leading-[1.05] tracking-tight mb-4 drop-shadow-2xl">{cleanTitle}</h1>
+           <h1 className="text-4xl sm:text-5xl font-serif font-medium text-[#F4EFE6] leading-[1.05] tracking-tight mb-4 drop-shadow-2xl">{isLowConfidence ? t('needsCloserLook') : cleanTitle}</h1>
            <p className="text-xl font-serif italic text-[#F4EFE6]/70 leading-relaxed pr-6">{cleanFact ? `"${cleanFact}"` : ""}</p>
         </div>
       </div>
@@ -188,6 +197,22 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
       {/* Content Area */}
       <div className="px-8 pt-10 flex flex-col gap-10">
+          {!isStreaming && (isLowConfidence || isProbable) && (
+            <section className={`rounded-[1.8rem] p-6 border ${isLowConfidence ? 'bg-amber-400/10 border-amber-300/30' : 'bg-[#5EC9C2]/10 border-[#5EC9C2]/25'}`}>
+              <div className="flex items-start gap-4">
+                <span className={`material-symbols-outlined text-3xl ${isLowConfidence ? 'text-amber-300' : 'text-[#5EC9C2]'}`}>{isLowConfidence ? 'document_scanner' : 'fact_check'}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F4EFE6]/55 mb-2">{isLowConfidence ? t('needsCloserLook') : t('likelyMatch')}</div>
+                  <p className="text-base text-[#F4EFE6] leading-relaxed">{isLowConfidence ? (result.retakeReason || t('retakeTextHelp')) : cleanFact}</p>
+                  <div className="mt-4 flex items-center gap-3">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#F4EFE6]/40">{t('resultConfidence')}</span>
+                    <div className="h-1.5 flex-1 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full bg-current text-[#D9B26A]" style={{ width: `${confidencePercent}%` }} /></div>
+                    <span className="text-xs font-black text-[#F4EFE6]/70">{confidencePercent}%</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
           <div className="flex flex-col gap-6">
               <div className="text-[10px] font-black uppercase tracking-[0.3em] text-[#D9B26A] mb-2 antialiased">{t('theStory')}</div>
               <div className="text-lg sm:text-[21px] font-serif font-regular text-[#F4EFE6]/90 leading-[1.65] break-keep tracking-[-0.01em]">
@@ -212,25 +237,18 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
               </div>
           </div>
 
-          {!isStreaming && (
-            <div className="grid grid-cols-2 gap-3 mt-4">
-               <div className="col-span-2 p-6 rounded-[1.8rem] bg-white/5 border border-white/10 backdrop-blur-md">
-                  <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#D9B26A] mb-3">{t('atAGlance')}</div>
-                  <div className="text-2xl font-serif text-[#F4EFE6] leading-tight mb-2 tracking-tight">Historically significant site</div>
-                  <p className="text-sm text-[#F4EFE6]/50 font-sans leading-relaxed">{t('atAGlanceDesc')}</p>
-               </div>
-               
-               <div className="p-5 rounded-2xl bg-[#5EC9C2]/5 border border-[#5EC9C2]/20">
-                  <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#5EC9C2] mb-2">{t('bestLight')}</div>
-                  <div className="text-xl font-serif text-[#F4EFE6] italic">{t('bestLightTitle')}</div>
-               </div>
-               
-               <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
-                  <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#F4EFE6]/40 mb-2">{t('crowds')}</div>
-                  <div className="text-xl font-serif text-[#F4EFE6] italic">{t('crowdsDesc')}</div>
-               </div>
+          {!isStreaming && !isLowConfidence && visitCards.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+              {visitCards.map((card, index) => (
+                <div key={card.label} className={`${index === 0 && visitCards.length % 2 === 1 ? 'sm:col-span-2' : ''} p-6 rounded-[1.8rem] bg-white/5 border border-white/10`}>
+                  <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-[#D9B26A] mb-3"><span className="material-symbols-outlined text-[16px]">{card.icon}</span>{card.label}</div>
+                  <div className="text-xl font-serif text-[#F4EFE6] leading-snug">{card.value}</div>
+                </div>
+              ))}
             </div>
           )}
+
+          {!isStreaming && <p className="text-xs text-center text-[#F4EFE6]/35 leading-relaxed px-4">{t('aiCaution')}</p>}
 
           {!isStreaming && result.sources && result.sources.length > 0 && (
             <div className="mt-8 pt-8 border-t border-white/5">
@@ -263,7 +281,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
           className="w-full h-16 rounded-full bg-gradient-to-b from-[#E6C079] to-[#C99A4F] text-[#1B130A] font-black text-base shadow-[0_10px_30px_-10px_rgba(217,178,106,0.6),0_0_50px_-10px_rgba(217,178,106,0.4)] active:scale-95 transition-all flex items-center justify-center gap-3 ring-1 ring-white/30 ring-inset"
         >
           <span className="material-symbols-outlined text-[24px]">photo_camera</span>
-          {t('captureNewStory')}
+          {isLowConfidence ? t('retakeText') : t('captureNewStory')}
         </button>
       </div>
 
