@@ -9,6 +9,7 @@ import { LoginModal } from './components/LoginModal';
 import { analyzeImageStream, fetchNearbyPlaces, fetchMoreNearbyPlaces } from './services/geminiService';
 import { usageService } from './services/usageService';
 import { historyService } from './services/historyService';
+import { localPhotoService } from './services/localPhotoService';
 import { supabase } from './services/supabaseClient';
 import { fileToBase64 } from './utils/fileUtils';
 import type { AppState, HistoryItem, Language, User, LocationData, LocationSource } from './types';
@@ -81,9 +82,17 @@ const App: React.FC = () => {
         setLanguage(profileData.language);
       }
       const dbHistory = await withTimeout(historyService.getUserHistory(userId), 8000);
+      const hydratedHistory = await Promise.all(dbHistory.map(async item => {
+        if (item.imageData) return item; // Legacy server-hosted image.
+        try {
+          return { ...item, imageData: await localPhotoService.get(userId, item.id) };
+        } catch {
+          return item;
+        }
+      }));
       setHistory(prev => {
-        const localOnlyItems = prev.filter(l => l.id.startsWith('temp_') || (l.status === 'success' && !dbHistory.some(d => d.id === l.id)));
-        const combined = [...localOnlyItems, ...dbHistory.filter(d => !localOnlyItems.some(l => l.id === d.id))];
+        const localOnlyItems = prev.filter(l => l.id.startsWith('temp_') || (l.status === 'success' && !hydratedHistory.some(d => d.id === l.id)));
+        const combined = [...localOnlyItems, ...hydratedHistory.filter(d => !localOnlyItems.some(l => l.id === d.id))];
         return combined.sort((a, b) => b.timestamp - a.timestamp);
       });
     } catch (e) {
@@ -269,6 +278,11 @@ const App: React.FC = () => {
         if (user) {
           const dbId = await historyService.saveResult(user.id, finalItem);
           if (dbId) {
+            try {
+              await localPhotoService.save(user.id, dbId, finalItem.imageData);
+            } catch (photoError) {
+              console.warn('[SlapTrip] Photo could not be saved on this device:', photoError);
+            }
             setHistory(prev => prev.map(item => item.id === tempId ? { ...item, id: dbId, isAutoSaved: true } : item));
             setCurrentResultId(prevId => prevId === tempId ? dbId : prevId);
           }
@@ -356,6 +370,7 @@ const App: React.FC = () => {
         window.alert(t('error'));
         return;
       }
+      try { await localPhotoService.clearUser(user.id); } catch (e) { console.warn('[SlapTrip] Local photo cleanup failed:', e); }
     }
 
     setHistory([]);
@@ -382,6 +397,7 @@ const App: React.FC = () => {
         window.alert(t('error'));
         return;
       }
+      try { await localPhotoService.remove(user.id, id); } catch (e) { console.warn('[SlapTrip] Local photo cleanup failed:', e); }
     }
     setHistory(prev => prev.filter(item => item.id !== id));
     setAppState('welcome');
@@ -470,6 +486,9 @@ const App: React.FC = () => {
           )}
         </div>
       </main>
+      <footer className="px-4 py-3 text-center text-[11px] text-slate-400">
+        <a href="/privacy.html" className="underline underline-offset-4 hover:text-white">Privacy · 개인정보처리방침</a>
+      </footer>
       <HistorySidebar history={history} onSelect={handleHistorySelection} isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} language={language} onClearHistory={handleClearHistory} user={user} isSyncing={isSyncing} onRefresh={() => user && syncUserData(user.id)} />
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setLoginModalOpen(false)} onLogin={() => {}} language={language} />
       </div>

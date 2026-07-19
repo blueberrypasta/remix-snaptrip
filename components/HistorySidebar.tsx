@@ -94,7 +94,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                   className={`group relative flex items-center gap-5 p-4 rounded-[1.8rem] bg-white/5 border border-white/10 transition-all ${item.status === 'success' ? 'hover:border-[#D9B26A]/40 active:scale-95 shadow-sm' : 'opacity-60'}`}
                 >
                   <div className="relative h-20 w-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-sm bg-black">
-                    <img src={item.imageData} alt="Thumb" className="w-full h-full object-cover" />
+                    {item.imageData ? <img src={item.imageData} alt="Thumb" className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-slate-500">image_not_supported</span>}
                     {item.status === 'processing' && (
                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-[1px]">
                           <div className="w-6 h-6 border-2 border-white/20 border-t-[#D9B26A] rounded-full animate-spin"></div>

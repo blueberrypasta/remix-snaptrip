@@ -160,7 +160,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
       {/* Hero Header Area */}
       <div className="relative w-full h-[460px] overflow-hidden">
-        <img src={result.imageData} alt={cleanTitle} className="w-full h-full object-cover" crossOrigin="anonymous" />
+        {result.imageData ? <img src={result.imageData} alt={cleanTitle} className="w-full h-full object-cover" crossOrigin="anonymous" /> : <div className="w-full h-full grid place-items-center bg-slate-800 text-slate-400"><span className="material-symbols-outlined text-4xl">image_not_supported</span></div>}
         <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/40 to-[#0B0F14]"></div>
         
         {isStreaming && (

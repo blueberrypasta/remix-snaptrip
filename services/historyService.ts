@@ -60,7 +60,8 @@ export const historyService = {
 
       const insertData: any = {
         user_id: userId,
-        image_url: item.imageData,
+        // Photos stay on the current device. Only result metadata is synced.
+        image_url: '',
         title: item.title?.trim() || "새로운 발견",
         fact: item.fact || '',
         story: item.story || '',
@@ -99,7 +100,7 @@ export const historyService = {
           .from('analysis_history')
           .insert([{ 
             ...insertData, 
-            image_url: 'IMAGE_TOO_LARGE',
+            image_url: '',
             sources: null 
           }])
           .select('id');
