@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import type { AnalysisResultData, Language, LocationData, GroundingSource, LocationSource } from '../types';
+import type { AnalysisResultData, Language, LocationData, GroundingSource, LocationSource, DepictedFigure } from '../types';
 import { supabase } from './supabaseClient';
 import { isValidGeminiApiKey } from '../utils/apiKeyUtils';
 
@@ -108,12 +108,21 @@ const parseAnalysis = (raw: string, sources: GroundingSource[]): AnalysisResultD
         ? parsed.identificationStatus
         : (confidence >= 0.8 ? 'confirmed' : confidence >= 0.6 ? 'probable' : 'uncertain');
     const lowConfidence = identificationStatus === 'uncertain' || identificationStatus === 'needs_retake' || confidence < 0.55;
+    const depictedFigures: DepictedFigure[] = Array.isArray(parsed.depictedFigures)
+        ? parsed.depictedFigures.slice(0, 6).map((figure: any) => ({
+            name: sanitizeText(figure?.name),
+            role: sanitizeText(figure?.role),
+            visualCue: sanitizeText(figure?.visualCue),
+            certainty: ['confirmed', 'probable', 'unknown'].includes(figure?.certainty) ? figure.certainty : 'unknown'
+        })).filter((figure: DepictedFigure) => figure.name)
+        : [];
 
     return {
         title: sanitizeText(parsed.title) || (lowConfidence ? '' : 'Discovery'),
         fact: sanitizeText(parsed.fact || parsed.summary),
         story: lowConfidence ? sanitizeText(parsed.uncertaintyExplanation || parsed.summary) : sanitizeText(parsed.story),
         hiddenStory: lowConfidence ? undefined : sanitizeText(parsed.hiddenStory),
+        depictedFigures: lowConfidence || depictedFigures.length === 0 ? undefined : depictedFigures,
         identificationStatus,
         confidence,
         visit: lowConfidence ? undefined : {
@@ -154,8 +163,9 @@ Accuracy rules:
 - If a closer readable sign, plaque, or name would resolve ambiguity, use needs_retake. If the scene has no identifiable landmark or several candidates remain, use uncertain.
 - Never invent a name, date, anecdote, visit tip or source. Never use generic filler such as Historically significant site, Golden Hour, or Moderate.
 - hiddenStory must be one concise, surprising, source-grounded human detail: a rivalry, mistake, secret symbol, odd custom, controversy, or little-known episode that makes the place memorable. Do not merely repeat fact or story. Omit it when no reliable detail is found.
+- If the photo prominently shows identifiable people in sculpture, relief, painting, mosaic, monument, crest, or memorial, return them in depictedFigures. For each, give the person's established name and role, plus the visible attribute or position that supports the identification. Include religious, mythological, and allegorical figures, but label them accurately (for example, "allegorical figure of Justice") rather than inventing a historical person. Use confirmed only when the artwork/location and visual attributes agree, probable when attribution is plausible but incomplete, and unknown when the work contains a figure whose identity cannot be established. Omit depictedFigures when people are incidental visitors or too small to analyze.
 - Omit any visit field you cannot support for this specific place. For uncertain/needs_retake, omit visit and keep the explanation short.
-Return JSON only with this shape: {"title":"", "fact":"", "story":"", "hiddenStory":"", "identificationStatus":"confirmed|probable|uncertain|needs_retake", "confidence":0.0, "uncertaintyExplanation":"", "retakeReason":"", "visit":{"atAGlance":"", "bestLight":"", "crowds":""}}.`;
+Return JSON only with this shape: {"title":"", "fact":"", "story":"", "hiddenStory":"", "depictedFigures":[{"name":"", "role":"", "visualCue":"", "certainty":"confirmed|probable|unknown"}], "identificationStatus":"confirmed|probable|uncertain|needs_retake", "confidence":0.0, "uncertaintyExplanation":"", "retakeReason":"", "visit":{"atAGlance":"", "bestLight":"", "crowds":""}}.`;
         const userText = `Identify this place. If visible text is too small, blurred, angled, cropped, or reflective, explicitly ask for a close, head-on photo of that text in retakeReason. Return only the JSON object.`;
 
         // --- BYOK path: use SDK with streaming ---

@@ -13,20 +13,39 @@ const parseSources = (value: unknown) => {
 };
 
 const HIDDEN_STORY_MARKER = '\n\n[[SLAPTRIP_HIDDEN_STORY]]\n';
+const FIGURES_MARKER = '\n\n[[SLAPTRIP_DEPICTED_FIGURES]]\n';
 
 const unpackStory = (value: string | null | undefined) => {
-  const story = value || '';
-  const markerIndex = story.indexOf(HIDDEN_STORY_MARKER);
-  if (markerIndex < 0) return { story };
-  return {
-    story: story.slice(0, markerIndex),
-    hiddenStory: story.slice(markerIndex + HIDDEN_STORY_MARKER.length)
+  const packed = value || '';
+  const hiddenIndex = packed.indexOf(HIDDEN_STORY_MARKER);
+  const figuresIndex = packed.indexOf(FIGURES_MARKER);
+  const indexes = [hiddenIndex, figuresIndex].filter(index => index >= 0);
+  if (indexes.length === 0) return { story: packed };
+
+  const result: Pick<HistoryItem, 'story' | 'hiddenStory' | 'depictedFigures'> = {
+    story: packed.slice(0, Math.min(...indexes))
   };
+  if (hiddenIndex >= 0) {
+    const hiddenStart = hiddenIndex + HIDDEN_STORY_MARKER.length;
+    result.hiddenStory = packed.slice(hiddenStart, figuresIndex > hiddenIndex ? figuresIndex : undefined);
+  }
+  if (figuresIndex >= 0) {
+    try {
+      const figuresStart = figuresIndex + FIGURES_MARKER.length;
+      result.depictedFigures = JSON.parse(packed.slice(figuresStart));
+    } catch {
+      // Ignore malformed optional metadata while preserving the main story.
+    }
+  }
+  return result;
 };
 
-const packStory = (item: HistoryItem) => item.hiddenStory
-  ? `${item.story || ''}${HIDDEN_STORY_MARKER}${item.hiddenStory}`
-  : (item.story || '');
+const packStory = (item: HistoryItem) => {
+  let packed = item.story || '';
+  if (item.hiddenStory) packed += `${HIDDEN_STORY_MARKER}${item.hiddenStory}`;
+  if (item.depictedFigures?.length) packed += `${FIGURES_MARKER}${JSON.stringify(item.depictedFigures)}`;
+  return packed;
+};
 
 export const historyService = {
   /**

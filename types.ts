@@ -35,11 +35,19 @@ export interface GroundingSource {
   title: string;
 }
 
+export interface DepictedFigure {
+  name: string;
+  role?: string;
+  visualCue?: string;
+  certainty: 'confirmed' | 'probable' | 'unknown';
+}
+
 export interface AnalysisResultData {
   title: string;
   fact: string;
   story: string;
   hiddenStory?: string;
+  depictedFigures?: DepictedFigure[];
   identificationStatus?: 'confirmed' | 'probable' | 'uncertain' | 'needs_retake';
   confidence?: number;
   visit?: {
@@ -73,6 +81,7 @@ export interface HistoryItem {
   fact?: string;
   story?: string;
   hiddenStory?: string;
+  depictedFigures?: DepictedFigure[];
   identificationStatus?: 'confirmed' | 'probable' | 'uncertain' | 'needs_retake';
   confidence?: number;
   visit?: {

@@ -235,6 +235,31 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             </section>
           )}
 
+          {!isStreaming && !isLowConfidence && result.depictedFigures && result.depictedFigures.length > 0 && (
+            <section className="rounded-[1.8rem] p-6 border border-[#5EC9C2]/30 bg-[#5EC9C2]/10">
+              <div className="flex items-center gap-3 mb-5">
+                <span className="material-symbols-outlined text-3xl text-[#5EC9C2]">sculpture</span>
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#5EC9C2]">{t('depictedFigures')}</div>
+              </div>
+              <div className="flex flex-col gap-5">
+                {result.depictedFigures.map((figure, index) => (
+                  <div key={`${figure.name}-${index}`} className="border-l-2 border-[#5EC9C2]/40 pl-4">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <h3 className="text-xl font-serif text-[#F4EFE6]">{clean(figure.name)}</h3>
+                      {figure.certainty !== 'confirmed' && (
+                        <span className="rounded-full bg-black/25 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-[#F4EFE6]/55">
+                          {figure.certainty === 'probable' ? t('figureProbable') : t('figureUnknown')}
+                        </span>
+                      )}
+                    </div>
+                    {figure.role && <p className="text-sm leading-relaxed text-[#F4EFE6]/75">{clean(figure.role)}</p>}
+                    {figure.visualCue && <p className="mt-2 text-xs leading-relaxed text-[#F4EFE6]/45">{clean(figure.visualCue)}</p>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {!isStreaming && !isLowConfidence && visitCards.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
               {visitCards.map((card, index) => (
