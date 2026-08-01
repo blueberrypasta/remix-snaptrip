@@ -113,6 +113,7 @@ const parseAnalysis = (raw: string, sources: GroundingSource[]): AnalysisResultD
         title: sanitizeText(parsed.title) || (lowConfidence ? '' : 'Discovery'),
         fact: sanitizeText(parsed.fact || parsed.summary),
         story: lowConfidence ? sanitizeText(parsed.uncertaintyExplanation || parsed.summary) : sanitizeText(parsed.story),
+        hiddenStory: lowConfidence ? undefined : sanitizeText(parsed.hiddenStory),
         identificationStatus,
         confidence,
         visit: lowConfidence ? undefined : {
@@ -151,9 +152,10 @@ Accuracy rules:
 - Carefully read visible signs, plaques, storefront names, inscriptions and street text. Cross-check the visual evidence, location and Google Search.
 - Use confirmed only when visual/location evidence and public sources agree; probable for a strong but incomplete match.
 - If a closer readable sign, plaque, or name would resolve ambiguity, use needs_retake. If the scene has no identifiable landmark or several candidates remain, use uncertain.
-- Never invent a name, date, visit tip or source. Never use generic filler such as Historically significant site, Golden Hour, or Moderate.
+- Never invent a name, date, anecdote, visit tip or source. Never use generic filler such as Historically significant site, Golden Hour, or Moderate.
+- hiddenStory must be one concise, surprising, source-grounded human detail: a rivalry, mistake, secret symbol, odd custom, controversy, or little-known episode that makes the place memorable. Do not merely repeat fact or story. Omit it when no reliable detail is found.
 - Omit any visit field you cannot support for this specific place. For uncertain/needs_retake, omit visit and keep the explanation short.
-Return JSON only with this shape: {"title":"", "fact":"", "story":"", "identificationStatus":"confirmed|probable|uncertain|needs_retake", "confidence":0.0, "uncertaintyExplanation":"", "retakeReason":"", "visit":{"atAGlance":"", "bestLight":"", "crowds":""}}.`;
+Return JSON only with this shape: {"title":"", "fact":"", "story":"", "hiddenStory":"", "identificationStatus":"confirmed|probable|uncertain|needs_retake", "confidence":0.0, "uncertaintyExplanation":"", "retakeReason":"", "visit":{"atAGlance":"", "bestLight":"", "crowds":""}}.`;
         const userText = `Identify this place. If visible text is too small, blurred, angled, cropped, or reflective, explicitly ask for a close, head-on photo of that text in retakeReason. Return only the JSON object.`;
 
         // --- BYOK path: use SDK with streaming ---

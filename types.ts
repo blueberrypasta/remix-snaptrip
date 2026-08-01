@@ -39,6 +39,7 @@ export interface AnalysisResultData {
   title: string;
   fact: string;
   story: string;
+  hiddenStory?: string;
   identificationStatus?: 'confirmed' | 'probable' | 'uncertain' | 'needs_retake';
   confidence?: number;
   visit?: {
@@ -71,6 +72,7 @@ export interface HistoryItem {
   title?: string;
   fact?: string;
   story?: string;
+  hiddenStory?: string;
   identificationStatus?: 'confirmed' | 'probable' | 'uncertain' | 'needs_retake';
   confidence?: number;
   visit?: {

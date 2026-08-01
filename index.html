@@ -76,7 +76,8 @@
     <style>
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        html, body { height: 100dvh; background-color: #070A0E; margin: 0; padding: 0; overflow-x: hidden; }
+        html { min-height: 100%; background-color: #070A0E; margin: 0; padding: 0; overflow-x: hidden; }
+        body { min-height: 100dvh; background-color: #070A0E; margin: 0; padding: 0; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         #root { min-height: 100dvh; display: flex; flex-direction: column; }
     </style>
   <link rel="stylesheet" href="/index.css">

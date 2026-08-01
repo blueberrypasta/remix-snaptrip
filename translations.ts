@@ -131,6 +131,7 @@ export const translations: Translations = {
     it: 'Consigliamo di utilizzare Safari o Chrome.'
   },
   theStory: { en: 'The Story', ko: '그곳의 이야기', ja: 'その場所の物語', zh: '故事', es: 'La historia', fr: 'L\'histoire', de: 'Die Geschichte', it: 'La storia' },
+  hiddenStory: { en: 'The story most people miss', ko: '대부분 놓치는 숨은 이야기', ja: '多くの人が見逃す物語', zh: '大多数人错过的隐藏故事', es: 'La historia que casi todos se pierden', fr: 'L’histoire que presque tout le monde rate', de: 'Die Geschichte, die fast alle übersehen', it: 'La storia che quasi tutti si perdono' },
   atAGlance: { en: 'At a glance', ko: '한눈에 보기', ja: '一目で見る', zh: '一目了然', es: 'De un vistazo', fr: 'En un coup d\'œil', de: 'Auf einen Blick', it: 'A colpo d\'occhio' },
   bestLight: { en: 'Best Light', ko: '가장 예쁜 시간', ja: '最高の光', zh: '最佳光线', es: 'Mejor luz', fr: 'Meilleure lumière', de: 'Bestes Licht', it: 'Migliore luce' },
   crowds: { en: 'Crowds', ko: '혼잡도', ja: '混雑', zh: '人流', es: 'Multitud', fr: 'Foule', de: 'Menschenmassen', it: 'Folla' },

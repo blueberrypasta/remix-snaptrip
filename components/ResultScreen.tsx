@@ -1,5 +1,5 @@
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslations } from '../translations';
 import type { HistoryItem, Language } from '../types';
 
@@ -19,22 +19,8 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 }) => {
   const t = useTranslations(language);
   const resultRef = useRef<HTMLDivElement>(null);
-  const funFactRef = useRef<HTMLDivElement>(null);
   const [notification, setNotification] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isFunFactVisible, setIsFunFactVisible] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (funFactRef.current && isFunFactVisible) {
-        funFactRef.current.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        });
-      }
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [result.id, isFunFactVisible]);
 
   const generateBlob = async (): Promise<Blob | null> => {
     if (!resultRef.current) return null;
@@ -121,7 +107,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
   const locationBadge = getLocationBadge();
 
   return (
-    <div className="w-full max-w-xl mx-auto animate-fade-in pb-48 px-0 relative">
+    <div className={`w-full max-w-xl mx-auto animate-fade-in pb-48 px-0 relative ${isStreaming ? 'min-h-[130dvh]' : ''}`}>
       {/* Top Bar — Cinematic Glass */}
       <nav className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-xl z-50 flex items-center justify-between px-5 py-4 pt-[env(safe-area-inset-top,20px)] pointer-events-none">
         <button 
@@ -159,7 +145,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
       </nav>
 
       {/* Hero Header Area */}
-      <div className="relative w-full h-[460px] overflow-hidden">
+      <div className="relative w-full h-[520px] sm:h-[540px] overflow-hidden">
         {result.imageData ? <img src={result.imageData} alt={cleanTitle} className="w-full h-full object-cover" crossOrigin="anonymous" /> : <div className="w-full h-full grid place-items-center bg-slate-800 text-slate-400"><span className="material-symbols-outlined text-4xl">image_not_supported</span></div>}
         <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/40 to-[#0B0F14]"></div>
         
@@ -170,15 +156,15 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
           </>
         )}
 
-        <div className="absolute bottom-10 left-8 right-8 animate-fade-in-up">
+        <div className="absolute bottom-9 left-6 right-6 sm:left-8 sm:right-8 animate-fade-in-up">
            <div className="inline-flex items-center gap-2 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-[#D9B26A]/30 mb-4">
               <span className="material-symbols-outlined text-[#D9B26A] text-[12px]">location_on</span>
               <span className="text-[10px] font-black uppercase tracking-widest text-[#F4EFE6]/70 font-sans">
                 {result.locationData ? `${result.locationData.latitude.toFixed(4)}°, ${result.locationData.longitude.toFixed(4)}°` : 'Discovery'}
               </span>
            </div>
-           <h1 className="text-4xl sm:text-5xl font-serif font-medium text-[#F4EFE6] leading-[1.05] tracking-tight mb-4 drop-shadow-2xl">{isLowConfidence ? t('needsCloserLook') : cleanTitle}</h1>
-           <p className="text-xl font-serif italic text-[#F4EFE6]/70 leading-relaxed pr-6">{cleanFact ? `"${cleanFact}"` : ""}</p>
+           <h1 className="text-[2rem] min-[420px]:text-4xl sm:text-5xl font-serif font-medium text-[#F4EFE6] leading-[1.08] tracking-tight mb-4 drop-shadow-2xl break-keep">{isLowConfidence ? t('needsCloserLook') : cleanTitle}</h1>
+           <p className="text-lg sm:text-xl font-serif italic text-[#F4EFE6]/70 leading-relaxed sm:pr-6">{cleanFact ? `"${cleanFact}"` : ""}</p>
         </div>
       </div>
 
@@ -236,6 +222,18 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                   ))}
               </div>
           </div>
+
+          {!isStreaming && !isLowConfidence && result.hiddenStory && (
+            <section className="rounded-[1.8rem] p-6 border border-[#D9B26A]/30 bg-gradient-to-br from-[#D9B26A]/15 to-[#5EC9C2]/10 shadow-[0_18px_50px_-35px_rgba(217,178,106,0.8)]">
+              <div className="flex items-start gap-4">
+                <span className="material-symbols-outlined text-3xl text-[#D9B26A]">auto_awesome</span>
+                <div className="min-w-0">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D9B26A] mb-3">{t('hiddenStory')}</div>
+                  <p className="text-lg font-serif text-[#F4EFE6] leading-[1.65]">{clean(result.hiddenStory)}</p>
+                </div>
+              </div>
+            </section>
+          )}
 
           {!isStreaming && !isLowConfidence && visitCards.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">

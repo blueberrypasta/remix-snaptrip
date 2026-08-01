@@ -12,6 +12,22 @@ const parseSources = (value: unknown) => {
   }
 };
 
+const HIDDEN_STORY_MARKER = '\n\n[[SLAPTRIP_HIDDEN_STORY]]\n';
+
+const unpackStory = (value: string | null | undefined) => {
+  const story = value || '';
+  const markerIndex = story.indexOf(HIDDEN_STORY_MARKER);
+  if (markerIndex < 0) return { story };
+  return {
+    story: story.slice(0, markerIndex),
+    hiddenStory: story.slice(markerIndex + HIDDEN_STORY_MARKER.length)
+  };
+};
+
+const packStory = (item: HistoryItem) => item.hiddenStory
+  ? `${item.story || ''}${HIDDEN_STORY_MARKER}${item.hiddenStory}`
+  : (item.story || '');
+
 export const historyService = {
   /**
    * 사용자의 모든 분석 히스토리를 DB에서 가져옵니다.
@@ -35,7 +51,7 @@ export const historyService = {
         timestamp: new Date(item.timestamp).getTime(),
         title: item.title || '',
         fact: item.fact || '',
-        story: item.story || '',
+        ...unpackStory(item.story),
         // DB에서 가져온 데이터가 이미 객체(JSONB)일 수도, 문자열일 수도 있으므로 안전하게 처리
         sources: parseSources(item.sources),
         isAutoSaved: true 
@@ -64,7 +80,7 @@ export const historyService = {
         image_url: '',
         title: item.title?.trim() || "새로운 발견",
         fact: item.fact || '',
-        story: item.story || '',
+        story: packStory(item),
         // Supabase JSONB 컬럼에는 객체를 그대로 보냅니다.
         sources: item.sources || null,
         timestamp: new Date(item.timestamp).toISOString()
