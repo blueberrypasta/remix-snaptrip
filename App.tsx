@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { TasteRecommendations } from './components/TasteRecommendations';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ResultScreen } from './components/ResultScreen';
 import { GuideScreen } from './components/GuideScreen';
@@ -466,6 +467,7 @@ const App: React.FC = () => {
               nearbyGems={nearbyGems} nearbyAreaName={nearbyAreaName} nearbyWeather={nearbyWeather}
               isNearbyLoading={isNearbyLoading} onRefreshLocation={handleRefreshLocation}
               locationStatus={locationStatus}
+              tasteRecommendations={<TasteRecommendations key={user?.id || 'guest'} language={language} location={cachedLocation} onRequestLocation={() => getCurrentCoords()} onLogin={() => setLoginModalOpen(true)} userId={user?.id} />}
               onStartGuide={handleStartGuide} onShowMoreNearby={handleLoadMoreNearby} isMoreNearbyLoading={isMoreNearbyLoading}
             />
           )}

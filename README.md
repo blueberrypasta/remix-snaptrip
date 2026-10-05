@@ -19,3 +19,23 @@ View your app in AI Studio: https://ai.studio/apps/be2f6dfc-4da0-4f18-900d-0a5de
 3. Run the app:
    `npm run dev`
 4. Add your Gemini API key in the app settings. Do not commit real API keys.
+
+## Qloo recommendations
+
+Qloo augments landmark recognition with a separate taste recommendation panel.
+The panel stays hidden until the server health endpoint reports a configured key.
+Users log in, explicitly select up to three search matches, and request five places
+within 15 km. Only interest IDs and coordinates rounded to two decimal places go
+to Qloo; selected interests remain in account-scoped browser storage.
+
+Deploy `supabase/functions/qloo-proxy/index.ts` as `qloo-proxy` in the existing
+Supabase project. Disable gateway JWT verification for this function: health is
+public, while every paid POST verifies the actual user session via Supabase Auth.
+Set `QLOO_API_KEY` as a Supabase Edge Function secret, never a `VITE_` variable.
+Use `QLOO_API_URL=https://staging.api.qloo.com` only when the issued key requires
+staging; production is the default. Then verify `/functions/v1/qloo-proxy/health`,
+entity search, and a real recommendation response before considering it active.
+
+`node --experimental-strip-types --test tests/qloo-proxy.test.mjs` checks the
+server boundary with mocked upstream responses; it does not prove Qloo access.
+Per-user rate limiting is per warm worker, not a global billing cap.

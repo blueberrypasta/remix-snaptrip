@@ -4,6 +4,7 @@ import { useTranslations } from '../translations';
 import type { Language, User, HistoryItem } from '../types';
 
 interface WelcomeScreenProps {
+  tasteRecommendations?: React.ReactNode;
   onUploadClick: () => void;
   onCameraClick: () => void;
   language: Language;
@@ -28,7 +29,7 @@ interface WelcomeScreenProps {
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ 
   onUploadClick, onCameraClick, language, user, onLogin, recentHistory, onSelectHistory, credits, onReload, isSyncing = false,
   nearbyGems = [], nearbyAreaName = '', nearbyWeather = null, isNearbyLoading = false, locationStatus = 'idle', onRefreshLocation, onStartGuide,
-  onShowMoreNearby, isMoreNearbyLoading = false
+  onShowMoreNearby, isMoreNearbyLoading = false, tasteRecommendations
 }) => {
   const t = useTranslations(language);
   const [displayLimit, setDisplayLimit] = useState(10);
@@ -181,6 +182,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
            </button>
         </section>
       )}
+
+      {tasteRecommendations}
 
       <section className="px-5 mt-4">
         <div className={`bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl transition-all duration-300 ${isNearbyExpanded ? 'ring-1 ring-emerald-500/30' : ''}`}>
