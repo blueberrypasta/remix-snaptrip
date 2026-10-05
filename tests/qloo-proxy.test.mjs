@@ -61,6 +61,19 @@ test('Qloo server boundary', async t=>{
   upstreamStatus=401;let r=await handleRequest(request(rec));assert.equal(r.status,503);assert.ok(!(await r.text()).includes('credentials'));
   upstreamStatus=429;r=await handleRequest(request(rec));assert.equal(r.status,429);upstreamStatus=200;
  });
+ await t.test('hackathon keys route to the official hackathon host',async()=>{
+  calls=[];env.QLOO_API_URL='https://hackathon.api.qloo.com';
+  const r=await handleRequest(request(rec));assert.equal(r.status,200);
+  assert.ok(calls.some(c=>c.u.hostname==='hackathon.api.qloo.com'));
+  delete env.QLOO_API_URL;
+ });
+ await t.test('untrusted API hosts cannot receive keys',async()=>{
+  calls=[];env.QLOO_API_URL='https://evil.example';
+  const r=await handleRequest(request(rec));assert.equal(r.status,200);
+  assert.ok(calls.some(c=>c.u.hostname==='api.qloo.com'));
+  assert.ok(!calls.some(c=>c.u.hostname==='evil.example'));
+  delete env.QLOO_API_URL;
+ });
  await t.test('bounded requests reject excessive calls',async()=>{
   const statuses=[];for(let i=0;i<22;i++) statuses.push((await handleRequest(request(rec))).status);
   assert.ok(statuses.includes(429));
