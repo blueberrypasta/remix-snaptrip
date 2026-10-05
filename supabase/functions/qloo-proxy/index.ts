@@ -333,7 +333,7 @@ export async function handleRequest(req: Request): Promise<Response> {
     }
 
     let qlooApiUrl = Deno.env.get('QLOO_API_URL');
-    const allowedUrls = ['https://api.qloo.com', 'https://staging.api.qloo.com'];
+    const allowedUrls = ['https://api.qloo.com', 'https://staging.api.qloo.com', 'https://hackathon.api.qloo.com'];
     if (!qlooApiUrl || !allowedUrls.includes(qlooApiUrl)) {
       qlooApiUrl = 'https://api.qloo.com';
     }

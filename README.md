@@ -32,8 +32,9 @@ Deploy `supabase/functions/qloo-proxy/index.ts` as `qloo-proxy` in the existing
 Supabase project. Disable gateway JWT verification for this function: health is
 public, while every paid POST verifies the actual user session via Supabase Auth.
 Set `QLOO_API_KEY` as a Supabase Edge Function secret, never a `VITE_` variable.
-Use `QLOO_API_URL=https://staging.api.qloo.com` only when the issued key requires
-staging; production is the default. Then verify `/functions/v1/qloo-proxy/health`,
+Set `QLOO_API_URL=https://hackathon.api.qloo.com` for a hackathon-issued key;
+these keys cannot use production or staging. Staging is also allowlisted for
+keys specifically issued for that environment; production is the default. Then verify `/functions/v1/qloo-proxy/health`,
 entity search, and a real recommendation response before considering it active.
 
 `node --experimental-strip-types --test tests/qloo-proxy.test.mjs` checks the
