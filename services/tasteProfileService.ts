@@ -112,7 +112,7 @@ export async function interpretTaste(
 
   if (hasText && input.text!) {
     const len = input.text!.length;
-    if (len < 3 || len > 1200) {
+    if (input.text!.trim().length < 3 || len > 1200) {
       throw new Error('invalid_input');
     }
   }

@@ -34,7 +34,7 @@ test('taste input validation and request boundary',async t=>{
  });
  globalThis.testTasteSession=true;
  await t.test('invalid or oversized input cannot call external AI',async()=>{
-  for(const input of [{text:'x'},{text:'x'.repeat(1201)},{audio:{data:'x',mimeType:'text/plain'}},{audio:{data:'x'.repeat(2800000),mimeType:'audio/wav'}}])await assert.rejects(interpretTaste(input,'en'),/invalid_input/);
+  for(const input of [{text:'x'},{text:' a '},{text:'x'.repeat(1201)},{audio:{data:'x',mimeType:'text/plain'}},{audio:{data:'x'.repeat(2800000),mimeType:'audio/wav'}}])await assert.rejects(interpretTaste(input,'en'),/invalid_input/);
   assert.equal(calls.length,0);
  });
  await t.test('text is passed to proxy, not directly to Qloo',async()=>{
