@@ -44,7 +44,7 @@ const COPY: Record<Language, Partial<Record<string, string>>> & { en: Record<str
     openMaps: 'View on Map',
     removeChip: 'Remove selection',
   },
-  ko: { title: '이 지역에서 어디 갈까', poweredBy: 'Qloo 제공', loginPrompt: '개인화된 추천을 위해 로그인하세요.', expand: '장소 찾기', collapse: '추천 숨기기', searchLabel: '좋아하는 식당·장소·브랜드 찾기', categoryLabel: '카테고리', btnSearch: '검색', btnGetRecs: '추천 받기', disclosure: '선택한 관심사와 대략적인 위치가 Qloo로 전송됩니다.', maxChips: '최대 3개 선택', loading: '검색 중...', recLoading: '아이디어 생성 중...', noMatches: '일치하는 항목이 없습니다.', zeroRecs: '근처 장소를 찾지 못했습니다.', errNetwork: '연결 문제입니다.', errTimeout: '시간 초과됨.', errRateLimit: '요청이 너무 많습니다.', errAuth: '세션 만료됨.', errConfig: '서비스 일시 불가.', openMaps: '지도에서 보기', removeChip: '선택 해제' },
+  ko: { title: '이 지역에서 어디 갈까', poweredBy: 'Qloo 제공', loginPrompt: '개인화된 추천을 위해 로그인하세요.', expand: '장소 찾기', collapse: '추천 숨기기', searchLabel: '좋아하는 식당·장소·브랜드 찾기', categoryLabel: '카테고리', btnSearch: '검색', btnGetRecs: '추천 받기', disclosure: '선택한 관심사와 대략적인 위치가 Qloo로 전송됩니다.', maxChips: '최대 3개 선택', loading: '검색 중...', recLoading: '아이디어 생성 중...', noMatches: '일치하는 항목이 없습니다.', zeroRecs: '근처 장소를 찾지 못했습니다.', errNetwork: '연결 문제입니다.', errTimeout: '시간 초과됨.', errRateLimit: '요청이 많습니다. 잠시 후 다시 추천받아 주세요.', errAuth: '로그인이 필요합니다. 다시 로그인해 주세요.', errConfig: '서비스 일시 불가.', openMaps: '지도에서 보기', removeChip: '선택 해제' },
   ja: { title: 'このエリアのおすすめ', poweredBy: 'Qloo提供', loginPrompt: 'パーソナライズされたおすすめを見るにはログインしてください。', expand: '場所を探す', collapse: 'おすすめを隠す', searchLabel: 'インスピレーション検索', categoryLabel: 'カテゴリ', btnSearch: '検索', btnGetRecs: 'おすすめを取得', disclosure: '選択した興味と概算位置情報がQlooに送信されます。', maxChips: '最大3件まで', loading: '検索中...', recLoading: 'アイデア生成中...', noMatches: '一致する項目が見つかりません。', zeroRecs: '近くのスポットが見つかりませんでした。', errNetwork: '接続エラーです。', errTimeout: 'タイムアウトしました。', errRateLimit: 'リクエストが多すぎます。', errAuth: 'セッション期限切れ。', errConfig: 'サービス一時停止中。', openMaps: '地図で見る', removeChip: '削除' },
   zh: { title: '本地吃喝与探索', poweredBy: '由 Qloo 驱动', loginPrompt: '登录以获取个性化推荐。', expand: '发现地点', collapse: '隐藏推荐', searchLabel: '寻找灵感', categoryLabel: '类别', btnSearch: '搜索', btnGetRecs: '获取推荐', disclosure: '您选择的兴趣和大致位置将发送给 Qloo。', maxChips: '最多选择3个', loading: '搜索中...', recLoading: '生成建议中...', noMatches: '未找到匹配项。', zeroRecs: '附近未找到特定地点。', errNetwork: '连接问题，请重试。', errTimeout: '请求超时。', errRateLimit: '请求过多，请稍等。', errAuth: '会话过期，请重新登录。', errConfig: '服务暂时不可用。', openMaps: '在地图查看', removeChip: '移除选择' },
   es: { title: 'Tu próximo destino', poweredBy: 'Impulsado por Qloo', loginPrompt: 'Inicia sesión para ver recomendaciones personalizadas.', expand: 'Descubrir lugares', collapse: 'Ocultar recomendaciones', searchLabel: 'Buscar inspiración', categoryLabel: 'Categoría', btnSearch: 'Buscar', btnGetRecs: 'Obtener recomendaciones', disclosure: 'Tus intereses seleccionados y ubicación aproximada se envían a Qloo.', maxChips: 'Máximo 3 selecciones', loading: 'Buscando...', recLoading: 'Generando ideas...', noMatches: 'Sin coincidencias.', zeroRecs: 'No se encontraron lugares cercanos.', errNetwork: 'Problema de conexión.', errTimeout: 'Tiempo agotado.', errRateLimit: 'Demasiadas solicitudes.', errAuth: 'Sesión expirada.', errConfig: 'Servicio temporalmente no disponible.', openMaps: 'Ver en mapa', removeChip: 'Eliminar selección' },
@@ -200,6 +200,9 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
         // Cuisine and drink tags are valid preferences without named businesses.
         await requestPlaces([],next,seq,draft.favorites.map(f=>f.name));
       }
+    } catch (err) {
+      if(seq===requestSeqRef.current) handleError(err instanceof Error?err.message:'unknown');
+      throw err;
     } finally {
       if(seq===requestSeqRef.current) setLoading(false);
     }
