@@ -14,6 +14,12 @@ interface QlooEntity {
 }
 
 interface QlooPlaceResult {
+  latitude?: number;
+  longitude?: number;
+  rating?: number;
+  ratingSource?: 'qloo' | 'google';
+  reviewCount?: number;
+  priceLevel?: number;
   id: string;
   name: string;
   address: string;
@@ -242,7 +248,7 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     }
   }
 
-  if (!Array.isArray(excludedNames) || excludedNames.length > 3 || excludedNames.some(n => typeof n !== 'string' || !n.trim() || n.length > 200)) return Response.json({error:'invalid_exclusions'}, {status:400});
+  if (!Array.isArray(excludedNames) || excludedNames.length > 10 || excludedNames.some(n => typeof n !== 'string' || !n.trim() || n.length > 200)) return Response.json({error:'invalid_exclusions'}, {status:400});
   const excludedIds = new Set(interests.map(id => id.toLowerCase()));
   const excludedKeys = excludedNames.map(n => favoriteNameKey(n.replace(/\s+[-–—|]\s+.*$|\s*\([^)]*\)\s*$/gu, ''))).filter(Boolean);
 
@@ -349,18 +355,25 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
       const geocodeAddr = p.properties?.geocode?.formatted_address;
       const address = typeof addressProps === 'string' ? addressProps : (typeof geocodeAddr === 'string' ? geocodeAddr : '');
 
-      const descRaw = p.properties?.description;
+      const descRaw = p.properties?.description || p.properties?.short_description;
       const description = descRaw ? String(descRaw).substring(0, 400) : undefined;
 
       // Construct Google Maps URL strictly
       const queryStr = encodeURIComponent(`${name} ${address}`.trim());
-      const url = `https://www.google.com/maps/search/?api=1&query=${queryStr}`;
+      const googlePlaceId=p.external?.google_place?.[0]?.place_id;
+      const placeSuffix=typeof googlePlaceId==='string' && /^[A-Za-z0-9_-]{10,200}$/.test(googlePlaceId) ? `&query_place_id=${encodeURIComponent(googlePlaceId)}` : '';
+      const url = `https://www.google.com/maps/search/?api=1&query=${queryStr}${placeSuffix}`;
 
       return {
         id: p.id || p.entity_id || '',
         name,
         address,
         description,
+        latitude: Number.isFinite(p.location?.lat) && Math.abs(p.location.lat)<=90 ? p.location.lat : undefined,
+        longitude: Number.isFinite(p.location?.lon) && Math.abs(p.location.lon)<=180 ? p.location.lon : undefined,
+        rating: Number.isFinite(p.properties?.business_rating) && p.properties.business_rating >= 0 && p.properties.business_rating <= 5 ? p.properties.business_rating : undefined,
+        ratingSource: Number.isFinite(p.properties?.business_rating) ? 'qloo' as const : undefined,
+        priceLevel: Number.isInteger(p.properties?.price_level) && p.properties.price_level >= 1 && p.properties.price_level <= 4 ? p.properties.price_level : undefined,
         url,
       };
     }).filter(Boolean).slice(0, 5);

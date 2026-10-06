@@ -11,7 +11,7 @@ const guestUsage=new Map();
 let authOK=true;
 let authUser='qa-user';
 const discovered='22345678-1234-4234-8234-123456789abc';
-let fixtures=[{entity_id:discovered,name:'Test Place',types:['urn:entity:place'],properties:{address:'123 Test St',description:'Verified fixture'}}];
+let fixtures=[{entity_id:discovered,name:'Test Place',types:['urn:entity:place'],location:{lat:34.051,lon:-118.241},external:{google_place:[{place_id:'ChIJtest_place_id_123456'}]},properties:{address:'123 Test St',description:'Verified fixture',business_rating:4.699999809,price_level:2}}];
 globalThis.fetch = async (url, options={}) => {
   const u = new URL(String(url)); calls.push({u,options});
   if (u.pathname==='/auth/v1/user') return Response.json(authOK?{id:authUser}:{error:'invalid'}, {status:authOK?200:401});
@@ -62,6 +62,7 @@ test('Qloo server boundary', async t=>{
  await t.test('recommendation uses interests and geography without account data',async()=>{
   calls=[];const r=await handleRequest(request(rec));assert.equal(r.status,200);
   const data=await r.json();assert.equal(data.places[0].name,'Test Place');assert.match(data.places[0].url,/^https:\/\/www.google.com\/maps\/search\/\?api=1&query=/);
+  assert.equal(new URL(data.places[0].url).searchParams.get('query_place_id'),'ChIJtest_place_id_123456');assert.equal(data.places[0].latitude,34.051);assert.equal(data.places[0].longitude,-118.241);assert.equal(data.places[0].ratingSource,'qloo');assert.equal(data.places[0].priceLevel,2);assert.equal(data.places[0].reviewCount,undefined);
   const c=calls.find(c=>c.u.pathname==='/v2/insights' && c.u.searchParams.get('take')==='20');assert.equal(c.u.searchParams.get('signal.interests.entities'),interest);
   assert.equal(c.u.searchParams.get('filter.location'),'POINT(-118.24 34.05)');assert.equal(c.u.searchParams.get('filter.location.radius'),'15000');assert.equal(c.u.searchParams.get('take'),'20');
   assert.ok(!JSON.stringify(data).includes('test-qloo'));assert.ok(!c.u.toString().includes('qa-user'));
@@ -134,6 +135,8 @@ test('Qloo server boundary', async t=>{
     assert.ok(calls.filter(c=>c.u.pathname==='/v2/insights').every(c=>c.u.searchParams.get('filter.exclude.entities')===interest));
    }
    assert.equal((await handleRequest(request({...rec,excludedNames:'BCD'}))).status,400);
+   assert.equal((await handleRequest(request({...rec,excludedNames:Array.from({length:11},(_,i)=>'Favorite '+i)}))).status,400);
+   assert.equal((await handleRequest(request({...rec,excludedNames:['BCD','In-N-Out','Muji','Uniqlo']}))).status,200);
    assert.equal((await handleRequest(request({...rec,excludedNames:['x'.repeat(201)]}))).status,400);
   } finally {fixtures=saved;authUser='qa-user';}
  });

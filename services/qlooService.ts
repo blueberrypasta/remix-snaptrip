@@ -19,6 +19,12 @@ export interface QlooInterest {
 }
 
 export interface QlooPlace {
+  latitude?: number;
+  longitude?: number;
+  rating?: number;
+  ratingSource?: 'qloo' | 'google';
+  reviewCount?: number;
+  priceLevel?: number;
   id: string;
   name: string;
   address: string;

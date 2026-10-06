@@ -154,7 +154,7 @@ Extracted Data Format (JSON):
 
 Rules:
 1. Favorites: Max 3 items. Names must be explicitly mentioned as liked. Unique case-insensitive names+types. Name max 100 chars.
-2. Options: Only include fields if explicitly indicated. Omit unknown/unclear fields. Strict enum values.
+2. Options: Only include fields if explicitly indicated. Omit unknown/unclear fields. Strict enum values. When input includes an earlier summary and an additional request, the latest request takes precedence for changed constraints (for example cheaper price or closer radius); retain earlier unchanged explicit likes.
 3. Audio: Transcribe first mentally, then extract preferences. If no speech or no preferences, summary="".
 4. Do not claim dietary/allergy/spice/noise constraints are enforced unless they map directly to standard cuisine/category/price/radius/mode enums. Store them only in summary if relevant contextually but do not force into enums if unclear.
 5. Return ONLY valid JSON.`;

@@ -26,14 +26,14 @@ interface WelcomeScreenProps {
   isMoreNearbyLoading?: boolean;
 }
 
-export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ 
+export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onUploadClick, onCameraClick, language, user, onLogin, recentHistory, onSelectHistory, credits, onReload, isSyncing = false,
   nearbyGems = [], nearbyAreaName = '', nearbyWeather = null, isNearbyLoading = false, locationStatus = 'idle', onRefreshLocation, onStartGuide,
   onShowMoreNearby, isMoreNearbyLoading = false, tasteRecommendations
 }) => {
   const t = useTranslations(language);
   const [displayLimit, setDisplayLimit] = useState(10);
-  const [isNearbyExpanded, setIsNearbyExpanded] = useState(false); 
+  const [isNearbyExpanded, setIsNearbyExpanded] = useState(true);
   const [expandedGemIdx, setExpandedGemIdx] = useState<number | null>(null);
   const [tempUnit, setTempUnit] = useState<'C' | 'F'>('C');
   const [activeGuide, setActiveGuide] = useState<{landmarkName: string} | null>(null);
@@ -74,15 +74,15 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
   const getCategoryStyles = (type: string) => {
     const tLower = (type || '').toLowerCase();
-    
+
     const landmarkKeywords = [
-      'landmark', 'museum', 'park', 'history', 'sight', 'attraction', 
-      'monument', 'temple', 'church', 'palace', 'castle', 'memorial', 
-      'bridge', 'square', 'plaza', 'tower', 'cathedral', 'synagogue', 
+      'landmark', 'museum', 'park', 'history', 'sight', 'attraction',
+      'monument', 'temple', 'church', 'palace', 'castle', 'memorial',
+      'bridge', 'square', 'plaza', 'tower', 'cathedral', 'synagogue',
       'historic', 'view', 'garden', 'market', 'hall', 'basilica',
       '명소', '박물관', '성당', '대성당', '공원', '유적', '광장', '궁전'
     ];
-    
+
     const isLandmark = landmarkKeywords.some(kw => tLower.includes(kw));
 
     if (isLandmark) {
@@ -108,81 +108,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
   return (
     <div className="flex flex-col w-full max-w-xl mx-auto pb-32 animate-fade-in min-h-[500px]">
-      <section className="p-4 w-full">
-        <div className="relative w-full overflow-hidden rounded-[2.25rem] sm:rounded-[2.5rem] shadow-2xl h-[390px] sm:h-auto sm:aspect-video flex flex-col items-center justify-center p-5 sm:p-6 text-center group min-h-[300px] border border-white/5">
-          <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=1000')" }}></div>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/90"></div>
-          
-          {/* Corner Reticles */}
-          <div className="absolute top-6 left-6 w-5 h-5 border-t-[1.5px] border-l-[1.5px] border-[#D9B26A]/60 rounded-tl-sm pointer-events-none" />
-          <div className="absolute top-6 right-6 w-5 h-5 border-t-[1.5px] border-r-[1.5px] border-[#D9B26A]/60 rounded-tr-sm pointer-events-none" />
-          <div className="absolute bottom-6 left-6 w-5 h-5 border-b-[1.5px] border-l-[1.5px] border-[#D9B26A]/60 rounded-bl-sm pointer-events-none" />
-          <div className="absolute bottom-6 right-6 w-5 h-5 border-b-[1.5px] border-r-[1.5px] border-[#D9B26A]/60 rounded-br-sm pointer-events-none" />
-
-          {/* Docent Ready Overlay */}
-          <div className="absolute top-8 left-1/2 -translate-x-1/2 flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#D9B26A] animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D9B26A]">{t('docentReady') || 'Docent Ready'}</span>
-          </div>
-
-          <div className="relative z-10 flex flex-col items-center gap-3 mt-auto w-full mb-2 sm:mb-4">
-            <h2 className="text-[28px] sm:text-5xl font-serif italic text-[#F4EFE6] leading-tight break-keep drop-shadow-2xl">{t('welcomeMessage')}</h2>
-            <p className="text-[#D5DCE3] text-[11px] sm:text-xs font-semibold max-w-[340px] mx-auto leading-relaxed mb-2 sm:mb-4 break-keep font-sans tracking-wide">{t('welcomeSub')}</p>
-            
-            <div className="flex w-full gap-3 px-2">
-              <button 
-                onClick={onCameraClick} 
-                disabled={isSyncing}
-                className="flex-1 flex items-center justify-center gap-2.5 rounded-full bg-gradient-to-b from-[#E6C079] to-[#C99A4F] h-14 text-[#1B130A] text-sm font-black shadow-[0_10px_30px_-10px_rgba(217,178,106,0.5),0_0_40px_-10px_rgba(217,178,106,0.3)] active:scale-95 disabled:opacity-50 transition-all font-sans ring-1 ring-white/20 ring-inset"
-              >
-                {isSyncing ? (
-                  <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[20px]">photo_camera</span>
-                    {t('identifyCamera')}
-                  </>
-                )}
-              </button>
-              <button 
-                onClick={onUploadClick} 
-                disabled={isSyncing}
-                className="flex-1 flex items-center justify-center gap-2.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 h-14 text-white text-sm font-black active:scale-95 disabled:opacity-50 transition-all font-sans hover:bg-white/10"
-              >
-                {isSyncing ? (
-                  <span className="text-[10px] animate-pulse uppercase tracking-widest">Syncing...</span>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[20px]">upload_file</span>
-                    {t('choosePhoto')}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {activeGuide && (
-        <section className="px-5 mt-2 animate-fade-in-up">
-           <button 
-             onClick={() => onStartGuide?.(activeGuide.landmarkName)}
-             className="w-full p-4 bg-primary/20 border border-primary/30 rounded-2xl flex items-center justify-between group active:scale-[0.98] transition-all"
-           >
-              <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary animate-pulse">
-                    <span className="material-symbols-outlined">record_voice_over</span>
-                 </div>
-                 <div className="text-left">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">{t('resumeGuide')}</p>
-                    <h4 className="text-sm font-black text-white truncate max-w-[200px]">{activeGuide.landmarkName}</h4>
-                 </div>
-              </div>
-              <span className="material-symbols-outlined text-primary group-hover:translate-x-1 transition-transform">arrow_forward</span>
-           </button>
-        </section>
-      )}
-
       <section className="px-5 mt-4">
         <div className={`bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl transition-all duration-300 ${isNearbyExpanded ? 'ring-1 ring-emerald-500/30' : ''}`}>
             <div className="p-5 flex flex-col gap-3 cursor-pointer" onClick={() => setIsNearbyExpanded(!isNearbyExpanded)}>
@@ -191,7 +116,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         <span className="material-symbols-outlined text-emerald-400 text-[22px]">explore</span>
                         {t('nearbyGems')}
                     </h3>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                        {tasteRecommendations}
                         <button aria-label={t('retryLocation')} onClick={(e) => { e.stopPropagation(); onRefreshLocation?.(); }} className={`w-11 h-11 rounded-full flex items-center justify-center hover:bg-white/10 active:scale-90 ${isNearbyLoading ? 'text-emerald-400' : 'text-slate-300'}`}><span aria-hidden="true" className={`material-symbols-outlined text-[20px] ${isNearbyLoading ? 'animate-spin' : ''}`}>refresh</span></button>
                         <span className={`material-symbols-outlined text-slate-400 transition-transform ${isNearbyExpanded ? 'rotate-180 text-emerald-400' : ''}`}>expand_more</span>
                     </div>
@@ -215,7 +141,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 </div>
             </div>
 
-            <div className="mx-4 mb-4">{tasteRecommendations}</div>
 
             <div className={`overflow-hidden transition-all duration-300 ${isNearbyExpanded ? 'max-h-[3000px] opacity-100 mb-5' : 'max-h-0 opacity-0'}`}>
                 <div className="px-5 pt-0">
@@ -231,10 +156,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                 const styles = getCategoryStyles(gem.type);
                                 const isExpanded = expandedGemIdx === idx;
                                 return (
-                                    <div 
-                                      key={idx} 
+                                    <div
+                                      key={idx}
                                       onClick={() => toggleGemExpand(idx)}
-                                      className={`flex flex-col p-4 bg-white/5 rounded-2xl border ${styles.border} relative group animate-fade-in-up transition-all duration-300 cursor-pointer ${isExpanded ? 'bg-white/[0.08]' : 'hover:bg-white/[0.03]'}`} 
+                                      className={`flex flex-col p-4 bg-white/5 rounded-2xl border ${styles.border} relative group animate-fade-in-up transition-all duration-300 cursor-pointer ${isExpanded ? 'bg-white/[0.08]' : 'hover:bg-white/[0.03]'}`}
                                       style={{ animationDelay: `${idx * 50}ms` }}
                                     >
                                         <div className="flex items-center gap-2 mb-2 w-full">
@@ -247,7 +172,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
                                         <div className="ml-9 leading-relaxed relative overflow-hidden">
                                             <div className="inline-flex items-center gap-2 mr-2 align-middle">
-                                                <button 
+                                                <button
                                                   onClick={(e) => { e.stopPropagation(); window.open(gem.url, '_blank'); }}
                                                   className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 rounded-full border border-amber-500/20 hover:bg-amber-500/20 active:scale-90 transition-all shrink-0"
                                                 >
@@ -258,7 +183,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                                 </button>
 
                                                 {(styles.type === 'landmark') && (
-                                                  <button 
+                                                  <button
                                                     onClick={(e) => { e.stopPropagation(); onStartGuide?.(gem.name); }}
                                                     className="px-3 py-1 bg-primary/20 text-primary border border-primary/30 rounded-full text-[10px] font-black flex items-center gap-1.5 hover:bg-primary hover:text-white transition-all active:scale-95 shrink-0"
                                                   >
@@ -274,7 +199,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                                     <span className="ml-1 text-slate-500 font-bold opacity-60">...{t('readMore')}</span>
                                                 )}
                                             </span>
-                                            
+
                                             {isExpanded && (
                                               <div className="flex justify-end mt-2 pr-2">
                                                   <a href={gem.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400/60 hover:text-emerald-400 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest">
@@ -286,9 +211,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                     </div>
                                 );
                             })}
-                            
+
                             {nearbyGems.length < 20 && (
-                              <button 
+                              <button
                                 onClick={(e) => { e.stopPropagation(); onShowMoreNearby?.(); }}
                                 disabled={isMoreNearbyLoading}
                                 className="mt-2 w-full h-12 rounded-xl bg-white/5 border border-white/5 text-[11px] font-black text-emerald-400 uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-white/10 active:scale-[0.98] transition-all disabled:opacity-50"
@@ -321,6 +246,82 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </div>
         </div>
       </section>
+      <section className="p-4 w-full">
+        <div className="relative w-full overflow-hidden rounded-[2.25rem] sm:rounded-[2.5rem] shadow-2xl h-[390px] sm:h-auto sm:aspect-video flex flex-col items-center justify-center p-5 sm:p-6 text-center group min-h-[300px] border border-white/5">
+          <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=1000')" }}></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/90"></div>
+
+          {/* Corner Reticles */}
+          <div className="absolute top-6 left-6 w-5 h-5 border-t-[1.5px] border-l-[1.5px] border-[#D9B26A]/60 rounded-tl-sm pointer-events-none" />
+          <div className="absolute top-6 right-6 w-5 h-5 border-t-[1.5px] border-r-[1.5px] border-[#D9B26A]/60 rounded-tr-sm pointer-events-none" />
+          <div className="absolute bottom-6 left-6 w-5 h-5 border-b-[1.5px] border-l-[1.5px] border-[#D9B26A]/60 rounded-bl-sm pointer-events-none" />
+          <div className="absolute bottom-6 right-6 w-5 h-5 border-b-[1.5px] border-r-[1.5px] border-[#D9B26A]/60 rounded-br-sm pointer-events-none" />
+
+          {/* Docent Ready Overlay */}
+          <div className="absolute top-8 left-1/2 -translate-x-1/2 flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#D9B26A] animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D9B26A]">{t('docentReady') || 'Docent Ready'}</span>
+          </div>
+
+          <div className="relative z-10 flex flex-col items-center gap-3 mt-auto w-full mb-2 sm:mb-4">
+            <h2 className="text-[28px] sm:text-5xl font-serif italic text-[#F4EFE6] leading-tight break-keep drop-shadow-2xl">{t('welcomeMessage')}</h2>
+            <p className="text-[#D5DCE3] text-[11px] sm:text-xs font-semibold max-w-[340px] mx-auto leading-relaxed mb-2 sm:mb-4 break-keep font-sans tracking-wide">{t('welcomeSub')}</p>
+
+            <div className="flex w-full gap-3 px-2">
+              <button
+                onClick={onCameraClick}
+                disabled={isSyncing}
+                className="flex-1 flex items-center justify-center gap-2.5 rounded-full bg-gradient-to-b from-[#E6C079] to-[#C99A4F] h-14 text-[#1B130A] text-sm font-black shadow-[0_10px_30px_-10px_rgba(217,178,106,0.5),0_0_40px_-10px_rgba(217,178,106,0.3)] active:scale-95 disabled:opacity-50 transition-all font-sans ring-1 ring-white/20 ring-inset"
+              >
+                {isSyncing ? (
+                  <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[20px]">photo_camera</span>
+                    {t('identifyCamera')}
+                  </>
+                )}
+              </button>
+              <button
+                onClick={onUploadClick}
+                disabled={isSyncing}
+                className="flex-1 flex items-center justify-center gap-2.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 h-14 text-white text-sm font-black active:scale-95 disabled:opacity-50 transition-all font-sans hover:bg-white/10"
+              >
+                {isSyncing ? (
+                  <span className="text-[10px] animate-pulse uppercase tracking-widest">Syncing...</span>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[20px]">upload_file</span>
+                    {t('choosePhoto')}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {activeGuide && (
+        <section className="px-5 mt-2 animate-fade-in-up">
+           <button
+             onClick={() => onStartGuide?.(activeGuide.landmarkName)}
+             className="w-full p-4 bg-primary/20 border border-primary/30 rounded-2xl flex items-center justify-between group active:scale-[0.98] transition-all"
+           >
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary animate-pulse">
+                    <span className="material-symbols-outlined">record_voice_over</span>
+                 </div>
+                 <div className="text-left">
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">{t('resumeGuide')}</p>
+                    <h4 className="text-sm font-black text-white truncate max-w-[200px]">{activeGuide.landmarkName}</h4>
+                 </div>
+              </div>
+              <span className="material-symbols-outlined text-primary group-hover:translate-x-1 transition-transform">arrow_forward</span>
+           </button>
+        </section>
+      )}
+
+
 
       <div className="px-6 pt-10 pb-2 flex justify-between items-center">
         <h3 className="text-xl font-black text-white flex items-center gap-2"><span className="material-symbols-outlined text-primary">history</span>{t('recentActivity')}</h3>
