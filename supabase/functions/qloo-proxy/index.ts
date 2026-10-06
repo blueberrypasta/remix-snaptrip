@@ -204,7 +204,7 @@ async function handleSearch(qlooApiKey: string, qlooApiUrl: string, query: strin
   }
 }
 
-async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string} = {}): Promise<{ places: QlooPlaceResult[] } | Response> {
+async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string;foodApproach?: string} = {}): Promise<{ places: QlooPlaceResult[] } | Response> {
   // Optional explicit entities; generic tastes are represented by tags.
   if (interests.length > 3) {
     return new Response(JSON.stringify({ error: 'invalid_interest_count' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -237,9 +237,11 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
   const radius = options.radius ?? 15000;
   const priceMax = options.priceMax ?? 0;
   const drink = options.drink ?? 'any';
+  const foodApproach=options.foodApproach ?? 'familiar';
+  const filterCuisine=foodApproach==='familiar'?cuisine:'any';
   if (!['food','shopping','visits'].includes(category) || !['balanced','popular','discover'].includes(mode)
     || !['any','korean','japanese','italian','mexican','american','vegetarian'].includes(cuisine)
-    || !['any','matcha'].includes(drink) || ![5000,15000,30000].includes(radius) || !Number.isInteger(priceMax) || priceMax < 0 || priceMax > 4) {
+    || !['familiar','local','both'].includes(foodApproach) || !['any','matcha'].includes(drink) || ![5000,15000,30000].includes(radius) || !Number.isInteger(priceMax) || priceMax < 0 || priceMax > 4) {
     return Response.json({error:'invalid_options'}, {status:400});
   }
   const filterLocationStr = `POINT(${Math.round(longitude * 100) / 100} ${Math.round(latitude * 100) / 100})`;
@@ -256,13 +258,13 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
   const categoryTag = category === 'food' ? 'urn:tag:category:place:restaurant'
     : category === 'shopping' ? 'urn:tag:category:place:shopping_mall,urn:tag:category:place:clothing_store,urn:tag:category:place:store' : 'urn:tag:category:place:tourist_attraction';
   params.set('filter.tags', categoryTag);
-  if (interestsStr) params.set('signal.interests.entities',interestsStr);
-  if (category === 'food' && cuisine !== 'any') params.set('signal.interests.tags',`urn:tag:genre:place:restaurant:${cuisine}`);
+  if (interestsStr && (category!=='food' || foodApproach!=='local')) params.set('signal.interests.entities',interestsStr);
+  if (category === 'food' && cuisine !== 'any' && foodApproach!=='local') params.set('signal.interests.tags',`urn:tag:genre:place:restaurant:${cuisine}`);
   if (category === 'visits') params.set('filter.exclude.tags','urn:tag:category:place:restaurant,urn:tag:category:place:grocery_store');
   if (category === 'food') {
     params.set('filter.exclude.tags','urn:tag:category:place:shopping_mall');
-    if (cuisine !== 'any') {
-      params.set('filter.tags', `${categoryTag},urn:tag:genre:place:restaurant:${cuisine}`);
+    if (filterCuisine !== 'any') {
+      params.set('filter.tags', `${categoryTag},urn:tag:genre:place:restaurant:${filterCuisine}`);
       params.set('operator.filter.tags','intersection');
     }
     if (priceMax) params.set('filter.price_level.max',String(priceMax));

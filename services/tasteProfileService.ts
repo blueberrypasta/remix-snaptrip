@@ -89,6 +89,7 @@ export function normalizeTasteDraft(value: unknown): TasteDraft {
   if ((!options.cuisine || options.cuisine === 'any') && generic.cuisine) options.cuisine=generic.cuisine;
   if (optionsRaw.drink === 'any' || optionsRaw.drink === 'matcha') options.drink=optionsRaw.drink;
   else if (generic.drink) options.drink=generic.drink;
+  if (['familiar','local','both'].includes(String(optionsRaw.foodApproach))) options.foodApproach=optionsRaw.foodApproach as QlooOptions['foodApproach'];
   return { summary, favorites, options };
 }
 
@@ -136,7 +137,7 @@ Your task is to extract ONLY explicit likes/preferences stated by the speaker/te
 If there is no clear preference expressed, set summary to "".
 
 Input Type: ${hasAudio ? 'AUDIO' : 'TEXT'}
-Language for Summary Output: ${language}
+Language for Summary Output: ${language}. Language ONLY controls output language. NEVER infer ethnicity, race, nationality or food preferences from language. Cuisine must be explicitly stated.
 
 Extracted Data Format (JSON):
 {
@@ -147,6 +148,7 @@ Extracted Data Format (JSON):
   "options": {
     "cuisine": "any"|"korean"|"japanese"|"italian"|"mexican"|"american"|"vegetarian"; omit if unknown,
     "drink": "any"|"matcha"; omit if unknown,
+    "foodApproach": "familiar"|"local"|"both"; only when user explicitly requests familiar food, local exploration, or a mix; omit otherwise,
     "priceMax": integer 0..4 (0=unrestricted, 1=$,2=$$,3=$$$,4=$$$$); omit if unknown,
     "mode": "balanced"|"popular"|"discover"; omit if unknown,
     "radius": 5000|15000|30000; omit if unknown,

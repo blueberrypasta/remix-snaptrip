@@ -15,7 +15,7 @@ test('taste input validation and request boundary',async t=>{
   for(const value of [null,{}, {summary:''},{summary:'no_preferences'}])assert.throws(()=>normalizeTasteDraft(value),/no_preferences/);
  });
  await t.test('unknown inferred constraints and malformed fields are not applied',()=>{
-  const d=normalizeTasteDraft({summary:'I like noodles',favorites:[{name:'Muji',type:'brand'},{name:'muji',type:'brand'},{name:'fake',type:'url'}],options:{cuisine:'japanese',radius:999999,priceMax:'2',mode:'quiet',category:'shopping',allergy:'safe'}});
+  const d=normalizeTasteDraft({summary:'I like noodles',favorites:[{name:'Muji',type:'brand'},{name:'muji',type:'brand'},{name:'fake',type:'url'}],options:{cuisine:'japanese',radius:999999,priceMax:'2',mode:'quiet',category:'shopping',allergy:'safe',ethnicity:'invented',foodApproach:'invented'}});
   assert.deepEqual(d.options,{cuisine:'japanese',category:'shopping'});assert.equal(d.favorites.length,1);
  });
  await t.test('food and drink terms are taste filters, never named favorite places',()=>{

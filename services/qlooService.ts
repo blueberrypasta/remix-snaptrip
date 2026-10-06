@@ -5,6 +5,7 @@ export interface QlooOptions {
   category: 'food' | 'shopping' | 'visits';
   mode: 'balanced' | 'popular' | 'discover';
   drink?: 'any' | 'matcha';
+  foodApproach?: 'familiar' | 'local' | 'both';
   cuisine: 'any' | 'korean' | 'japanese' | 'italian' | 'mexican' | 'american' | 'vegetarian';
   priceMax: number;
   radius: number;

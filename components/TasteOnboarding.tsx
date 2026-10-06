@@ -114,6 +114,7 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
   const [target, setTarget] = useState<QlooOptions['category']>('food');
   const [selectedSeeds, setSelectedSeeds] = useState<string[]>([]);
   const [price, setPrice] = useState<Price | ''>('');
+  const [foodApproach,setFoodApproach]=useState<'familiar'|'local'|'both'>('familiar');
   const [drink,setDrink]=useState<'any'|'matcha'>('any');
   const [cuisine, setCuisine] = useState<Cuisine>('any');
   const [textInput, setTextInput] = useState('');
@@ -300,6 +301,7 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
     setSummaryText(draft.summary);
     setFavInput(draft.favorites.map(f=>f.name).join(', '));
     setTarget(draft.options.category ?? 'food');
+    setFoodApproach(draft.options.foodApproach ?? 'familiar');
     setDrink(draft.options.drink ?? 'any');
     setCuisine(draft.options.cuisine ?? 'any');
     setPrice(draft.options.priceMax ? PRICES[draft.options.priceMax-1] : '');
@@ -349,7 +351,7 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
       const draft: TasteDraft = {
         summary:summaryText.trim().slice(0,600),
         favorites:favs.map(name=>({name,type:previous?.favorites.find(f=>f.name.toLowerCase()===name.toLowerCase())?.type ?? 'place'})),
-        options:{...previous?.options,category:target,drink:target==='food'?drink:'any',cuisine:target==='food'?cuisine:'any',priceMax:target==='food'?price.length:0},
+        options:{...previous?.options,category:target,foodApproach,drink:target==='food'?drink:'any',cuisine:target==='food'?cuisine:'any',priceMax:target==='food'?price.length:0},
       };
       await onApply(normalizeTasteDraft(draft));
       if (!mountedRef.current || version !== requestVersionRef.current) return;
@@ -607,6 +609,12 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
                   ))}
                 </select>
               </label>
+              {target==='food' && <label className="flex items-center gap-2">
+                <span>{language==='ko'?'음식 탐색':'Food exploration'}</span>
+                <select className="min-h-[44px] rounded border border-emerald-800 bg-[#0b1f17] px-2 text-sm" value={foodApproach} disabled={busy || disabled} onChange={e=>setFoodApproach(e.target.value as 'familiar'|'local'|'both')}>
+                  <option value="familiar">{language==='ko'?'익숙한 음식':'Familiar food'}</option><option value="local">{language==='ko'?'현지 음식 둘러보기':'Explore food here'}</option><option value="both">{language==='ko'?'둘 다':'A mix of both'}</option>
+                </select>
+              </label>}
               {target==='food' && <label className="flex items-center gap-2">
                 <span>{language==='ko'?'음료 취향':'Drink preference'}</span>
                 <select className="min-h-[44px] rounded border border-emerald-800 bg-[#0b1f17] px-2 text-sm" value={drink} disabled={busy || disabled} onChange={e=>setDrink(e.target.value as 'any'|'matcha')}>

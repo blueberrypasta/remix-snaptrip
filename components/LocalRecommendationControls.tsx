@@ -87,6 +87,13 @@ export function LocalRecommendationControls({ language, value, onChange, disable
       </div>
 
       {value.category === 'food' && <label className="block mt-3 text-sm text-emerald-200">
+        {language==='ko'?'음식 탐색 방식':'Food exploration'}
+        <select className={base} disabled={disabled} value={value.foodApproach ?? 'familiar'} onChange={e=>onChange({...value,foodApproach:e.target.value as QlooOptions['foodApproach']})}>
+          <option value="familiar">{language==='ko'?'익숙한 음식':'Familiar food'}</option><option value="local">{language==='ko'?'현지 음식 둘러보기':'Explore food here'}</option><option value="both">{language==='ko'?'둘 다':'A mix of both'}</option>
+        </select>
+        <span className="block mt-1 text-xs opacity-70">{language==='ko'?(value.foodApproach==='local'?'음식 종류의 제한을 풀고 지금 지역에서 다양한 곳을 찾습니다.':value.foodApproach==='both'?'취향을 참고하되 다양한 음식도 함께 둘러봅니다.':'선택한 음식 종류와 취향을 우선합니다.'):'Choose whether to keep your cuisine filter or explore more food in this area.'}</span>
+      </label>}
+      {value.category === 'food' && <label className="block mt-3 text-sm text-emerald-200">
         {language==='ko'?'함께 추천받을 음료':'Include a drink preference'}
         <select className={base} disabled={disabled} value={value.drink ?? 'any'} onChange={e=>onChange({...value,drink:e.target.value as 'any'|'matcha'})}>
           <option value="any">{language==='ko'?'선택 안 함':'None'}</option><option value="matcha">{language==='ko'?'말차 라떼 · 카페':'Matcha latte · cafés'}</option>

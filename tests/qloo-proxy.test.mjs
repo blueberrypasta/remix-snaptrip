@@ -83,6 +83,12 @@ test('Qloo server boundary', async t=>{
   assert.equal(restaurant.u.searchParams.get('signal.interests.tags'),'urn:tag:genre:place:restaurant:korean');
   assert.match(cafe.u.searchParams.get('filter.tags'),/matcha_latte/);assert.match(cafe.u.searchParams.get('filter.tags'),/category:place:cafe/);
  });
+ await t.test('local food exploration broadens cuisine; mixed exploration retains explicit taste signals',async()=>{
+  calls=[];let r=await handleRequest(request({...rec,options:{category:'food',cuisine:'korean',foodApproach:'local',mode:'popular'}}));assert.equal(r.status,200);
+  let c=calls.find(c=>c.u.pathname==='/v2/insights');assert.equal(c.u.searchParams.get('filter.tags'),'urn:tag:category:place:restaurant');assert.equal(c.u.searchParams.get('signal.interests.entities'),null);assert.equal(c.u.searchParams.get('signal.interests.tags'),null);
+  calls=[];r=await handleRequest(request({...rec,options:{category:'food',cuisine:'korean',foodApproach:'both',mode:'popular'}}));assert.equal(r.status,200);
+  c=calls.find(c=>c.u.pathname==='/v2/insights');assert.equal(c.u.searchParams.get('filter.tags'),'urn:tag:category:place:restaurant');assert.equal(c.u.searchParams.get('signal.interests.tags'),'urn:tag:genre:place:restaurant:korean');assert.equal(c.u.searchParams.get('signal.interests.entities'),interest);
+ });
  await t.test('upstream auth/rate errors are safe and distinct',async()=>{
   upstreamStatus=401;let r=await handleRequest(request(rec));assert.equal(r.status,503);assert.ok(!(await r.text()).includes('credentials'));
   upstreamStatus=429;r=await handleRequest(request(rec));assert.equal(r.status,429);upstreamStatus=200;
