@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { qlooAvailable, searchQloo, recommendQloo } from '../services/qlooService';
 import type { QlooInterest, QlooPlace, QlooOptions } from '../services/qlooService';
+import { TasteOnboarding } from './TasteOnboarding';
+import {normalizeTasteDraft, type TasteDraft} from '../services/tasteProfileService';
 import { LocalRecommendationControls } from './LocalRecommendationControls';
 import type { Language, LocationData } from '../types';
 
@@ -55,13 +57,15 @@ const CATEGORIES = ['place', 'brand', 'artist', 'movie', 'book'] as const;
 type Category = typeof CATEGORIES[number];
 
 const STORAGE_PREFIX = 'slaptrip_qloo_interests:';
+const OPTIONS_PREFIX = 'slaptrip_qloo_options:';
+const DEFAULT_OPTIONS:QlooOptions={category:'food',mode:'balanced',cuisine:'any',priceMax:0,radius:15000};
 
 export const TasteRecommendations: React.FC<Props> = ({ language, location, onRequestLocation, onLogin, userId }) => {
   const [isAvailable, setIsAvailable] = useState<boolean>(false);
   const [expanded, setExpanded] = useState(false);
   const [category, setCategory] = useState<Category>('place');
   const [query, setQuery] = useState('');
-  const [options, setOptions] = useState<QlooOptions>({category:'food',mode:'balanced',cuisine:'any',priceMax:0,radius:15000});
+  const [options, setOptions] = useState<QlooOptions>(DEFAULT_OPTIONS);
   const [results, setResults] = useState<QlooInterest[]>([]);
   const [selected, setSelected] = useState<QlooInterest[]>([]);
   const [recs, setRecs] = useState<QlooPlace[]>([]);
@@ -84,6 +88,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   useEffect(() => {
     const requests = requestSeqRef;
     setSelected([]);
+    setOptions(DEFAULT_OPTIONS);
     setQuery('');
     setLoading(false);
     setRecLoading(false);
@@ -99,6 +104,8 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   useEffect(() => {
     if (!userId || !isAvailable) return;
     try {
+      const storedOptions = localStorage.getItem(OPTIONS_PREFIX+userId);
+      if(storedOptions) {const restored=normalizeTasteDraft({summary:'Saved preferences',favorites:[],options:JSON.parse(storedOptions)});setOptions({...DEFAULT_OPTIONS,...restored.options});}
       const stored = localStorage.getItem(STORAGE_PREFIX + userId);
       if (stored) {
         const parsed = JSON.parse(stored);
@@ -121,6 +128,11 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
     } catch (e) {
       // Continue silently
     }
+  };
+
+  const changeOptions = (next:QlooOptions) => {
+    setOptions(next);setRecs([]);setError(null);
+    if(userId) try {localStorage.setItem(OPTIONS_PREFIX+userId,JSON.stringify(next));} catch { /* Storage can be unavailable. */ }
   };
 
   const handleSearch = async () => {
@@ -156,6 +168,23 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
     setRecs([]);
     setSelected(newSel);
     saveSelected(newSel);
+  };
+
+  const applyTaste = async (draft: TasteDraft) => {
+    const seq = ++requestSeqRef.current;
+    setLoading(true);setError(null);setResults([]);setRecs([]);
+    try {
+      const matches = await Promise.all(draft.favorites.map(f=>searchQloo(f.name,f.type)));
+      if (seq !== requestSeqRef.current) return;
+      const entities = matches.flat().filter((e,i,a)=>a.findIndex(x=>x.id===e.id)===i);
+      if (!entities.length) throw new Error('no_matches');
+      setSelected([]);saveSelected([]);
+      changeOptions({...options,...draft.options});
+      setResults(entities);setCategory(draft.favorites[0]?.type ?? 'place');
+      setError(language==='ko'?'검색 결과에서 내 취향에 맞는 식당·브랜드를 확인하고 선택해주세요.':'Confirm and select the restaurants or brands that match your taste below.');
+    } finally {
+      if (seq === requestSeqRef.current) setLoading(false);
+    }
   };
 
   const handleRecommend = async () => {
@@ -232,7 +261,8 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
 
       {expanded && (
         <div className="pb-6 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-          <LocalRecommendationControls language={language} value={options} disabled={loading || recLoading} onChange={next => {setOptions(next); setRecs([]); setError(null);}} />
+          <div key={userId}><TasteOnboarding language={language} disabled={loading || recLoading} onApply={applyTaste} /></div>
+          <LocalRecommendationControls language={language} value={options} disabled={loading || recLoading} onChange={changeOptions} />
           {/* Selection Chips */}
           {selected.length > 0 && (
             <div className="flex flex-wrap gap-2">
