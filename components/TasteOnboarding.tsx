@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Language } from '../types';
 import type { QlooOptions } from '../services/qlooService';
-import { interpretTaste, type TasteDraft } from '../services/tasteProfileService';
+import { interpretTaste, normalizeTasteDraft, type TasteDraft } from '../services/tasteProfileService';
 
 interface Props {
   language: Language;
@@ -49,10 +49,10 @@ const COPIES: Record<'ko' | 'en', Record<string, string>> = {
     summaryTitle: '취향 요약',
     summaryDesc: '맞게 정리됐는지 확인하고 식당·브랜드, 음식 종류와 가격대를 수정해주세요.',
     editSummary: '요약 내용 수정',
-    favNamesLabel: '좋아하는 식당/브랜드 이름',
-    favNamesHint: '쉼표 또는 줄바꿈으로 구분 (최대 3개). 각 항목 최대 100자.',
+    favNamesLabel: '좋아하는 식당/브랜드 이름 (선택 사항)',
+    favNamesHint: '식당 이름 없이 음식 취향만으로도 추천받을 수 있어요. 이름은 최대 3개까지 입력할 수 있어요.',
     explainFavMatch: '다음 단계의 검색 결과에서 정확한 식당·브랜드를 선택해주세요.',
-    needFavName: '최소 1개의 이름을 입력해야 적용할 수 있습니다.',
+    needFavName: '식당 이름을 몰라도 음식 취향으로 추천받을 수 있어요.',
     applyBtn: '이 취향으로 장소 찾기',
     backEdit: '다시 편집',
     smallDisclaimer: '추천에는 확인한 식당·브랜드와 음식 종류·가격대를 반영합니다.',
@@ -93,7 +93,7 @@ const COPIES: Record<'ko' | 'en', Record<string, string>> = {
     summaryTitle: 'Taste Summary',
     summaryDesc: "The Check your summary and adjust the restaurant/brand names, cuisine and price range below.",
     editSummary: 'Edit summary',
-    favNamesLabel: 'Favorite restaurants / brands',
+    favNamesLabel: 'Favorite restaurants / brands (optional)',
     favNamesHint: 'Separate by commas or newlines (max 3 items, max 100 chars each).',
     explainFavMatch: 'These names will be matched to actual locations in the next step.',
     needFavName: 'At least 1 name is required before applying.',
@@ -114,6 +114,7 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
   const [target, setTarget] = useState<QlooOptions['category']>('food');
   const [selectedSeeds, setSelectedSeeds] = useState<string[]>([]);
   const [price, setPrice] = useState<Price | ''>('');
+  const [drink,setDrink]=useState<'any'|'matcha'>('any');
   const [cuisine, setCuisine] = useState<Cuisine>('any');
   const [textInput, setTextInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -273,6 +274,9 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
     if ((err instanceof Error && err.name === 'NotAllowedError') || msg.includes('denied') || msg.includes('permission')) setErrorMsg(t(language, 'micDenied'));
     else if (msg.includes('login') || msg.includes('auth')) setErrorMsg(t(language, 'loginRequired'));
     else if (msg.includes('no_pref') || msg.includes('preference')) setErrorMsg(t(language, 'noPreferences'));
+    else if (msg === 'location_required') setErrorMsg(language==='ko'?'위치를 허용한 뒤 다시 추천받아 주세요.':'Allow location access and try again.');
+    else if (msg === 'rate_limited') setErrorMsg(language==='ko'?'요청이 많습니다. 잠시 후 다시 시도해주세요.':'Please wait a moment and try again.');
+    else if (msg === 'invalid_interest_count') setErrorMsg(language==='ko'?'추천 연결을 업데이트하고 있습니다. 잠시 후 다시 시도해주세요.':'Recommendations are being updated. Please try again shortly.');
     else if (msg.includes('timeout') || msg.includes('abort')) setErrorMsg(t(language, 'timeoutError'));
     else setErrorMsg(t(language, 'genericError'));
   }
@@ -289,11 +293,13 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
     return {summary: selectedSeeds.join(' · '),favorites:selectedSeeds.map(name=>({name,type:target==='shopping'?'brand' as const:'place' as const})),options:{cuisine:target==='food'?cuisine:'any',priceMax:target==='food'?price.length:0,category:target}};
   }
 
-  function finalizeFromInterpretation(draft: TasteDraft) {
+  function finalizeFromInterpretation(input: TasteDraft) {
+    const draft=normalizeTasteDraft(input);
     draftRef.current = draft;
     setSummaryText(draft.summary);
     setFavInput(draft.favorites.map(f=>f.name).join(', '));
     setTarget(draft.options.category ?? 'food');
+    setDrink(draft.options.drink ?? 'any');
     setCuisine(draft.options.cuisine ?? 'any');
     setPrice(draft.options.priceMax ? PRICES[draft.options.priceMax-1] : '');
     setShowSummary(true);setErrorMsg('');setApplyError('');
@@ -334,10 +340,6 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
 
   async function handleApply() {
     const favs = parseFavorites(favInput);
-    if (favs.length === 0) {
-      setApplyError(t(language, 'needFavName'));
-      return;
-    }
     setApplyError('');
     setBusy(true);
     const version = ++requestVersionRef.current;
@@ -346,14 +348,14 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
       const draft: TasteDraft = {
         summary:summaryText.trim().slice(0,600),
         favorites:favs.map(name=>({name,type:previous?.favorites.find(f=>f.name.toLowerCase()===name.toLowerCase())?.type ?? 'place'})),
-        options:{...previous?.options,category:target,cuisine:target==='food'?cuisine:'any',priceMax:target==='food'?price.length:0},
+        options:{...previous?.options,category:target,drink:target==='food'?drink:'any',cuisine:target==='food'?cuisine:'any',priceMax:target==='food'?price.length:0},
       };
-      await onApply(draft);
+      await onApply(normalizeTasteDraft(draft));
       if (!mountedRef.current || version !== requestVersionRef.current) return;
       setShowSummary(false);
     } catch (err: unknown) {
       if (mountedRef.current && version === requestVersionRef.current) {
-        setApplyError(t(language, 'genericError'));
+        handleError(err);
       }
     } finally {
       if (mountedRef.current && version === requestVersionRef.current) setBusy(false);
@@ -583,10 +585,6 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
             <span className="mt-1 block text-xs text-emerald-300/70">{t(language, 'favNamesHint')}</span>
             <span className="mt-1 block text-xs text-emerald-300/70">{t(language, 'explainFavMatch')}</span>
           </label>
-          {parseFavorites(favInput).length === 0 && <div>
-            <p className="text-sm mb-2">{language==='ko'?'추천 기준으로 쓸 예시를 하나 골라주세요.':'Choose a taste reference to start your recommendations.'}</p>
-            <div className="grid grid-cols-2 gap-2">{SEEDS.map(name=><button key={name} type="button" disabled={busy || disabled} className="min-h-[44px] text-left rounded-md border border-emerald-800 px-3 py-2 text-sm" onClick={()=>{setFavInput(name);if(draftRef.current) draftRef.current={...draftRef.current,favorites:[{name,type:target==='shopping'?'brand':'place'}]};}}>{name}</button>)}</div>
-          </div>}
           <details className="rounded-md border border-emerald-800 bg-[#0a1812] p-3 text-sm text-emerald-100">
             <summary className="cursor-pointer">{t(language, 'detectedSettings')}</summary>
             <div className="mt-2 space-y-2">
@@ -608,6 +606,12 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
                   ))}
                 </select>
               </label>
+              {target==='food' && <label className="flex items-center gap-2">
+                <span>{language==='ko'?'음료 취향':'Drink preference'}</span>
+                <select className="min-h-[44px] rounded border border-emerald-800 bg-[#0b1f17] px-2 text-sm" value={drink} disabled={busy || disabled} onChange={e=>setDrink(e.target.value as 'any'|'matcha')}>
+                  <option value="any">{language==='ko'?'선택 안 함':'None'}</option><option value="matcha">{language==='ko'?'말차 라떼':'Matcha latte'}</option>
+                </select>
+              </label>}
               <label className="flex items-center gap-2">
                 <span>{t(language, 'priceLabel')}</span>
                 <select
@@ -635,7 +639,7 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
             </button>
             <button
               type="button"
-              disabled={busy || disabled || parseFavorites(favInput).length === 0}
+              disabled={busy || disabled || !summaryText.trim()}
               onClick={handleApply}
               className="flex-1 min-h-[44px] rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-50"
             >

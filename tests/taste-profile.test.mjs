@@ -18,6 +18,11 @@ test('taste input validation and request boundary',async t=>{
   const d=normalizeTasteDraft({summary:'I like noodles',favorites:[{name:'Muji',type:'brand'},{name:'muji',type:'brand'},{name:'fake',type:'url'}],options:{cuisine:'japanese',radius:999999,priceMax:'2',mode:'quiet',category:'shopping',allergy:'safe'}});
   assert.deepEqual(d.options,{cuisine:'japanese',category:'shopping'});assert.equal(d.favorites.length,1);
  });
+ await t.test('food and drink terms are taste filters, never named favorite places',()=>{
+  const d=normalizeTasteDraft({summary:'Likes Korean food and matcha latte',favorites:[{name:'한식',type:'place'},{name:'말차 라떼',type:'place'},{name:'Muji',type:'brand'}],options:{}});
+  assert.deepEqual(d.favorites,[{name:'Muji',type:'brand'}]);assert.deepEqual(d.options,{cuisine:'korean',drink:'matcha'});
+  const specific=normalizeTasteDraft({summary:'Likes named businesses',favorites:[{name:'Matcha Cafe Maiko',type:'place'},{name:'Korean BBQ House',type:'place'}]});assert.equal(specific.favorites.length,2);
+ });
  await t.test('profile bounds and valid filter settings',()=>{
   const d=normalizeTasteDraft({summary:'x'.repeat(700),favorites:Array.from({length:5},(_,i)=>({name:'Name '+i,type:'place'})),options:{priceMax:2,radius:5000,mode:'discover'}});
   assert.equal(d.summary.length,600);assert.equal(d.favorites.length,3);assert.deepEqual(d.options,{priceMax:2,mode:'discover',radius:5000});

@@ -62,6 +62,7 @@ const DEFAULT_OPTIONS:QlooOptions={category:'food',mode:'balanced',cuisine:'any'
 
 export const TasteRecommendations: React.FC<Props> = ({ language, location, onRequestLocation, onLogin, userId }) => {
   const [isAvailable, setIsAvailable] = useState<boolean>(false);
+  const [profileReady,setProfileReady] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [category, setCategory] = useState<Category>('place');
   const [query, setQuery] = useState('');
@@ -89,6 +90,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
     const requests = requestSeqRef;
     setSelected([]);
     setOptions(DEFAULT_OPTIONS);
+    setProfileReady(false);
     setQuery('');
     setLoading(false);
     setRecLoading(false);
@@ -105,7 +107,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
     if (!userId || !isAvailable) return;
     try {
       const storedOptions = localStorage.getItem(OPTIONS_PREFIX+userId);
-      if(storedOptions) {const restored=normalizeTasteDraft({summary:'Saved preferences',favorites:[],options:JSON.parse(storedOptions)});setOptions({...DEFAULT_OPTIONS,...restored.options});}
+      if(storedOptions) {const restored=normalizeTasteDraft({summary:'Saved preferences',favorites:[],options:JSON.parse(storedOptions)});setOptions({...DEFAULT_OPTIONS,...restored.options});setProfileReady(true);}
       const stored = localStorage.getItem(STORAGE_PREFIX + userId);
       if (stored) {
         const parsed = JSON.parse(stored);
@@ -131,7 +133,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   };
 
   const changeOptions = (next:QlooOptions) => {
-    setOptions(next);setRecs([]);setError(null);
+    setOptions(next);setProfileReady(true);setRecs([]);setError(null);
     if(userId) try {localStorage.setItem(OPTIONS_PREFIX+userId,JSON.stringify(next));} catch { /* Storage can be unavailable. */ }
   };
 
@@ -170,66 +172,51 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
     saveSelected(newSel);
   };
 
-  const applyTaste = async (draft: TasteDraft) => {
-    const seq = ++requestSeqRef.current;
+  const requestPlaces = async (ids:string[],next:QlooOptions,seq:number) => {
+    let loc=location;
+    if(!loc) try {loc=await onRequestLocation();} catch { /* Permission denied. */ }
+    if(seq!==requestSeqRef.current) return;
+    if(!loc) throw new Error('location_required');
+    const places=await recommendQloo(ids,loc,next);
+    if(seq!==requestSeqRef.current) return;
+    setRecs(places);
+    if(!places.length) setError(localCopy.zeroRecs);
+  };
+
+  const applyTaste = async (input:TasteDraft) => {
+    const draft=normalizeTasteDraft(input);
+    const seq=++requestSeqRef.current;
     setLoading(true);setError(null);setResults([]);setRecs([]);
     try {
-      const matches = await Promise.all(draft.favorites.map(f=>searchQloo(f.name,f.type)));
-      if (seq !== requestSeqRef.current) return;
-      const entities = matches.flat().filter((e,i,a)=>a.findIndex(x=>x.id===e.id)===i);
-      if (!entities.length) throw new Error('no_matches');
-      setSelected([]);saveSelected([]);
-      changeOptions({...options,...draft.options});
-      setResults(entities);setCategory(draft.favorites[0]?.type ?? 'place');
-      setError(language==='ko'?'검색 결과에서 내 취향에 맞는 식당·브랜드를 확인하고 선택해주세요.':'Confirm and select the restaurants or brands that match your taste below.');
+      const matches=await Promise.all(draft.favorites.map(f=>searchQloo(f.name,f.type)));
+      if(seq!==requestSeqRef.current) return;
+      const entities=matches.flat().filter((e,i,a)=>a.findIndex(x=>x.id===e.id)===i);
+      const next={...DEFAULT_OPTIONS,...draft.options};
+      changeOptions(next);setSelected([]);saveSelected([]);setResults(entities);
+      if(entities.length) {
+        setCategory(draft.favorites[0]?.type ?? 'place');
+        setError(language==='ko'?'검색 결과에서 정확한 식당·브랜드를 선택해주세요.':'Confirm the exact restaurants or brands below.');
+      } else {
+        // Cuisine and drink tags are valid preferences without named businesses.
+        await requestPlaces([],next,seq);
+      }
     } finally {
-      if (seq === requestSeqRef.current) setLoading(false);
+      if(seq===requestSeqRef.current) setLoading(false);
     }
   };
 
   const handleRecommend = async () => {
-    if (selected.length === 0 || loading || recLoading) return;
-    setRecLoading(true);
-    setError(null);
-    setRecs([]);
-    const seq = ++requestSeqRef.current;
-
-    let loc = location;
-    if (!loc) {
-      try {
-        loc = await onRequestLocation();
-      } catch (e) {
-        // Permission denied or fail
-      }
-    }
-
-    if (seq !== requestSeqRef.current) return;
-    if (!loc) {
-       if (seq === requestSeqRef.current) {
-         setRecLoading(false);
-         setError(language === 'ko' ? '추천을 받으려면 위치를 허용해주세요.' : 'Allow location access to get nearby recommendations.');
-       }
-       return;
-    }
-
-    try {
-      const ids = selected.map(s => s.id);
-      const res = await recommendQloo(ids, loc, options);
-      if (seq === requestSeqRef.current) {
-        setRecs(res);
-        if (res.length === 0) setError(localCopy.zeroRecs);
-      }
-    } catch (err: any) {
-      if (seq === requestSeqRef.current) {
-        handleError(err.message);
-      }
-    } finally {
-      if (seq === requestSeqRef.current) setRecLoading(false);
-    }
+    if((!selected.length && !profileReady) || loading || recLoading) return;
+    setRecLoading(true);setError(null);setRecs([]);
+    const seq=++requestSeqRef.current;
+    try {await requestPlaces(selected.map(s=>s.id),options,seq);}
+    catch(err) {if(seq===requestSeqRef.current) handleError(err instanceof Error?err.message:'unknown');}
+    finally {if(seq===requestSeqRef.current) setRecLoading(false);}
   };
 
   const handleError = (msg: string) => {
-    if (msg === 'timeout') setError(localCopy.errTimeout);
+    if (msg === 'location_required') setError(language==='ko'?'위치를 허용한 뒤 다시 추천받아 주세요.':'Allow location access and try again.');
+    else if (msg === 'timeout') setError(localCopy.errTimeout);
     else if (msg === 'rate_limited') setError(localCopy.errRateLimit);
     else if (msg === 'login_required' || msg === 'unauthorized') setError(localCopy.errAuth);
     else if (msg === 'not_configured' || msg === 'config_error' || msg === 'auth_unavailable') setError(localCopy.errConfig);
@@ -322,7 +309,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
              <p className="text-xs text-slate-300 mb-3">{localCopy.maxChips} · {options.radius / 1000} km</p>
              <button
                onClick={handleRecommend}
-               disabled={selected.length === 0 || recLoading || loading}
+               disabled={(selected.length === 0 && !profileReady) || recLoading || loading}
                className="w-full min-h-[44px] bg-white text-black font-bold rounded-xl hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
              >
                {recLoading ? localCopy.recLoading : localCopy.btnGetRecs}

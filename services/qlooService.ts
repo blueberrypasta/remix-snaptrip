@@ -4,6 +4,7 @@ import type { LocationData } from '../types';
 export interface QlooOptions {
   category: 'food' | 'shopping' | 'visits';
   mode: 'balanced' | 'popular' | 'discover';
+  drink?: 'any' | 'matcha';
   cuisine: 'any' | 'korean' | 'japanese' | 'italian' | 'mexican' | 'american' | 'vegetarian';
   priceMax: number;
   radius: number;

@@ -75,6 +75,14 @@ test('Qloo server boundary', async t=>{
   calls=[];r=await handleRequest(request({...rec,options:{radius:999999}}));
   assert.equal(r.status,400);assert.ok(!calls.some(c=>c.u.pathname==='/v2/insights'));
  });
+ await t.test('generic Korean and matcha tastes do not require restaurant entity IDs',async()=>{
+  calls=[];const r=await handleRequest(request({...rec,interests:[],options:{category:'food',cuisine:'korean',drink:'matcha'}}));
+  assert.equal(r.status,200);const requests=calls.filter(c=>c.u.pathname==='/v2/insights');assert.equal(requests.length,2);
+  const restaurant=requests.find(c=>c.u.searchParams.get('take')==='5');const cafe=requests.find(c=>c.u.searchParams.get('take')==='2');
+  assert.equal(restaurant.u.searchParams.get('signal.interests.entities'),null);
+  assert.equal(restaurant.u.searchParams.get('signal.interests.tags'),'urn:tag:genre:place:restaurant:korean');
+  assert.match(cafe.u.searchParams.get('filter.tags'),/matcha_latte/);assert.match(cafe.u.searchParams.get('filter.tags'),/category:place:cafe/);
+ });
  await t.test('upstream auth/rate errors are safe and distinct',async()=>{
   upstreamStatus=401;let r=await handleRequest(request(rec));assert.equal(r.status,503);assert.ok(!(await r.text()).includes('credentials'));
   upstreamStatus=429;r=await handleRequest(request(rec));assert.equal(r.status,429);upstreamStatus=200;

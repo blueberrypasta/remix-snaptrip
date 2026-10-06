@@ -204,9 +204,9 @@ async function handleSearch(qlooApiKey: string, qlooApiUrl: string, query: strin
   }
 }
 
-async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number} = {}): Promise<{ places: QlooPlaceResult[] } | Response> {
-  // Validate Interests: 1-3 unique UUIDs
-  if (interests.length < 1 || interests.length > 3) {
+async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string} = {}): Promise<{ places: QlooPlaceResult[] } | Response> {
+  // Optional explicit entities; generic tastes are represented by tags.
+  if (interests.length > 3) {
     return new Response(JSON.stringify({ error: 'invalid_interest_count' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
 
@@ -236,9 +236,10 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
   const cuisine = options.cuisine ?? 'any';
   const radius = options.radius ?? 15000;
   const priceMax = options.priceMax ?? 0;
+  const drink = options.drink ?? 'any';
   if (!['food','shopping','visits'].includes(category) || !['balanced','popular','discover'].includes(mode)
     || !['any','korean','japanese','italian','mexican','american','vegetarian'].includes(cuisine)
-    || ![5000,15000,30000].includes(radius) || !Number.isInteger(priceMax) || priceMax < 0 || priceMax > 4) {
+    || !['any','matcha'].includes(drink) || ![5000,15000,30000].includes(radius) || !Number.isInteger(priceMax) || priceMax < 0 || priceMax > 4) {
     return Response.json({error:'invalid_options'}, {status:400});
   }
   const filterLocationStr = `POINT(${Math.round(longitude * 100) / 100} ${Math.round(latitude * 100) / 100})`;
@@ -246,7 +247,6 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
 
   const params = new URLSearchParams({
     'filter.type': 'urn:entity:place',
-    'signal.interests.entities': interestsStr,
     'filter.location': filterLocationStr,
     'filter.location.radius': String(radius),
     'take': '5',
@@ -256,6 +256,8 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
   const categoryTag = category === 'food' ? 'urn:tag:category:place:restaurant'
     : category === 'shopping' ? 'urn:tag:category:place:shopping_mall,urn:tag:category:place:clothing_store,urn:tag:category:place:store' : 'urn:tag:category:place:tourist_attraction';
   params.set('filter.tags', categoryTag);
+  if (interestsStr) params.set('signal.interests.entities',interestsStr);
+  if (category === 'food' && cuisine !== 'any') params.set('signal.interests.tags',`urn:tag:genre:place:restaurant:${cuisine}`);
   if (category === 'visits') params.set('filter.exclude.tags','urn:tag:category:place:restaurant,urn:tag:category:place:grocery_store');
   if (category === 'food') {
     params.set('filter.exclude.tags','urn:tag:category:place:shopping_mall');
@@ -273,7 +275,14 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     const discoverParams = new URLSearchParams(params);
     discoverParams.set('filter.popularity.max','0.95');
     discoverParams.set('take','2');
-    const discoveries = mode === 'balanced' ? fetch(`${qlooApiUrl}/v2/insights?${discoverParams}`, {
+    if (category === 'food' && drink === 'matcha') {
+      discoverParams.set('filter.tags','urn:tag:category:place:cafe,urn:tag:menu_highlight:qloo:matcha_latte');
+      discoverParams.set('operator.filter.tags','intersection');
+      discoverParams.set('signal.interests.tags','urn:tag:menu_highlight:qloo:matcha_latte');
+      discoverParams.delete('filter.popularity.max');
+      if (mode === 'discover') discoverParams.set('filter.popularity.max','0.95');
+    }
+    const discoveries = (mode === 'balanced' || (category === 'food' && drink === 'matcha')) ? fetch(`${qlooApiUrl}/v2/insights?${discoverParams}`, {
       headers:{'X-Api-Key':qlooApiKey}, signal,
     }).then(async r => r.ok ? (await r.json()).results?.entities ?? [] : []).catch(() => []) : null;
     const res = await fetch(`${qlooApiUrl}/v2/insights?${params.toString()}`, {

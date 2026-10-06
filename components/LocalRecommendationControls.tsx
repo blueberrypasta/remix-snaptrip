@@ -44,7 +44,7 @@ export function LocalRecommendationControls({ language, value, onChange, disable
       <div role="group" aria-label={d.cat.join(' / ')} className="grid grid-cols-3 gap-2">
         {(['food', 'shopping', 'visits'] as const).map((cat, i) => (
           <button key={cat} type="button" disabled={disabled} aria-pressed={value.category === cat}
-            onClick={() => onChange({ ...value, category: cat, cuisine: 'any', priceMax: 0 })}
+            onClick={() => onChange({ ...value, category: cat, cuisine: 'any', drink:'any', priceMax: 0 })}
             className={`min-h-[44px] rounded-lg border px-2 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${value.category === cat ? 'border-emerald-400 bg-emerald-500/20 text-emerald-50' : 'border-white/10 bg-white/5 text-emerald-200/70 hover:border-emerald-400/40'} disabled:opacity-50`}>
             {d.cat[i]}
           </button>
@@ -86,6 +86,12 @@ export function LocalRecommendationControls({ language, value, onChange, disable
         </label>
       </div>
 
+      {value.category === 'food' && <label className="block mt-3 text-sm text-emerald-200">
+        {language==='ko'?'함께 추천받을 음료':'Include a drink preference'}
+        <select className={base} disabled={disabled} value={value.drink ?? 'any'} onChange={e=>onChange({...value,drink:e.target.value as 'any'|'matcha'})}>
+          <option value="any">{language==='ko'?'선택 안 함':'None'}</option><option value="matcha">{language==='ko'?'말차 라떼 · 카페':'Matcha latte · cafés'}</option>
+        </select>
+      </label>}
       {value.mode === 'discover' && (
         <p className="mt-3 rounded-lg border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs leading-relaxed text-emerald-200/90">{t.hint}</p>
       )}
