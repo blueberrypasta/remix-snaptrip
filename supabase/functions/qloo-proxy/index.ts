@@ -63,7 +63,7 @@ function checkRateLimit(userId: string): boolean {
 function getCorsHeaders(origin: string | null): Record<string, string> {
   const headers: Record<string, string> = {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, X-Guest-Taste-Id',
     'Cache-Control': 'no-store',
   };
 
@@ -372,6 +372,20 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
   }
 }
 
+async function guestTasteQuota(id: string, operation: 'status'|'consume'|'refund'): Promise<number> {
+  const serviceKey=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const supabaseUrl=Deno.env.get('SUPABASE_URL');
+  if(!serviceKey || !supabaseUrl) throw new Error('guest_quota_unavailable');
+  const response=await fetch(`${supabaseUrl}/rest/v1/rpc/guest_taste_quota`, {
+    method:'POST',headers:{apikey:serviceKey,Authorization:`Bearer ${serviceKey}`,'Content-Type':'application/json'},
+    body:JSON.stringify({p_guest_id:id,p_operation:operation}),signal:AbortSignal.timeout(8000),
+  });
+  if(!response.ok) throw new Error('guest_quota_unavailable');
+  const used=await response.json();
+  if(!Number.isInteger(used) || used < -1 || used > 10) throw new Error('guest_quota_unavailable');
+  return used;
+}
+
 export async function handleRequest(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const origin = req.headers.get('Origin');
@@ -411,20 +425,19 @@ export async function handleRequest(req: Request): Promise<Response> {
       qlooApiUrl = 'https://api.qloo.com';
     }
 
-    // Verify User Session
+    // Registered sessions and browser guest trials share the same recommendation flow.
     const authHeader = req.headers.get('Authorization');
+    const guestCredential=!authHeader || authHeader===`Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`;
     let userSession;
-    try { userSession = await verifyUserSession(authHeader); }
-    catch { return Response.json({error:'auth_unavailable'}, {status:503, headers:corsHeaders}); }
-
-    if (!userSession) {
-      return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if(!guestCredential) {
+      try { userSession=await verifyUserSession(authHeader); }
+      catch {return Response.json({error:'auth_unavailable'}, {status:503,headers:corsHeaders});}
     }
-
-    // Rate Limiting
-    if (!checkRateLimit(userSession.userId)) {
-      return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    const guestId=guestCredential ? req.headers.get('X-Guest-Taste-Id') : null;
+    if(!userSession && (!guestId || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(guestId)))
+      return Response.json({error:'unauthorized'},{status:401,headers:corsHeaders});
+    if (!checkRateLimit(userSession?.userId || `guest:${guestId}`))
+      return Response.json({error:'rate_limited'}, {status:429,headers:corsHeaders});
 
     // Parse Body with Size Limit
     const contentLength = Number(req.headers.get('Content-Length') || 0);
@@ -454,8 +467,16 @@ export async function handleRequest(req: Request): Promise<Response> {
     }
 
     const action = payload.action;
-
+    let guestRemaining: number|undefined;
+    let guestReserved=false;
     try {
+      if(guestId) {
+        const used=await guestTasteQuota(guestId,'status');
+        guestRemaining=10-used;
+        if(action==='guest_status') return Response.json({guestRemaining},{headers:corsHeaders});
+        if(guestRemaining===0) return Response.json({error:'guest_limit_reached',guestRemaining:0},{status:403,headers:corsHeaders});
+      }
+
       if (action === 'search') {
         if (typeof payload.query !== 'string' || typeof payload.type !== 'string') return Response.json({error:'bad_request'}, {status:400,headers:corsHeaders});
         const result = await handleSearch(qlooApiKey, qlooApiUrl!, payload.query, payload.type);
@@ -468,18 +489,26 @@ export async function handleRequest(req: Request): Promise<Response> {
       if (action === 'recommend') {
         if (!Array.isArray(payload.interests) || payload.interests.some((id: unknown) => typeof id !== 'string') || !payload.location || typeof payload.location !== 'object') return Response.json({error:'bad_request'}, {status:400,headers:corsHeaders});
         if (payload.options != null && (typeof payload.options !== 'object' || Array.isArray(payload.options))) return Response.json({error:'invalid_options'}, {status:400,headers:corsHeaders});
+        if(guestId) {
+          const used=await guestTasteQuota(guestId,'consume');
+          if(used===-1) return Response.json({error:'guest_limit_reached',guestRemaining:0},{status:403,headers:corsHeaders});
+          guestReserved=true;guestRemaining=10-used;
+        }
         const result = await handleRecommend(qlooApiKey, qlooApiUrl!, payload.interests, payload.location, payload.options || {}, payload.excludedNames ?? []);
         if (result instanceof Response) {
+          if(guestId && guestReserved) {await guestTasteQuota(guestId,'refund');guestReserved=false;}
           return new Response(result.body, { status: result.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        return new Response(JSON.stringify(result), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        if(guestId && !result.places.length) {const used=await guestTasteQuota(guestId,'refund');guestRemaining=10-used;guestReserved=false;}
+        guestReserved=false;
+        return new Response(JSON.stringify({...result,...(guestId?{guestRemaining}:{})}), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       return new Response(JSON.stringify({ error: 'unknown_action' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     } catch (error) {
-
-      return new Response(JSON.stringify({ error: 'internal_server_error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      if(guestId && guestReserved) try {await guestTasteQuota(guestId,'refund');} catch { /* Persisted reservation remains conservative. */ }
+      return new Response(JSON.stringify({ error: guestId ? 'guest_quota_unavailable' : 'internal_server_error' }), { status: guestId ? 503 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
   }
 

@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 const {URL, Request, Response} = globalThis;
-const env = {SUPABASE_URL:'https://example.supabase.co',SUPABASE_ANON_KEY:'test-anon',QLOO_API_KEY:'test-qloo'};
+const env = {SUPABASE_URL:'https://example.supabase.co',SUPABASE_ANON_KEY:'test-anon',QLOO_API_KEY:'test-qloo',SUPABASE_SERVICE_ROLE_KEY:'test-service'};
 globalThis.Deno = {env:{get:key=>env[key]},serve:()=>{}};
 const {handleRequest} = await import('../supabase/functions/qloo-proxy/index.ts');
 const interest = '12345678-1234-4234-8234-123456789abc';
 let calls=[];
 let upstreamStatus=200;
+const guestUsage=new Map();
 let authOK=true;
 let authUser='qa-user';
 const discovered='22345678-1234-4234-8234-123456789abc';
@@ -14,6 +15,11 @@ let fixtures=[{entity_id:discovered,name:'Test Place',types:['urn:entity:place']
 globalThis.fetch = async (url, options={}) => {
   const u = new URL(String(url)); calls.push({u,options});
   if (u.pathname==='/auth/v1/user') return Response.json(authOK?{id:authUser}:{error:'invalid'}, {status:authOK?200:401});
+  if(u.pathname==='/rest/v1/rpc/guest_taste_quota') {
+   assert.equal(options.headers.apikey,'test-service');const {p_guest_id:id,p_operation:op}=JSON.parse(options.body);let used=guestUsage.get(id)||0;
+   if(op==='consume'){if(used===10)return Response.json(-1);used++;}else if(op==='refund')used=Math.max(0,used-1);
+   guestUsage.set(id,used);return Response.json(used);
+  }
   if (upstreamStatus!==200) return Response.json({error:'never expose upstream credentials'}, {status:upstreamStatus});
   return Response.json({results:{entities:u.pathname==='/search'?[{entity_id:interest,name:'Test Place',types:['urn:entity:place']}]:fixtures}});
 };
@@ -130,6 +136,22 @@ test('Qloo server boundary', async t=>{
    assert.equal((await handleRequest(request({...rec,excludedNames:'BCD'}))).status,400);
    assert.equal((await handleRequest(request({...rec,excludedNames:['x'.repeat(201)]}))).status,400);
   } finally {fixtures=saved;authUser='qa-user';}
+ });
+ await t.test('guest trials persist ten recommendations, allow searches, then block before Qloo',async()=>{
+  const id='a2345678-1234-4234-8234-123456789abc';const h={Authorization:'Bearer test-anon','X-Guest-Taste-Id':id};
+  let r=await handleRequest(request({action:'guest_status'},h));assert.equal(r.status,200);assert.equal((await r.json()).guestRemaining,10);
+  r=await handleRequest(request({action:'search',query:'Test',type:'place'},h));assert.equal(r.status,200);assert.equal(guestUsage.get(id),0);
+  for(let i=1;i<=10;i++){r=await handleRequest(request({...rec,interests:[]},h));assert.equal(r.status,200);assert.equal((await r.json()).guestRemaining,10-i);}
+  calls=[];r=await handleRequest(request(rec,h));assert.equal(r.status,403);assert.equal((await r.json()).error,'guest_limit_reached');assert.ok(!calls.some(c=>c.u.pathname==='/v2/insights'));
+  r=await handleRequest(request({action:'guest_status'},h));assert.equal((await r.json()).guestRemaining,0);
+  assert.equal((await handleRequest(request(rec,{...h,'X-Guest-Taste-Id':'invalid'}))).status,401);
+  assert.equal((await handleRequest(request(rec,{Authorization:'Bearer test-anon'}))).status,401);
+ });
+ await t.test('failed and empty guest recommendations refund their reserved use',async()=>{
+  const id='b2345678-1234-4234-8234-123456789abc';const h={Authorization:'Bearer test-anon','X-Guest-Taste-Id':id};
+  upstreamStatus=429;assert.equal((await handleRequest(request(rec,h))).status,429);assert.equal(guestUsage.get(id),0);upstreamStatus=200;
+  const old=fixtures;fixtures=[];const r=await handleRequest(request(rec,h));assert.equal(r.status,200);assert.equal((await r.json()).guestRemaining,10);fixtures=old;
+  assert.equal((await handleRequest(request({...rec,options:{radius:123}},h))).status,400);assert.equal(guestUsage.get(id),0);
  });
  await t.test('bounded requests reject excessive calls',async()=>{
   const statuses=[];for(let i=0;i<22;i++) statuses.push((await handleRequest(request(rec))).status);

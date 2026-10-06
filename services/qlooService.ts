@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { tasteRequestHeaders, notifyGuestTasteRemaining } from './guestTasteService';
 import type { LocationData } from '../types';
 
 export interface QlooOptions {
@@ -55,6 +55,7 @@ async function makeRequest(path: string, options: Parameters<typeof fetch>[1] = 
     }
 
     const data = await response.json();
+    notifyGuestTasteRemaining(data.guestRemaining);
 
     if (!response.ok) {
       const errorCode = data.error || 'unknown_error';
@@ -89,15 +90,7 @@ export async function qlooAvailable(): Promise<boolean> {
 }
 
 export async function searchQloo(query: string, type: string): Promise<QlooInterest[]> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) {
-    throw new Error('login_required');
-  }
-
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  if (!anonKey) {
-    throw new Error('configuration_missing');
-  }
+  const headers = await tasteRequestHeaders();
 
   const payload = {
     action: 'search',
@@ -107,11 +100,7 @@ export async function searchQloo(query: string, type: string): Promise<QlooInter
 
   const data = await makeRequest('', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-      'apikey': anonKey,
-    },
+    headers,
     body: JSON.stringify(payload),
   });
 
@@ -124,15 +113,7 @@ export async function searchQloo(query: string, type: string): Promise<QlooInter
 }
 
 export async function recommendQloo(interests: string[], location: LocationData, options?: QlooOptions, excludedNames: string[] = []): Promise<QlooPlace[]> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) {
-    throw new Error('login_required');
-  }
-
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  if (!anonKey) {
-    throw new Error('configuration_missing');
-  }
+  const headers = await tasteRequestHeaders();
 
   const payload = {
     action: 'recommend',
@@ -147,11 +128,7 @@ export async function recommendQloo(interests: string[], location: LocationData,
 
   const data = await makeRequest('', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-      'apikey': anonKey,
-    },
+    headers,
     body: JSON.stringify(payload),
   });
 

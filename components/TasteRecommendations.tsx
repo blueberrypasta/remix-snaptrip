@@ -1,3 +1,4 @@
+import { getGuestTasteRemaining } from '../services/guestTasteService';
 import React, { useState, useEffect, useRef } from 'react';
 import { qlooAvailable, searchQloo, recommendQloo } from '../services/qlooService';
 import type { QlooInterest, QlooPlace, QlooOptions } from '../services/qlooService';
@@ -62,6 +63,8 @@ const DEFAULT_OPTIONS:QlooOptions={category:'food',mode:'balanced',cuisine:'any'
 
 export const TasteRecommendations: React.FC<Props> = ({ language, location, onRequestLocation, onLogin, userId }) => {
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+  const [guestRemaining,setGuestRemaining] = useState<number|null>(null);
+  const storageUserId=userId || 'guest';
   const [profileReady,setProfileReady] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [category, setCategory] = useState<Category>('place');
@@ -88,6 +91,15 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
     return () => { mounted = false; };
   }, []);
 
+  useEffect(()=>{
+    if(userId || !isAvailable) return;
+    let mounted=true;
+    getGuestTasteRemaining().then(n=>{if(mounted)setGuestRemaining(n);}).catch(()=>{if(mounted)setError(language==='ko'?'무료 이용 횟수를 확인하지 못했어요. 다시 연결해 주세요.':'Could not check your free uses. Please retry.');});
+    const listener=(e:Event)=>{if(mounted)setGuestRemaining((e as CustomEvent<number>).detail);};
+    window.addEventListener('slaptrip-guest-taste-remaining',listener);
+    return()=>{mounted=false;window.removeEventListener('slaptrip-guest-taste-remaining',listener);};
+  },[userId,isAvailable,language]);
+
   // Clear state on user change
   useEffect(() => {
     const requests = requestSeqRef;
@@ -108,11 +120,11 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
 
   // Load saved interests
   useEffect(() => {
-    if (!userId || !isAvailable) return;
+    if (!isAvailable) return;
     try {
-      const storedOptions = localStorage.getItem(OPTIONS_PREFIX+userId);
+      const storedOptions = localStorage.getItem(OPTIONS_PREFIX+storageUserId);
       if(storedOptions) {const restored=normalizeTasteDraft({summary:'Saved preferences',favorites:[],options:JSON.parse(storedOptions)});setOptions({...DEFAULT_OPTIONS,...restored.options});setProfileReady(true);}
-      const stored = localStorage.getItem(STORAGE_PREFIX + userId);
+      const stored = localStorage.getItem(STORAGE_PREFIX + storageUserId);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length <= 3) {
@@ -124,13 +136,12 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
     } catch (e) {
       // Ignore storage errors
     }
-  }, [userId, isAvailable]);
+  }, [storageUserId, isAvailable]);
 
   const saveSelected = (items: QlooInterest[]) => {
-    if (!userId) return;
     try {
       const toSave = items.slice(0, 3).map(({ id, name, type }) => ({ id, name, type }));
-      localStorage.setItem(STORAGE_PREFIX + userId, JSON.stringify(toSave));
+      localStorage.setItem(STORAGE_PREFIX + storageUserId, JSON.stringify(toSave));
     } catch (e) {
       // Continue silently
     }
@@ -138,7 +149,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
 
   const changeOptions = (next:QlooOptions) => {
     setOptions(next);setProfileReady(true);setRecs([]);setError(null);
-    if(userId) try {localStorage.setItem(OPTIONS_PREFIX+userId,JSON.stringify(next));} catch { /* Storage can be unavailable. */ }
+    try {localStorage.setItem(OPTIONS_PREFIX+storageUserId,JSON.stringify(next));} catch { /* Storage can be unavailable. */ }
   };
 
   const handleSearch = async () => {
@@ -222,7 +233,8 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   };
 
   const handleError = (msg: string) => {
-    if (msg === 'location_required') setError(language==='ko'?'위치를 허용한 뒤 다시 추천받아 주세요.':'Allow location access and try again.');
+    if (msg === 'guest_limit_reached') {setGuestRemaining(0);setError(language==='ko'?'무료 10회를 모두 사용했어요. 로그인하고 계속 이용해 주세요.':'Your 10 free uses are complete. Log in to continue.');}
+    else if (msg === 'location_required') setError(language==='ko'?'위치를 허용한 뒤 다시 추천받아 주세요.':'Allow location access and try again.');
     else if (msg === 'timeout') setError(localCopy.errTimeout);
     else if (msg === 'rate_limited') setError(localCopy.errRateLimit);
     else if (msg === 'login_required' || msg === 'unauthorized') setError(localCopy.errAuth);
@@ -230,18 +242,13 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
     else setError(localCopy.errNetwork);
   };
 
-  if (!userId) {
-    return (
-      <div className="p-4 border border-emerald-500/25 rounded-2xl bg-emerald-500/10 text-white">
-        <h3 className="text-lg font-semibold mb-2">{localCopy.title}</h3>
-        <p className="text-sm text-slate-300 mb-2">{entryHint}</p>
-        <p className="text-xs text-slate-300 mb-4">{localCopy.loginPrompt}</p>
-        <button onClick={onLogin} className="min-h-[44px] px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">
-          {language === 'ko' ? '로그인하고 취향 추천 시작' : 'Log in to start'}
-        </button>
-      </div>
-    );
-  }
+  if (!userId && guestRemaining===0 && !recs.length) return (
+    <div className="p-4 border border-emerald-500/25 rounded-2xl bg-emerald-500/10 text-white">
+      <h3 className="text-lg font-semibold">{localCopy.title}</h3>
+      <p className="my-3 text-sm text-slate-300">{language==='ko'?'무료 취향 추천 10회를 모두 사용했어요. 로그인하고 계속 이용해 주세요.':'You have used all 10 free taste recommendations. Log in to continue.'}</p>
+      <button type="button" onClick={onLogin} className="min-h-[44px] px-4 rounded-xl bg-emerald-600">{language==='ko'?'로그인하고 계속하기':'Log in to continue'}</button>
+    </div>
+  );
 
   if (!isAvailable) return (
     <div className="p-4 border border-emerald-500/25 rounded-2xl bg-emerald-500/10 text-white">
@@ -258,6 +265,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
         <div>
           <h3 className="text-lg font-semibold group-hover:text-emerald-400 transition-colors">{localCopy.title}</h3>
           <span className="block mt-1 text-xs text-slate-300">{entryHint}</span>
+          {!userId && <span className="block mt-2 text-xs text-emerald-300">{language==='ko'?`로그인 없이 10회 무료 · ${guestRemaining===null?'확인 중':`남은 ${guestRemaining}회`}`:`10 free uses without login · ${guestRemaining===null?'Checking':`${guestRemaining} left`}`}</span>}
         </div>
         <svg className={`w-5 h-5 transform transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
       </button>
@@ -395,11 +403,11 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
                    <p className="text-xs text-slate-400 mb-2">{localCopy.disclosure}</p>
                    <p className="text-xs text-slate-400 mb-3">{localCopy.maxChips} · {options.radius / 1000} km</p>
                    <button
-                     onClick={handleRecommend}
+                     onClick={!userId && guestRemaining===0 ? onLogin : handleRecommend}
                      disabled={(selected.length === 0 && (!profileReady || results.length > 0)) || recLoading || loading}
                      className="w-full min-h-[44px] bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                    >
-                     {recLoading ? localCopy.recLoading : recs.length ? (language === 'ko' ? '다시 추천받기' : 'Refresh recommendations') : localCopy.btnGetRecs}
+                     {!userId && guestRemaining===0 ? (language==='ko'?'로그인하고 계속하기':'Log in to continue') : recLoading ? localCopy.recLoading : recs.length ? (language === 'ko' ? '다시 추천받기' : 'Refresh recommendations') : localCopy.btnGetRecs}
                    </button>
                 </div>
         )}

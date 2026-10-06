@@ -1,7 +1,7 @@
+import { ensureTasteAccess } from './guestTasteService';
 import type { Language } from '../types';
 import type { QlooOptions } from './qlooService';
 import {isGenericTasteName,extractGenericTasteOptions} from '../utils/tasteTerms';
-import { supabase } from './supabaseClient';
 
 export interface TasteDraft {
   summary: string;
@@ -97,11 +97,7 @@ export async function interpretTaste(
   input: { text?: string; audio?: { data: string; mimeType: string } },
   language: Language
 ): Promise<TasteDraft> {
-  // Check session first
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError || !session) {
-    throw new Error('login_required');
-  }
+  await ensureTasteAccess();
 
   // Validate input presence
   const hasText = !!input.text?.trim();

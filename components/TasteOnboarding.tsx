@@ -280,6 +280,7 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
     else if (msg.includes('no_pref') || msg.includes('preference')) setErrorMsg(t(language, 'noPreferences'));
     else if (msg === 'unavailable' || msg === 'upstream_error') setErrorMsg(language==='ko'?'추천 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.':'Could not reach the recommendation service. Please try again shortly.');
     else if (msg === 'location_required') setErrorMsg(language==='ko'?'위치를 허용한 뒤 다시 추천받아 주세요.':'Allow location access and try again.');
+    else if (msg === 'guest_limit_reached') setErrorMsg(language==='ko'?'무료 10회를 모두 사용했어요. 로그인하고 계속 이용해 주세요.':'Your 10 free uses are complete. Log in to continue.');
     else if (msg === 'rate_limited') setErrorMsg(language==='ko'?'요청이 많습니다. 잠시 후 다시 시도해주세요.':'Please wait a moment and try again.');
     else if (msg === 'invalid_interest_count') setErrorMsg(language==='ko'?'추천 연결을 업데이트하고 있습니다. 잠시 후 다시 시도해주세요.':'Recommendations are being updated. Please try again shortly.');
     else if (msg.includes('timeout') || msg.includes('abort')) setErrorMsg(t(language, 'timeoutError'));

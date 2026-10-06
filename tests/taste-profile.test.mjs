@@ -27,10 +27,11 @@ test('taste input validation and request boundary',async t=>{
   const d=normalizeTasteDraft({summary:'x'.repeat(700),favorites:Array.from({length:5},(_,i)=>({name:'Name '+i,type:'place'})),options:{priceMax:2,radius:5000,mode:'discover'}});
   assert.equal(d.summary.length,600);assert.equal(d.favorites.length,3);assert.deepEqual(d.options,{priceMax:2,mode:'discover',radius:5000});
  });
- let calls=[];
- globalThis.fetch=async(url,opts)=>{calls.push({url,opts});return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({summary:'Likes Japanese food',favorites:[{name:'Muji',type:'brand'}],options:{cuisine:'japanese'}})}]}}]})};
- await t.test('login is required before external processing',async()=>{
-  globalThis.testTasteSession=false;await assert.rejects(interpretTaste({text:'I like Muji'},'en'),/login_required/);assert.equal(calls.length,0);
+ let calls=[];let guestRemaining=10;
+ globalThis.fetch=async(url,opts)=>{calls.push({url,opts});if(JSON.parse(opts.body).action==='guest_status')return Response.json({guestRemaining});return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({summary:'Likes Japanese food',favorites:[{name:'Muji',type:'brand'}],options:{cuisine:'japanese'}})}]}}]})};
+ await t.test('guests can interpret preferences until their ten-use trial is exhausted',async()=>{
+  globalThis.testTasteSession=false;const d=await interpretTaste({text:'I like Muji'},'en');assert.equal(d.favorites[0].name,'Muji');assert.ok(calls[0].opts.headers['X-Guest-Taste-Id']);
+  calls=[];guestRemaining=0;await assert.rejects(interpretTaste({text:'I like Muji'},'en'),/guest_limit_reached/);assert.equal(calls.length,1);assert.equal(JSON.parse(calls[0].opts.body).action,'guest_status');calls=[];
  });
  globalThis.testTasteSession=true;
  await t.test('invalid or oversized input cannot call external AI',async()=>{
