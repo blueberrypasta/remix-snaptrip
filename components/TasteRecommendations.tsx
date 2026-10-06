@@ -68,6 +68,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<QlooOptions>(DEFAULT_OPTIONS);
   const [results, setResults] = useState<QlooInterest[]>([]);
+  const [editingTaste, setEditingTaste] = useState(false);
   const [selected, setSelected] = useState<QlooInterest[]>([]);
   const [recs, setRecs] = useState<QlooPlace[]>([]);
   const [loading, setLoading] = useState(false);
@@ -89,6 +90,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   useEffect(() => {
     const requests = requestSeqRef;
     setSelected([]);
+    setEditingTaste(false);
     setOptions(DEFAULT_OPTIONS);
     setProfileReady(false);
     setQuery('');
@@ -186,7 +188,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   const applyTaste = async (input:TasteDraft) => {
     const draft=normalizeTasteDraft(input);
     const seq=++requestSeqRef.current;
-    setLoading(true);setError(null);setResults([]);setRecs([]);
+    setLoading(true);setEditingTaste(false);setError(null);setResults([]);setRecs([]);
     try {
       const matches=await Promise.all(draft.favorites.map(f=>searchQloo(f.name,f.type)));
       if(seq!==requestSeqRef.current) return;
@@ -269,7 +271,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
           </details>
 
         {/* Controls & Actions Section (Visible when ready or has data) */}
-        {(profileReady || selected.length > 0 || results.length > 0) && (
+        {!editingTaste && (profileReady || selected.length > 0 || results.length > 0) && (
           <>
             {/* Adjust Recommendations Details */}
             <details className="group/controls [&_summary::-webkit-details-marker]:hidden">
@@ -348,6 +350,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
               {language === 'ko' ? '2 · 취향 기준 확인' : '2 · Confirm taste references'}
             </summary>
             <div>
+              <button type="button" disabled={loading || recLoading} onClick={()=>{setResults([]);setProfileReady(false);setEditingTaste(true);}} className="min-h-[44px] text-sm text-slate-300">{language==='ko'?'← 이전 · 취향 입력':'← Back · edit taste'}</button>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                 {language === 'ko'
                   ? "입력한 식당·브랜드와 일치하는 항목을 골라주세요. 같은 체인은 한 곳만 선택하면 됩니다."
@@ -376,7 +379,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
           </details>
         )}
 
-        {(profileReady || selected.length > 0) && (
+        {!editingTaste && (profileReady || selected.length > 0) && (
                 <div className="pt-2 border-t border-slate-700/50">
                    <p className="text-xs text-slate-400 mb-2">{localCopy.disclosure}</p>
                    <p className="text-xs text-slate-400 mb-3">{localCopy.maxChips} · {options.radius / 1000} km</p>
@@ -412,6 +415,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
         {/* Recommendations */}
         {recs.length > 0 && (
           <div className="space-y-4 pt-4 border-t border-slate-700/50">
+            <button type="button" onClick={()=>{setRecs([]);if(!results.length){setProfileReady(false);setEditingTaste(true);}}} className="min-h-[44px] text-sm text-slate-300">{language==='ko'?'← 이전 · 취향 기준 바꾸기':'← Back · change taste references'}</button>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className="text-base font-bold text-white">{language === 'ko' ? '나에게 맞는 새로운 장소' : 'New places for you'}</h4>
               <span className="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded-md border border-slate-700">

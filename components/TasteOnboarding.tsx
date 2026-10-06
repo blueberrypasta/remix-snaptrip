@@ -1,3 +1,4 @@
+import { GuidedTasteSteps } from './GuidedTasteSteps';
 import React, { useState, useEffect, useRef } from 'react';
 import type { Language } from '../types';
 import type { QlooOptions } from '../services/qlooService';
@@ -111,6 +112,8 @@ function t(lang: Language, key: keyof typeof COPIES['ko']): string {
 
 export function TasteOnboarding({ language, disabled, onApply }: Props): React.ReactElement {
   const [mode, setMode] = useState<Mode>('choose');
+  const [methodChosen, setMethodChosen] = useState(false);
+  const [chooseStep, setChooseStep] = useState(0);
   const [target, setTarget] = useState<QlooOptions['category']>('food');
   const [selectedSeeds, setSelectedSeeds] = useState<string[]>([]);
   const [price, setPrice] = useState<Price | ''>('');
@@ -173,7 +176,7 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
     setIsRecording(false);
     setErrorMsg('');
     setShowSummary(false);
-    setMode(next);
+    setMode(next);setMethodChosen(true);
   }
 
   async function handleStartRecording() {
@@ -365,7 +368,6 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
     }
   }
 
-  const SEEDS = target==='food' ? ['In-N-Out Burger','BCD Tofu House','Ichiran','Sweetgreen'] : target==='shopping' ? ['Muji','Uniqlo','Patagonia',"Levi's"] : ['The Getty','Griffith Observatory','LACMA','Natural History Museum'];
   const categoryName = (c:QlooOptions['category']) => ({food:language==='ko'?'먹을 곳':'Food',shopping:language==='ko'?'쇼핑':'Shopping',visits:language==='ko'?'볼거리':'Sights'}[c]);
   const PRICES: Price[] = ['$', '$$', '$$$', '$$$$'];
   const CUISINES: Cuisine[] = ['any', 'korean', 'japanese', 'vegetarian'];
@@ -377,11 +379,11 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
   return (
     <div className="rounded-xl border border-white/10 bg-slate-800/50 p-3 sm:p-4">
       <h2 className="text-base font-semibold text-slate-100">{t(language, 'heading')}</h2>
-      {!showSummary && <p className="mt-1 text-sm text-slate-300">{t(language, 'desc')}</p>}
+      {!showSummary && !methodChosen && <p className="mt-1 text-sm text-slate-300">{t(language, 'desc')}</p>}
 
       {!showSummary && (
         <>
-          <div className="mt-4 flex gap-2" role="group" aria-label="input-method">
+          {!methodChosen && <div className="mt-4 grid gap-3" role="group" aria-label="input-method">
             {MODES.map((m) => (
               <button
                 key={m}
@@ -398,105 +400,18 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
                 {t(language, {choose:'modeChoose',write:'modeWrite',speak:'modeSpeak'}[m])}
               </button>
             ))}
-          </div>
+          </div>}
 
-          {mode === 'choose' && (
-            <section className="mt-5 space-y-4">
-              <label className="block text-sm">{language==='ko'?'무엇을 찾고 있나요?':'What would you like to find?'}
-                <select className="block w-full min-h-[44px] bg-[#0a1812] border border-emerald-800 rounded-md mt-2 px-3" value={target} disabled={lockActions || disabled} onChange={e=>{setTarget(e.target.value as QlooOptions['category']);setSelectedSeeds([]);}}>
-                  {(['food','shopping','visits'] as const).map(c=><option key={c} value={c}>{categoryName(c)}</option>)}
-                </select>
-              </label>
-              <div>
-                <p className="text-sm text-emerald-100">{t(language, 'prompt')}</p>
-                <p className="text-xs text-emerald-300/70">{t(language, 'seedHint')}</p>
-                <ul className="mt-2 grid grid-cols-2 gap-2">
-                  {SEEDS.map((name) => {
-                    const active = selectedSeeds.includes(name);
-                    return (
-                      <li key={name}>
-                        <button
-                          type="button"
-                          disabled={lockActions || disabled}
-                          aria-pressed={active} onClick={() => toggleSeed(name)}
-                          className={`w-full min-h-[44px] rounded-md border px-3 py-3 text-left text-sm transition-colors ${
-                            active
-                              ? 'border-emerald-400 bg-emerald-900/50 text-emerald-50'
-                              : 'border-emerald-800 text-emerald-100 hover:bg-emerald-900/30'
-                          }`}
-                        >
-                          <span className="block font-medium">{name}</span>
-                          <span className="block text-xs text-emerald-300/80">
-                            {name === 'In-N-Out Burger' && (language==='ko'?'캐주얼 버거':'Casual burgers')}
-                            {name === 'BCD Tofu House' && (language==='ko'?'한식':'Korean')}
-                            {name === 'Ichiran' && (language==='ko'?'일식·라멘':'Japanese ramen')}
-                            {name === 'Sweetgreen' && (language==='ko'?'샐러드':'Salads')}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-              <div>
-                <p className="mb-1 text-sm text-emerald-100">{t(language, 'priceLabel')}</p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={lockActions || disabled}
-                    onClick={() => setPrice('')}
-                    className={`min-h-[44px] rounded-md border px-3 text-sm ${
-                      price === '' ? 'border-emerald-400 bg-emerald-900/50 text-emerald-50' : 'border-emerald-800 text-emerald-100'
-                    }`}
-                  >
-                    {t(language, 'unrestrictedPrice')}
-                  </button>
-                  {PRICES.map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      disabled={lockActions || disabled}
-                      onClick={() => setPrice(p)}
-                      className={`min-h-[44px] w-14 rounded-md border text-sm ${
-                        price === p ? 'border-emerald-400 bg-emerald-900/50 text-emerald-50' : 'border-emerald-800 text-emerald-100'
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="mb-1 text-sm text-emerald-100">{t(language, 'cuisineLabel')}</p>
-                <div className="flex flex-wrap gap-2">
-                  {CUISINES.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      disabled={lockActions || disabled}
-                      onClick={() => setCuisine(c)}
-                      className={`min-h-[44px] rounded-md border px-3 text-sm capitalize ${
-                        cuisine === c ? 'border-emerald-400 bg-emerald-900/50 text-emerald-50' : 'border-emerald-800 text-emerald-100'
-                      }`}
-                    >
-                      {cuisineName(c)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {errorMsg && <p className="text-sm text-red-300">{errorMsg}</p>}
-              <button
-                type="button"
-                disabled={lockActions || disabled || selectedSeeds.length === 0}
-                onClick={() => runAnalysis('choose')}
-                className="w-full min-h-[44px] rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-50"
-              >
-                {selectedSeeds.length === 0 ? t(language, 'needSeed') : t(language, 'selectBtn')}
-              </button>
-            </section>
+          {methodChosen && mode !== 'choose' && <button type="button" disabled={lockActions || disabled} onClick={()=>setMethodChosen(false)} className="mt-3 min-h-[44px] px-3 text-sm text-slate-300">{language==='ko'?'← 이전 · 입력 방법':'← Back · input method'}</button>}
+          {methodChosen && mode === 'choose' && (
+            <GuidedTasteSteps language={language} disabled={lockActions || disabled} step={chooseStep} onStep={setChooseStep}
+              target={target} onTarget={next=>{if(next!==target){setTarget(next);setSelectedSeeds([]);}}}
+              selected={selectedSeeds} onToggle={toggleSeed} cuisine={cuisine} onCuisine={setCuisine}
+              price={price} onPrice={p=>setPrice(p as Price|'')} onBackToMethods={()=>setMethodChosen(false)}
+              onComplete={p=>{const draft=buildSelectionDraft();draft.options.priceMax=target==='food'?p.length:0;finalizeFromInterpretation(draft);}} />
           )}
 
-          {mode === 'write' && (
+          {methodChosen && mode === 'write' && (
             <section className="mt-5 space-y-3">
               <textarea
                 aria-label={t(language,'modeWrite')} value={textInput}
@@ -520,7 +435,7 @@ export function TasteOnboarding({ language, disabled, onApply }: Props): React.R
             </section>
           )}
 
-          {mode === 'speak' && (
+          {methodChosen && mode === 'speak' && (
             <section className="mt-5 space-y-3">
               {!mediaSupported ? (
                 <div><p className="text-sm text-amber-200">{t(language, 'speakUnsupported')}</p><button className="min-h-[44px] underline" onClick={()=>switchMode('write')}>{t(language,'modeWrite')}</button></div>
