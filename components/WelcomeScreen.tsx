@@ -183,8 +183,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         </section>
       )}
 
-      {tasteRecommendations}
-
       <section className="px-5 mt-4">
         <div className={`bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl transition-all duration-300 ${isNearbyExpanded ? 'ring-1 ring-emerald-500/30' : ''}`}>
             <div className="p-5 flex flex-col gap-3 cursor-pointer" onClick={() => setIsNearbyExpanded(!isNearbyExpanded)}>
@@ -216,6 +214,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     ) : <span className="text-[11px] font-bold text-slate-300 ml-1">{locationStatus === 'denied' ? t('locationDenied') : locationStatus === 'empty' ? t('noGemsFound') : t('locationUnavailable')}</span>)}
                 </div>
             </div>
+
+            <div className="mx-4 mb-4">{tasteRecommendations}</div>
 
             <div className={`overflow-hidden transition-all duration-300 ${isNearbyExpanded ? 'max-h-[3000px] opacity-100 mb-5' : 'max-h-0 opacity-0'}`}>
                 <div className="px-5 pt-0">

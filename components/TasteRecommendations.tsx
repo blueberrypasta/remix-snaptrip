@@ -61,7 +61,7 @@ const OPTIONS_PREFIX = 'slaptrip_qloo_options:';
 const DEFAULT_OPTIONS:QlooOptions={category:'food',mode:'balanced',cuisine:'any',priceMax:0,radius:15000};
 
 export const TasteRecommendations: React.FC<Props> = ({ language, location, onRequestLocation, onLogin, userId }) => {
-  const [isAvailable, setIsAvailable] = useState<boolean>(false);
+  const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [profileReady,setProfileReady] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [category, setCategory] = useState<Category>('place');
@@ -76,7 +76,9 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   const [error, setError] = useState<string | null>(null);
   const requestSeqRef = useRef(0);
 
-  const localCopy = { ...COPY.en, ...(COPY[language] || {}) };
+  const entryTitles = {ko:'내 취향저격 장소',en:'Places for my taste',ja:'好みにぴったりの場所',zh:'符合我口味的地点',es:'Lugares para mis gustos',fr:'Lieux selon mes goûts',de:'Orte nach meinem Geschmack',it:'Luoghi per i miei gusti'};
+  const localCopy = { ...COPY.en, ...(COPY[language] || {}),title:entryTitles[language] };
+  const entryHint=language==='ko'?'좋아하는 음식·브랜드로 새로운 곳 찾기':'Find new places from your favorite food and brands';
 
   useEffect(() => {
     let mounted = true;
@@ -228,25 +230,34 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
     else setError(localCopy.errNetwork);
   };
 
-  if (!isAvailable) return null;
   if (!userId) {
     return (
-      <div className="px-5 mt-4 border-white/10 rounded-[2rem] bg-white/5 text-white">
+      <div className="p-4 border border-emerald-500/25 rounded-2xl bg-emerald-500/10 text-white">
         <h3 className="text-lg font-semibold mb-2">{localCopy.title}</h3>
-        <p className="text-sm opacity-70 mb-4">{localCopy.loginPrompt}</p>
+        <p className="text-sm text-slate-300 mb-2">{entryHint}</p>
+        <p className="text-xs text-slate-300 mb-4">{localCopy.loginPrompt}</p>
         <button onClick={onLogin} className="min-h-[44px] px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">
-          {language === 'ko' ? '로그인' : 'Log in'}
+          {language === 'ko' ? '로그인하고 취향 추천 시작' : 'Log in to start'}
         </button>
       </div>
     );
   }
 
+  if (!isAvailable) return (
+    <div className="p-4 border border-emerald-500/25 rounded-2xl bg-emerald-500/10 text-white">
+      <h3 className="text-lg font-semibold">{localCopy.title}</h3>
+      <p className="mt-1 text-sm text-slate-300">{entryHint}</p>
+      <p role="status" className="mt-3 text-xs text-slate-300">{isAvailable===null ? (language==='ko'?'추천 연결을 확인하고 있어요.':'Checking recommendations…') : (language==='ko'?'추천 연결을 확인하지 못했어요. 다시 시도해 주세요.':'Could not connect. Please try again.')}</p>
+      {isAvailable===false && <button type="button" className="mt-3 min-h-[44px] px-4 rounded-xl bg-emerald-600" onClick={()=>{setIsAvailable(null);void qlooAvailable().then(setIsAvailable);}}>{language==='ko'?'다시 연결':'Retry connection'}</button>}
+    </div>
+  );
+
   return (
-    <section className="px-4 sm:px-5 mt-4 border-white/10 rounded-[2rem] bg-slate-900 text-white overflow-hidden">
+    <section className="px-4 sm:px-5 border border-emerald-500/25 rounded-2xl bg-slate-900 text-white overflow-hidden">
       <button type="button" className="w-full text-left flex justify-between items-center py-4 min-h-[44px] group focus-visible:outline-emerald-400" onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
         <div>
           <h3 className="text-lg font-semibold group-hover:text-emerald-400 transition-colors">{localCopy.title}</h3>
-          <span className="text-xs opacity-50">{localCopy.poweredBy}</span>
+          <span className="block mt-1 text-xs text-slate-300">{entryHint}</span>
         </div>
         <svg className={`w-5 h-5 transform transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
       </button>
