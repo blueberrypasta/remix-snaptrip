@@ -1,3 +1,4 @@
+import { fetchCurrentWeather } from './services/weatherService';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { TasteRecommendations } from './components/TasteRecommendations';
 import { WelcomeScreen } from './components/WelcomeScreen';
@@ -36,6 +37,8 @@ const App: React.FC = () => {
   const [cachedLocation, setCachedLocation] = useState<LocationData | null>(null);
   const [nearbyGems, setNearbyGems] = useState<{name: string, type: string, rating: string | number, reviewCount: string | number, description: string, url: string}[]>([]);
   const [nearbyAreaName, setNearbyAreaName] = useState<string>('');
+  const [weatherStatus,setWeatherStatus]=useState<'idle'|'loading'|'ready'|'error'>('idle');
+  const [weatherRevision,setWeatherRevision]=useState(0);
   const [nearbyWeather, setNearbyWeather] = useState<{emoji: string, tempC: number} | null>(null);
   const [isNearbyLoading, setIsNearbyLoading] = useState(false);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'ready' | 'denied' | 'unavailable' | 'error' | 'empty'>('idle');
@@ -313,7 +316,6 @@ const App: React.FC = () => {
       const result = await fetchNearbyPlaces(loc, lang);
       setNearbyGems(result.places);
       setNearbyAreaName(result.areaName);
-      setNearbyWeather(result.weather);
       setLocationStatus(result.places.length > 0 ? 'ready' : 'empty');
     } catch (error: any) { 
       // Do nothing globally to prevent full-screen quota error on startup
@@ -321,6 +323,16 @@ const App: React.FC = () => {
       setLocationStatus('error');
     } finally { setIsNearbyLoading(false); }
   }, []);
+
+  useEffect(()=>{
+    if(!cachedLocation){setNearbyWeather(null);setWeatherStatus('idle');return;}
+    const controller=new AbortController();
+    setNearbyWeather(null);setWeatherStatus('loading');
+    fetchCurrentWeather(cachedLocation,controller.signal).then(weather=>{
+      if(!controller.signal.aborted){setNearbyWeather(weather);setWeatherStatus('ready');}
+    }).catch(()=>{if(!controller.signal.aborted)setWeatherStatus('error');});
+    return()=>controller.abort();
+  },[cachedLocation,weatherRevision]);
 
   const handleLoadMoreNearby = async () => {
     if (isMoreNearbyLoading || !cachedLocation || nearbyGems.length >= NEARBY_LIMIT) return;
@@ -336,7 +348,7 @@ const App: React.FC = () => {
 
   const handleRefreshLocation = async () => {
     if (isNearbyLoading) return;
-    setNearbyGems([]); setNearbyAreaName(''); setNearbyWeather(null);
+    setNearbyGems([]); setNearbyAreaName(''); setWeatherRevision(v=>v+1);
     const newLoc = await getCurrentCoords(true);
     if (newLoc) await loadNearbyGems(newLoc, language);
   };
@@ -351,7 +363,6 @@ const App: React.FC = () => {
     if (!cachedLocation) return;
     setNearbyGems([]);
     setNearbyAreaName('');
-    setNearbyWeather(null);
     void loadNearbyGems(cachedLocation, language);
   }, [cachedLocation, language, loadNearbyGems]);
 
@@ -464,7 +475,7 @@ const App: React.FC = () => {
               language={language} user={user} onLogin={() => setLoginModalOpen(true)} 
               recentHistory={history} onSelectHistory={handleHistorySelection} 
               credits={credits} onReload={handleReload} isSyncing={isSyncing}
-              nearbyGems={nearbyGems} nearbyAreaName={nearbyAreaName} nearbyWeather={nearbyWeather}
+              nearbyGems={nearbyGems} nearbyAreaName={nearbyAreaName} nearbyWeather={nearbyWeather} weatherStatus={weatherStatus} onRetryWeather={()=>{if(cachedLocation)setWeatherRevision(v=>v+1);else void handleRefreshLocation();}}
               isNearbyLoading={isNearbyLoading} onRefreshLocation={handleRefreshLocation}
               locationStatus={locationStatus}
               tasteRecommendations={<TasteRecommendations key={user?.id || 'guest'} language={language} location={cachedLocation} onRequestLocation={() => getCurrentCoords()} onLogin={() => setLoginModalOpen(true)} userId={user?.id} />}

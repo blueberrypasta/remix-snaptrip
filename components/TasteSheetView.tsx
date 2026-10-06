@@ -163,7 +163,7 @@ export function TasteSheetView(props: Props) {
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       <SparkleIcon />
-      <span>{entryPillLabel}</span>
+      <span style={{fontFamily:'"Noto Serif KR", "AppleMyungjo", serif',fontWeight:500,letterSpacing:"0.03em"}}>{entryPillLabel}</span>
     </button>
   );
 

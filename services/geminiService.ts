@@ -316,7 +316,7 @@ export const fetchNearbyPlaces = async (location: LocationData, language: Langua
             CRITICAL: Respond COMPLETELY in the language: ${actualLang}. Provide names and descriptions in that language.
             For 'type', strictly use one of English constants: 'landmark', 'restaurant', 'cafe', 'park', 'museum'.
             'mapQuery' MUST be a clean, single-language search term for Google Maps.
-            Respond in JSON: { areaName, weather{emoji, tempC}, places[{name, type, rating, reviewCount, description, mapQuery}] }`;
+            Respond in JSON: { areaName, places[{name, type, rating, reviewCount, description, mapQuery}] }`;
 
     let responseText: string;
 
@@ -351,7 +351,6 @@ export const fetchNearbyPlaces = async (location: LocationData, language: Langua
 
     return {
         areaName,
-        weather: parsedData.weather || { emoji: "🌤️", tempC: 22 },
         places
     };
 };

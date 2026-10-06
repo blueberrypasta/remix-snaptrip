@@ -19,6 +19,8 @@ interface WelcomeScreenProps {
   nearbyGems?: {name: string, type: string, rating: string | number, reviewCount: string | number, description: string, url: string}[];
   nearbyAreaName?: string;
   nearbyWeather?: {emoji: string, tempC: number} | null;
+  weatherStatus?: 'idle'|'loading'|'ready'|'error';
+  onRetryWeather?:()=>void;
   isNearbyLoading?: boolean;
   locationStatus?: 'idle' | 'loading' | 'ready' | 'denied' | 'unavailable' | 'error' | 'empty';
   onRefreshLocation?: () => void;
@@ -30,11 +32,11 @@ interface WelcomeScreenProps {
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onUploadClick, onCameraClick, language, user, onLogin, recentHistory, onSelectHistory, credits, onReload, isSyncing = false,
   nearbyGems = [], nearbyAreaName = '', nearbyWeather = null, isNearbyLoading = false, locationStatus = 'idle', onRefreshLocation, onStartGuide,
-  onShowMoreNearby, isMoreNearbyLoading = false, tasteRecommendations
+  onShowMoreNearby, isMoreNearbyLoading = false, tasteRecommendations, weatherStatus='idle', onRetryWeather
 }) => {
   const t = useTranslations(language);
   const [displayLimit, setDisplayLimit] = useState(10);
-  const [isNearbyExpanded, setIsNearbyExpanded] = useState(true);
+  const [isNearbyExpanded, setIsNearbyExpanded] = useState(false);
   const [tempUnit, setTempUnit] = useState<'C' | 'F'>('C');
   const [activeGuide, setActiveGuide] = useState<{landmarkName: string} | null>(null);
   const observer = useRef<IntersectionObserver | null>(null);
@@ -152,40 +154,38 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
 
 
-      <section className="px-5 mt-4">
-        <div className={`bg-[#111b19]/80 rounded-[1.5rem] border border-white/[0.08] overflow-hidden transition-all duration-300 `}>
-            <div className="p-4 sm:p-5 flex flex-col gap-2">
+      <section className="px-4 mt-1">
+        <div className={`bg-[#111b19]/80 rounded-[1.125rem] border border-white/[0.08] overflow-hidden transition-all duration-300 `}>
+            <div className="px-3 py-2.5 sm:px-4 flex flex-col gap-0">
                 <div className="flex items-center justify-between gap-2">
-                    <button type="button" aria-expanded={isNearbyExpanded} aria-controls="nearby-popular-list" onClick={() => setIsNearbyExpanded(!isNearbyExpanded)} className="min-h-11 min-w-0 flex items-center gap-1.5 text-left text-[15px] font-semibold text-white focus-visible:outline-emerald-300 rounded-lg">
+                    <button type="button" aria-expanded={isNearbyExpanded} aria-controls="nearby-popular-list" onClick={() => setIsNearbyExpanded(!isNearbyExpanded)} className="min-h-11 min-w-0 flex items-center gap-1.5 text-left text-[14px] font-semibold text-white focus-visible:outline-emerald-300 rounded-lg">
                         <span>{language==='ko'?'주변 유명 장소':t('nearbyGems')}</span>
                         <svg aria-hidden="true" className={`w-3.5 h-3.5 shrink-0 text-white/50 transition-transform ${isNearbyExpanded?'rotate-180':''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
                     </button>
+                    <button aria-label={t('retryLocation')} onClick={()=>onRefreshLocation?.()} className="w-11 h-11 text-white/60 flex items-center justify-center rounded-full hover:bg-white/5"><svg aria-hidden="true" className={`w-3.5 h-3.5 ${isNearbyLoading?'animate-spin':''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 6M4 12l2 6a7 7 0 0 0 12-1"/></svg></button>
+                </div>
+                <div className="flex items-center gap-1.5 min-h-11" data-nearby-context>
+                    <div className="min-w-0 flex-1 text-[11px] text-white/55 truncate" title={nearbyAreaName}>
+                      {nearbyAreaName ? `📍 ${nearbyAreaName}` : language==='ko' ? (locationStatus==='denied'?'위치 권한 필요':isNearbyLoading?'주변 찾는 중…':'내 주변') : (locationStatus==='denied'?'Location needed':isNearbyLoading?'Finding nearby…':'Nearby')}
+                    </div>
+                    {nearbyWeather && Number.isFinite(nearbyWeather.tempC) ? (
+                        <button data-weather-display title={language==='ko'?'현재 날씨 · °C/°F 전환':'Current weather · switch °C/°F'} onClick={()=>setTempUnit(prev=>prev==='C'?'F':'C')} className="shrink-0 min-h-11 px-1.5 inline-flex items-center gap-1 text-[12px] text-white/85 rounded-lg hover:bg-white/5">
+                          <span aria-hidden="true">{nearbyWeather.emoji}</span><span>{getDisplayTemp()}</span>
+                        </button>
+                    ) : (
+                        <button data-weather-status disabled={weatherStatus==='loading'} onClick={()=>onRetryWeather?.()} className="shrink-0 min-h-11 px-1 text-[11px] text-white/55 rounded-lg hover:bg-white/5" aria-label={language==='ko'?'날씨 다시 불러오기':'Retry weather'}>
+                          {language==='ko'?(weatherStatus==='loading'?'날씨 확인 중…':weatherStatus==='error'?'날씨 재시도':'날씨 · 위치 필요'):(weatherStatus==='loading'?'Weather…':weatherStatus==='error'?'Retry weather':'Weather · location')}
+                        </button>
+                    )}
                     <div className="shrink-0" onClick={e=>e.stopPropagation()}>{tasteRecommendations}</div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 min-h-[28px]">
-                    <button aria-label={t('retryLocation')} onClick={()=>onRefreshLocation?.()} className="order-last ml-auto min-w-11 min-h-11 text-white/60 flex items-center justify-center rounded-full hover:bg-white/5"><svg aria-hidden="true" className={`w-4 h-4 ${isNearbyLoading?'animate-spin':''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 6M4 12l2 6a7 7 0 0 0 12-1"/></svg></button>
-                    {nearbyAreaName ? (
-                        <>
-                            <div className="px-3 py-1.5 bg-emerald-500/20 rounded-xl text-[11px] font-black text-emerald-400 border border-emerald-500/20 shadow-sm flex items-center gap-1.5">📍 {nearbyAreaName}</div>
-                            {nearbyWeather && (
-                                <button onClick={(e) => { e.stopPropagation(); setTempUnit(prev => prev === 'C' ? 'F' : 'C'); }} className="px-3 py-1.5 bg-white/10 rounded-xl text-[11px] font-black text-white border border-white/5 flex items-center gap-2 shadow-sm animate-fade-in">
-                                    <span>{nearbyWeather.emoji}</span><span>{getDisplayTemp()}</span><span className="text-[12px] opacity-40 material-symbols-outlined">sync_alt</span>
-                                </button>
-                            )}
-                        </>
-                    ) : (isNearbyLoading || locationStatus === 'loading' || locationStatus === 'idle' ? (
-                        <div className="flex items-center gap-2 animate-pulse">
-                           <div className="w-3 h-3 bg-emerald-500/20 rounded-full animate-bounce"></div>
-                           <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">{t('findingGems')}</span>
-                        </div>
-                    ) : <span className="text-[11px] font-bold text-slate-300 ml-1">{locationStatus === 'denied' ? t('locationDenied') : locationStatus === 'empty' ? t('noGemsFound') : t('locationUnavailable')}</span>)}
-                </div>
+                {nearbyWeather && <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" className="self-start text-[9px] leading-3 text-white/40 hover:text-white/70">Weather: Open-Meteo</a>}
             </div>
 
 
-            <div id="nearby-popular-list" hidden={!isNearbyExpanded} className={`overflow-hidden transition-all duration-300 ${isNearbyExpanded ? 'max-h-[3000px] opacity-100 mb-5' : 'max-h-0 opacity-0'}`}>
+            <div id="nearby-popular-list" hidden={!isNearbyExpanded} className={`overflow-hidden transition-all duration-300 ${isNearbyExpanded ? 'max-h-[3000px] opacity-100 mb-3' : 'max-h-0 opacity-0'}`}>
                 <div className="px-4 sm:px-5 pt-0">
-                    <div className="w-full h-px bg-white/5 mb-4"></div>
+                    <div className="w-full h-px bg-white/5 mb-3"></div>
                     {isNearbyLoading && nearbyGems.length === 0 ? (
                         <div className="py-16 flex flex-col items-center gap-4">
                             <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
