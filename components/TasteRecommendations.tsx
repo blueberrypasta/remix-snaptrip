@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { TasteSheetView } from './TasteSheetView';
 import { qlooAvailable, searchQloo, recommendQloo } from '../services/qlooService';
 import type { QlooPlace, QlooOptions } from '../services/qlooService';
 import { interpretTaste } from '../services/tasteProfileService';
@@ -37,6 +37,7 @@ const LABELS: Record<string, Partial<Record<Language, string>>> = {
 
 export const TasteRecommendations: React.FC<Props> = ({ language, location, onRequestLocation, onLogin, userId }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [viewport,setViewport]=useState<{height:number;top:number}|null>(null);
   const [viewState, setViewState] = useState<'composer' | 'results'>('composer');
   const [inputText, setInputText] = useState('');
   const [results, setResults] = useState<QlooPlace[]>([]);
@@ -68,6 +69,13 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   const invalidateAndCleanup=useCallback(()=>{generationSeq.current++;stopCapture();recorderRef.current=null;chunksRef.current=[];busyRef.current=false;setIsBusy(false);setIsRecording(false);},[stopCapture]);
   const handleClose=useCallback(()=>{invalidateAndCleanup();setIsOpen(false);},[invalidateAndCleanup]);
 
+  useEffect(()=>{
+    if(!isOpen || !window.visualViewport)return;
+    const vv=window.visualViewport;
+    const update=()=>setViewport({height:vv.height,top:vv.offsetTop});
+    update();vv.addEventListener('resize',update);vv.addEventListener('scroll',update);
+    return()=>{vv.removeEventListener('resize',update);vv.removeEventListener('scroll',update);};
+  },[isOpen]);
   useEffect(() => {
     let active=true;
     if (!userId && isOpen) getGuestTasteRemaining().then(n=>{if(active)setGuestRemaining(n);}).catch(()=>{});
@@ -112,14 +120,6 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
       unavailable:['연결이 원활하지 않아요. 잠시 후 다시 시도해주세요.','Connection unavailable. Please try again.'],
       microphone:['마이크를 사용할 수 없어요. 글로 입력해주세요.','Microphone unavailable. Please type instead.']};
     return (messages[code]||messages.unavailable)[language==='ko'?0:1];
-  };
-
-  const haversineDist = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371e3;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   };
 
   const startRecording=async()=>{
@@ -232,199 +232,6 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
     }
   };
 
-  const renderCard = (p: QlooPlace, index: number) => {
-    const dist = Number.isFinite(p.latitude) && Number.isFinite(p.longitude) && origin
-      ? Math.round(haversineDist(origin.latitude, origin.longitude, p.latitude!, p.longitude!))
-      : null;
-
-    const priceStr = p.priceLevel && Number.isInteger(p.priceLevel) && p.priceLevel>=1 && p.priceLevel<=4 ? '$'.repeat(p.priceLevel) : (language==='ko'?'가격 정보 없음':'Price unavailable');
-    const ratingVal = Number.isFinite(p.rating) && p.rating!>=0 && p.rating!<=5 ? p.rating!.toFixed(1) : null;
-    const isGoogle = p.ratingSource === 'google';
-    const reviewTxt = isGoogle && Number.isInteger(p.reviewCount) && p.reviewCount!>=0 ? `(${p.reviewCount})` : '';
-
-    return (
-      <details key={p.id} className="group bg-slate-800 rounded-lg border border-slate-700 overflow-hidden mb-2">
-        <summary className="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-750 transition-colors list-none [&::-webkit-details-marker]:hidden">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <span className="font-bold text-emerald-400 w-4">{index + 1}</span>
-            <div className="min-w-0 flex-1">
-              <h4 className="text-sm font-semibold text-white truncate">{p.name}</h4>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400 mt-1">
-                {dist !== null ? <span>{dist >= 1000 ? (dist/1000).toFixed(1)+'km' : dist+'m'}</span> : <span>{language==='ko'?'거리 정보 없음':'Distance unavailable'}</span>}
-                <span>{priceStr}</span>
-                <span className={`flex items-center gap-1 ${isGoogle ? 'text-yellow-400' : 'text-blue-400'}`}>
-                  {ratingVal ? `★ ${ratingVal} ${isGoogle?'Google':'Qloo'} ${reviewTxt}` : (language==='ko'?'평점 정보 없음':'Rating unavailable')}
-                </span>
-              </div>
-            </div>
-          </div>
-          <svg className="w-4 h-4 text-slate-500 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-        </summary>
-        <div className="px-3 pb-3 pt-1 border-t border-slate-700 bg-slate-800/50">
-          <p className="text-xs text-slate-300 mb-2 line-clamp-2">{p.description || (language==='ko'?'':'No description available.')}</p>
-          <p className="text-xs text-slate-400 mb-2 break-all">{p.address}</p>
-          <div className="flex gap-2">
-             {p.url && (
-               <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded">
-                 {language==='ko'?'Google 리뷰 · 지도':'Google reviews · map'}
-               </a>
-             )}
-          </div>
-        </div>
-      </details>
-    );
-  };
-
-  const showEntryPill = true;
   const canRecommend = !isBusy && (!!userId || guestRemaining === null || guestRemaining > 0);
-
-  return (
-    <>
-      {/* Entry Pill */}
-      {showEntryPill && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="inline-flex items-center justify-center h-[44px] min-h-[44px] px-3 rounded-full whitespace-nowrap bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-medium shadow-lg active:scale-95 transition-transform"
-          aria-label={t('pill')} data-taste-entry
-        >
-          {t('pill')}
-        </button>
-      )}
-
-      {/* Portal Modal */}
-      {isOpen && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={(e) => e.target === e.currentTarget && handleClose()}>
-          <div
-            ref={dialogRef}
-            role="dialog" data-taste-dialog
-            aria-modal="true"
-            aria-labelledby="taste-dialog-title"
-            className="bg-slate-900 w-full sm:max-w-[480px] max-h-[85dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col animate-in slide-in-from-bottom-4 duration-200"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
-              <h2 id="taste-dialog-title" className="text-base font-semibold text-white">
-                {viewState === 'results' ? (language==='ko'?'추천 TOP 3':'Your top 3') : t('pill')}
-              </h2>
-              <button onClick={handleClose} className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors" aria-label={t('close')}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              </button>
-            </div>
-
-            {/* Content Area */}
-            <div className="min-h-0 overflow-y-auto p-4 relative">
-
-              {viewState === 'composer' && (
-                <div className="space-y-4">
-                  {error && (
-                    <div className="p-3 bg-red-900/30 border border-red-800 text-red-200 text-sm rounded-lg flex justify-between items-start">
-                      <span>{error}</span>
-                      {!isBusy && <button onClick={() => setError(null)} className="ml-2 underline">✕</button>}
-                    </div>
-                  )}
-
-                  <div className="relative">
-                    <textarea aria-label={language==='ko'?'취향 또는 추가 요청':'Preferences or additional request'}
-                      ref={textareaRef}
-                      value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
-                      disabled={isBusy || isRecording}
-                      maxLength={600}
-                      rows={4}
-                      placeholder={t('placeholder')}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 pb-14 text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none resize-none text-base leading-relaxed"
-                    />
-
-                    {/* Mic Button */}
-                    <button
-                      onClick={isRecording ? stopRecordingManually : startRecording}
-                      disabled={!isRecording && (!canRecommend || isBusy)}
-                      className={`absolute bottom-3 right-3 w-11 h-11 flex items-center justify-center rounded-full transition-colors ${
-                        isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                      }`}
-                      aria-label={isRecording ? (language==='ko'?'녹음 종료':'Stop recording') : (language==='ko'?'음성 입력':'Start recording')}
-                    >
-                      {isRecording ? (
-                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
-                      ) : (
-                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-                      )}
-                    </button>
-                  </div>
-
-                  {isRecording && <p className="text-xs text-emerald-400 text-center animate-pulse">{language==='ko'?'🎤 말한 뒤 마이크를 다시 누르세요 (최대 30초)':'🎤 Tap the microphone to stop (up to 30 sec)'}</p>}
-                  {!isRecording && inputText && !appliedContext && <p className="text-xs text-slate-500 text-right">{inputText.length}/600</p>}
-
-                  {voiceNotice && <p className="text-xs text-slate-400">{t('voiceNotice')}</p>}
-                  {appliedContext && <p className="text-xs text-slate-400 line-clamp-2">{appliedContext.summary}</p>}
-                  {results.length>0 && <button onClick={()=>setViewState('results')} className="min-h-11 text-sm text-emerald-400">← {t('backResults')}</button>}
-                  <p role="status" aria-live="polite" className="text-xs text-slate-400">{isBusy?(language==='ko'?'처리 중…':'Processing…'):!userId&&guestRemaining!==null?(language==='ko'?`로그인 없이 ${guestRemaining}회 남음`:`${guestRemaining} free uses remaining`):''}</p>
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-2">
-                     <button
-                       onClick={handleClose}
-                       className="flex-1 py-3 px-4 rounded-xl bg-slate-800 text-slate-300 font-medium hover:bg-slate-700 transition-colors disabled:opacity-50"
-                       disabled={false} // Always enabled
-                     >
-                       {t('cancel')}
-                     </button>
-                     <button
-                       onClick={handleSubmit}
-                       disabled={!canRecommend || isBusy || isRecording}
-                       className="flex-[2] py-3 px-4 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                     >
-                       {isBusy ? (
-                         <>
-                           <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                           {language==='ko'?'처리 중…':'Processing…'}
-                         </>
-                       ) : t('recommend')}
-                     </button>
-                  </div>
-
-                  {/* Guest Info */}
-                  {guestRemaining === 0 && !userId && (
-                    <div className="mt-4 p-3 bg-amber-900/20 border border-amber-800/50 rounded-lg text-center">
-                      <p className="text-amber-200 text-sm mb-2">{t('guestLimit')}</p>
-                      <button onClick={()=>{handleClose();onLogin();}} className="text-xs font-bold text-amber-400 underline hover:text-amber-300">{t('loginCta')}</button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {viewState === 'results' && (
-                <div className="space-y-4">
-                   {results.map((p, i) => renderCard(p, i))}
-
-                   {appliedContext && (
-                     <details className="mt-2">
-                       <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-400 select-none">{language==='ko'?'반영한 취향':'Applied preferences'}</summary>
-                       <div className="mt-2 p-2 bg-slate-800/50 rounded text-xs text-slate-400 whitespace-pre-wrap">
-                         {appliedContext.summary}
-                       </div>
-                     </details>
-                   )}
-
-                   <div className="pt-2 space-y-2">
-                     <button
-                       onClick={() => {
-                         setViewState('composer');
-                         setInputText('');setVoiceNotice(false);
-                         setError(null);
-                       }}
-                       className="w-full py-2 text-sm text-emerald-400 hover:text-emerald-300 font-medium"
-                     >
-                       {t('refine')}
-                     </button>
-                     <p className="text-[10px] text-slate-600 text-center uppercase tracking-wide">{t('footer')}</p>
-                   </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-    </>
-  );
+  return <TasteSheetView language={language} isOpen={isOpen} viewState={viewState} inputText={inputText} results={results} error={error} isBusy={isBusy} isRecording={isRecording} guestRemaining={guestRemaining} userId={userId} voiceNotice={voiceNotice} appliedSummary={appliedContext?.summary||null} origin={origin} canRecommend={canRecommend} dialogRef={dialogRef} textareaRef={textareaRef} t={t} viewport={viewport} onOpen={()=>setIsOpen(true)} onClose={handleClose} onInput={setInputText} onRecommend={handleSubmit} onMicrophone={isRecording?stopRecordingManually:startRecording} onDismissError={()=>setError(null)} onBackResults={()=>setViewState('results')} onRefine={()=>{setViewState('composer');setInputText('');setVoiceNotice(false);setError(null);}} onLogin={()=>{handleClose();onLogin();}} />;
 };
