@@ -156,6 +156,14 @@ test('Qloo server boundary', async t=>{
   const old=fixtures;fixtures=[];const r=await handleRequest(request(rec,h));assert.equal(r.status,200);assert.equal((await r.json()).guestRemaining,10);fixtures=old;
   assert.equal((await handleRequest(request({...rec,options:{radius:123}},h))).status,400);assert.equal(guestUsage.get(id),0);
  });
+ await t.test('secondhand shopping rejects malls, bookstores, incidental tags and malformed hours',async()=>{
+  const old=fixtures,oldUser=authUser;authUser='shopping-qa';
+  const thrift={...old[0],name:'Vintage Fixture',properties:{...old[0].properties,primary_genre:{id:'urn:tag:genre:place:used_clothing_store'},hours:{monday:[{opens:'T10:00:00',closes:'T18:00:00'},null],sunday:[{closed:true}],unexpected:[{opens:'bad'}]}}};
+  fixtures=[thrift,{...thrift,entity_id:'32345678-1234-4234-8234-123456789abc',name:'Church Fixture',tags:[{id:'urn:tag:category:place:thrift_store'}],properties:{primary_genre:{id:'urn:tag:genre:place:church'}}},{...thrift,name:'Mall Fixture',tags:[{id:'urn:tag:category:place:shopping_mall'}]}];
+  try{calls=[];const r=await handleRequest(request({...rec,options:{category:'shopping',shoppingKind:'secondhand'}}));assert.equal(r.status,200);const data=await r.json();assert.deepEqual(data.places.map(p=>p.name),['Vintage Fixture']);assert.equal(data.places[0].hours.monday[0].opens,'T10:00:00');assert.equal(data.places[0].hours.unexpected,undefined);assert.ok(calls.some(c=>c.u.searchParams.get('filter.tags')?.includes('used_clothing_store')));
+  assert.equal((await handleRequest(request({...rec,options:{category:'shopping',shoppingKind:'invented'}}))).status,400);
+  }finally{fixtures=old;authUser=oldUser;}
+ });
  await t.test('bounded requests reject excessive calls',async()=>{
   const statuses=[];for(let i=0;i<22;i++) statuses.push((await handleRequest(request(rec))).status);
   assert.ok(statuses.includes(429));

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { TasteSheetView } from './TasteSheetView';
 import { qlooAvailable, searchQloo, recommendQloo } from '../services/qlooService';
 import type { QlooPlace, QlooOptions } from '../services/qlooService';
+import { localizePlaceDescriptions } from '../services/placePresentationService';
 import { interpretTaste } from '../services/tasteProfileService';
 import { getGuestTasteRemaining } from '../services/guestTasteService';
 import type { Language, LocationData } from '../types';
@@ -208,8 +209,10 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
          throw new Error('empty_results'); // Or specific empty msg
       }
 
+      const localized=await localizePlaceDescriptions(recommendedPlaces.slice(0,3),language);
+      if(currentGen!==generationSeq.current)return;
       setOrigin(loc);
-      setResults(recommendedPlaces.slice(0, 3));
+      setResults(localized);
       setViewState('results');
       prevContextRef.current = {
         summary: finalSummary,

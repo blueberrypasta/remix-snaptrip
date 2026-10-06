@@ -1,3 +1,4 @@
+import { formatOpeningHours } from '../services/placePresentationService';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import type { QlooPlace } from '../services/qlooService';
@@ -380,6 +381,13 @@ export function TasteSheetView(props: Props) {
                              {place.description}
                            </p>
                          )}
+
+                         {place.descriptionUnavailable && <p className="text-[12px] text-white/45">{language==='ko'?'설명을 번역하지 못했어요. 지도에서 확인해주세요.':'Description translation unavailable. Check the map.'}</p>}
+                         <div className="rounded-xl border border-white/10 p-3">
+                           <p className="text-[12px] font-semibold text-white/75 mb-2">{language==='ko'?'정규 영업시간 · 현지 시간':'Regular opening hours · local time'}</p>
+                           {formatOpeningHours(place.hours,language).length ? <dl className="grid grid-cols-[2rem_1fr] gap-x-3 gap-y-1 text-[12px] text-white/60">{formatOpeningHours(place.hours,language).map(row=><React.Fragment key={row.day}><dt>{row.day}</dt><dd>{row.value}</dd></React.Fragment>)}</dl> : <p className="text-[12px] text-white/50">{language==='ko'?'영업시간 미제공 · 지도에서 확인':'Hours unavailable · check the map'}</p>}
+                           <p className="text-[10px] text-white/35 mt-2">{language==='ko'?'Qloo 제공 · 방문 전 지도에서 최신 시간 확인':'Source: Qloo · check latest hours on the map'}</p>
+                         </div>
 
                          {isValidGoogleMapUrl(place.url) && (
                            <a

@@ -69,6 +69,7 @@ const GENERIC_RESTAURANT_LABELS = new Set([
 
 export function isGenericTasteName(name: string): boolean {
   const norm = normalizeTasteName(name);
+  if (['구제옷','구제 의류','빈티지 옷','빈티지 의류','중고옷','중고 의류','thrift','thrift store','vintage clothing','secondhand clothing'].includes(norm)) return true;
   
   // Check all generic sets
   if (GENERIC_KOREAN.has(norm)) return true;

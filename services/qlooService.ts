@@ -5,6 +5,7 @@ export interface QlooOptions {
   category: 'food' | 'shopping' | 'visits';
   mode: 'balanced' | 'popular' | 'discover';
   drink?: 'any' | 'matcha';
+  shoppingKind?: 'any' | 'thrift' | 'vintage' | 'secondhand';
   foodApproach?: 'familiar' | 'local' | 'both';
   cuisine: 'any' | 'korean' | 'japanese' | 'italian' | 'mexican' | 'american' | 'vegetarian';
   priceMax: number;
@@ -29,6 +30,8 @@ export interface QlooPlace {
   name: string;
   address: string;
   description?: string;
+  descriptionUnavailable?: boolean;
+  hours?: Record<string, Array<{opens?: string; closes?: string; closed?: boolean}>>;
   url: string;
 }
 

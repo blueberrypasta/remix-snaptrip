@@ -14,6 +14,11 @@ test('taste input validation and request boundary',async t=>{
  await t.test('empty speech or empty preference summary cannot become a profile',()=>{
   for(const value of [null,{}, {summary:''},{summary:'no_preferences'}])assert.throws(()=>normalizeTasteDraft(value),/no_preferences/);
  });
+ await t.test('secondhand terms are strict shopping requirements, not named favorites',()=>{
+ const d=normalizeTasteDraft({summary:'구제옷을 좋아해요',favorites:[{name:'구제옷',type:'place'}],options:{shoppingKind:'secondhand'}});
+ assert.deepEqual(d.favorites,[]);assert.deepEqual(d.options,{shoppingKind:'secondhand',category:'shopping'});
+ assert.equal(normalizeTasteDraft({summary:'Shopping',options:{shoppingKind:'fake'}}).options.shoppingKind,undefined);
+ });
  await t.test('unknown inferred constraints and malformed fields are not applied',()=>{
   const d=normalizeTasteDraft({summary:'I like noodles',favorites:[{name:'Muji',type:'brand'},{name:'muji',type:'brand'},{name:'fake',type:'url'}],options:{cuisine:'japanese',radius:999999,priceMax:'2',mode:'quiet',category:'shopping',allergy:'safe',ethnicity:'invented',foodApproach:'invented'}});
   assert.deepEqual(d.options,{cuisine:'japanese',category:'shopping'});assert.equal(d.favorites.length,1);
