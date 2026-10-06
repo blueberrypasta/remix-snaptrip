@@ -8,11 +8,14 @@ const interest = '12345678-1234-4234-8234-123456789abc';
 let calls=[];
 let upstreamStatus=200;
 let authOK=true;
+let authUser='qa-user';
+const discovered='22345678-1234-4234-8234-123456789abc';
+let fixtures=[{entity_id:discovered,name:'Test Place',types:['urn:entity:place'],properties:{address:'123 Test St',description:'Verified fixture'}}];
 globalThis.fetch = async (url, options={}) => {
   const u = new URL(String(url)); calls.push({u,options});
-  if (u.pathname==='/auth/v1/user') return Response.json(authOK?{id:'qa-user'}:{error:'invalid'}, {status:authOK?200:401});
+  if (u.pathname==='/auth/v1/user') return Response.json(authOK?{id:authUser}:{error:'invalid'}, {status:authOK?200:401});
   if (upstreamStatus!==200) return Response.json({error:'never expose upstream credentials'}, {status:upstreamStatus});
-  return Response.json({results:{entities:[{entity_id:interest,name:'Test Place',types:['urn:entity:place'],properties:{address:'123 Test St',description:'Verified fixture'}}]}});
+  return Response.json({results:{entities:u.pathname==='/search'?[{entity_id:interest,name:'Test Place',types:['urn:entity:place']}]:fixtures}});
 };
 const request = (body,headers={}) => new Request('https://example.supabase.co/functions/v1/qloo-proxy',{method:'POST',headers:{Origin:'https://slaptrip.com',Authorization:'Bearer user-token','Content-Type':'application/json',...headers},body:typeof body==='string'?body:JSON.stringify(body)});
 const rec = {action:'recommend',interests:[interest],location:{latitude:34.05,longitude:-118.24}};
@@ -53,8 +56,8 @@ test('Qloo server boundary', async t=>{
  await t.test('recommendation uses interests and geography without account data',async()=>{
   calls=[];const r=await handleRequest(request(rec));assert.equal(r.status,200);
   const data=await r.json();assert.equal(data.places[0].name,'Test Place');assert.match(data.places[0].url,/^https:\/\/www.google.com\/maps\/search\/\?api=1&query=/);
-  const c=calls.find(c=>c.u.pathname==='/v2/insights' && c.u.searchParams.get('take')==='5');assert.equal(c.u.searchParams.get('signal.interests.entities'),interest);
-  assert.equal(c.u.searchParams.get('filter.location'),'POINT(-118.24 34.05)');assert.equal(c.u.searchParams.get('filter.location.radius'),'15000');assert.equal(c.u.searchParams.get('take'),'5');
+  const c=calls.find(c=>c.u.pathname==='/v2/insights' && c.u.searchParams.get('take')==='20');assert.equal(c.u.searchParams.get('signal.interests.entities'),interest);
+  assert.equal(c.u.searchParams.get('filter.location'),'POINT(-118.24 34.05)');assert.equal(c.u.searchParams.get('filter.location.radius'),'15000');assert.equal(c.u.searchParams.get('take'),'20');
   assert.ok(!JSON.stringify(data).includes('test-qloo'));assert.ok(!c.u.toString().includes('qa-user'));
  });
  await t.test('local categories, cuisine, budget and discovery filters reach Qloo',async()=>{
@@ -78,7 +81,7 @@ test('Qloo server boundary', async t=>{
  await t.test('generic Korean and matcha tastes do not require restaurant entity IDs',async()=>{
   calls=[];const r=await handleRequest(request({...rec,interests:[],options:{category:'food',cuisine:'korean',drink:'matcha'}}));
   assert.equal(r.status,200);const requests=calls.filter(c=>c.u.pathname==='/v2/insights');assert.equal(requests.length,2);
-  const restaurant=requests.find(c=>c.u.searchParams.get('take')==='5');const cafe=requests.find(c=>c.u.searchParams.get('take')==='2');
+  const restaurant=requests.find(c=>c.u.searchParams.get('take')==='20');const cafe=requests.find(c=>c.u.searchParams.get('take')==='10');
   assert.equal(restaurant.u.searchParams.get('signal.interests.entities'),null);
   assert.equal(restaurant.u.searchParams.get('signal.interests.tags'),'urn:tag:genre:place:restaurant:korean');
   assert.match(cafe.u.searchParams.get('filter.tags'),/matcha_latte/);assert.match(cafe.u.searchParams.get('filter.tags'),/category:place:cafe/);
@@ -105,6 +108,28 @@ test('Qloo server boundary', async t=>{
   assert.ok(calls.some(c=>c.u.hostname==='api.qloo.com'));
   assert.ok(!calls.some(c=>c.u.hostname==='evil.example'));
   delete env.QLOO_API_URL;
+ });
+ await t.test('favorites, alternate branches and chain aliases never appear in any mode',async()=>{
+  const saved=fixtures;authUser='qa-exclusions';
+  fixtures=[
+   {entity_id:interest,name:'Original Favorite'},
+   {entity_id:'33345678-1234-4234-8234-123456789abc',name:'In-N-Out Burger - Glendale'},
+   {entity_id:'43345678-1234-4234-8234-123456789abc',name:'인앤아웃 버거'},
+   {entity_id:'53345678-1234-4234-8234-123456789abc',name:'BCD Tofu House (Koreatown)'},
+   {entity_id:'63345678-1234-4234-8234-123456789abc',name:'북창동순두부'},
+   {entity_id:'73345678-1234-4234-8234-123456789abc',name:'Other Burger',properties:{brand:{name:'In N Out'}}},
+   ...Array.from({length:5},(_,i)=>({entity_id:`${i+2}2345678-1234-4234-8234-123456789abd`,name:['New Tofu Kitchen','Burger Garden','BCD-inspired independent cafe','Incredible Food','Local Bistro'][i]}))
+  ];
+  try {
+   for(const foodApproach of ['familiar','local','both']) {
+    calls=[];const r=await handleRequest(request({...rec,excludedNames:['BCD Tofu House','In N Out'],options:{foodApproach}}));assert.equal(r.status,200);
+    const data=await r.json();assert.equal(data.places.length,5);assert.ok(data.places.every(p=>!['Original Favorite','Other Burger','북창동순두부','인앤아웃 버거'].includes(p.name) && !p.name.startsWith('In-N-Out') && !p.name.startsWith('BCD Tofu')));
+    assert.ok(data.places.some(p=>p.name==='BCD-inspired independent cafe'));
+    assert.ok(calls.filter(c=>c.u.pathname==='/v2/insights').every(c=>c.u.searchParams.get('filter.exclude.entities')===interest));
+   }
+   assert.equal((await handleRequest(request({...rec,excludedNames:'BCD'}))).status,400);
+   assert.equal((await handleRequest(request({...rec,excludedNames:['x'.repeat(201)]}))).status,400);
+  } finally {fixtures=saved;authUser='qa-user';}
  });
  await t.test('bounded requests reject excessive calls',async()=>{
   const statuses=[];for(let i=0;i<22;i++) statuses.push((await handleRequest(request(rec))).status);

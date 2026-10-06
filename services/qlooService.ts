@@ -123,7 +123,7 @@ export async function searchQloo(query: string, type: string): Promise<QlooInter
   return data.entities.filter((e: any) => e && e.id && e.name);
 }
 
-export async function recommendQloo(interests: string[], location: LocationData, options?: QlooOptions): Promise<QlooPlace[]> {
+export async function recommendQloo(interests: string[], location: LocationData, options?: QlooOptions, excludedNames: string[] = []): Promise<QlooPlace[]> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) {
     throw new Error('login_required');
@@ -136,6 +136,7 @@ export async function recommendQloo(interests: string[], location: LocationData,
 
   const payload = {
     action: 'recommend',
+    excludedNames,
     options,
     interests,
     location: {

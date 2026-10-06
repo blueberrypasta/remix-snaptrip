@@ -204,7 +204,27 @@ async function handleSearch(qlooApiKey: string, qlooApiUrl: string, query: strin
   }
 }
 
-async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string;foodApproach?: string} = {}): Promise<{ places: QlooPlaceResult[] } | Response> {
+// Seed businesses describe taste, and must never be returned as discoveries.
+function favoriteNameKey(value: string): string {
+  const normalized = value.normalize('NFKC').toLowerCase().replace(/&/g, ' and ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
+  const compact = normalized.replace(/ /g, '');
+  if (/^(?:innout|인앤아웃|인엔아웃)/u.test(compact)) return 'in n out';
+  if (/^(?:bcd tofu house|북창동순두부)(?:$|[\s(])/u.test(normalized) || normalized === 'bcd'
+    || compact.startsWith('bcdtofuhouse') || compact.startsWith('북창동순두부')) return 'bcd tofu house';
+  return normalized;
+}
+function isFavoritePlace(place: any, ids: Set<string>, names: string[]): boolean {
+  if (ids.has(String(place.entity_id).toLowerCase()) || ids.has(String(place.id).toLowerCase())) return true;
+  const candidates = [place.name, place.properties?.brand, place.properties?.chain]
+    .map(value => typeof value === 'string' ? value : value?.name).filter(value => typeof value === 'string');
+  return candidates.some(name => {
+    const candidate = favoriteNameKey(name);
+    return names.some(seed => candidate === seed || candidate.startsWith(seed + ' '));
+  });
+}
+
+async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string;foodApproach?: string} = {}, excludedNames: string[] = []): Promise<{ places: QlooPlaceResult[] } | Response> {
   // Optional explicit entities; generic tastes are represented by tags.
   if (interests.length > 3) {
     return new Response(JSON.stringify({ error: 'invalid_interest_count' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -221,6 +241,10 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
       return new Response(JSON.stringify({ error: 'invalid_interest_uuid' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
   }
+
+  if (!Array.isArray(excludedNames) || excludedNames.length > 3 || excludedNames.some(n => typeof n !== 'string' || !n.trim() || n.length > 200)) return Response.json({error:'invalid_exclusions'}, {status:400});
+  const excludedIds = new Set(interests.map(id => id.toLowerCase()));
+  const excludedKeys = excludedNames.map(n => favoriteNameKey(n.replace(/\s+[-–—|]\s+.*$|\s*\([^)]*\)\s*$/gu, ''))).filter(Boolean);
 
   // Validate Location
   const { latitude, longitude } = location;
@@ -251,9 +275,11 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     'filter.type': 'urn:entity:place',
     'filter.location': filterLocationStr,
     'filter.location.radius': String(radius),
-    'take': '5',
+    'take': '20',
     'feature.explainability': 'true',
   });
+
+  if (interestsStr) params.set('filter.exclude.entities',interestsStr);
 
   const categoryTag = category === 'food' ? 'urn:tag:category:place:restaurant'
     : category === 'shopping' ? 'urn:tag:category:place:shopping_mall,urn:tag:category:place:clothing_store,urn:tag:category:place:store' : 'urn:tag:category:place:tourist_attraction';
@@ -276,7 +302,7 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
 
     const discoverParams = new URLSearchParams(params);
     discoverParams.set('filter.popularity.max','0.95');
-    discoverParams.set('take','2');
+    discoverParams.set('take','10');
     if (category === 'food' && drink === 'matcha') {
       discoverParams.set('filter.tags','urn:tag:category:place:cafe,urn:tag:menu_highlight:qloo:matcha_latte');
       discoverParams.set('operator.filter.tags','intersection');
@@ -309,9 +335,10 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     const data = await res.json() as any;
     if (data.success === false) return Response.json({error: 'upstream_error'}, {status:502});
     let rawPlaces = Array.isArray(data.results?.entities) ? data.results.entities : [];
+    rawPlaces = rawPlaces.filter((p: any) => !isFavoritePlace(p, excludedIds, excludedKeys));
     if (discoveries) {
-      const extra = await discoveries;
-      if (Array.isArray(extra) && extra.length) rawPlaces = [...rawPlaces.slice(0,3), ...extra, ...rawPlaces.slice(3)]
+      const extra = (await discoveries).filter((p: any) => !isFavoritePlace(p, excludedIds, excludedKeys));
+      if (Array.isArray(extra) && extra.length) rawPlaces = [...rawPlaces.slice(0,3), ...extra.slice(0,2), ...rawPlaces.slice(3), ...extra.slice(2)]
         .filter((p, i, a) => a.findIndex(x => x.entity_id === p.entity_id) === i);
     }
 
@@ -441,7 +468,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       if (action === 'recommend') {
         if (!Array.isArray(payload.interests) || payload.interests.some((id: unknown) => typeof id !== 'string') || !payload.location || typeof payload.location !== 'object') return Response.json({error:'bad_request'}, {status:400,headers:corsHeaders});
         if (payload.options != null && (typeof payload.options !== 'object' || Array.isArray(payload.options))) return Response.json({error:'invalid_options'}, {status:400,headers:corsHeaders});
-        const result = await handleRecommend(qlooApiKey, qlooApiUrl!, payload.interests, payload.location, payload.options || {});
+        const result = await handleRecommend(qlooApiKey, qlooApiUrl!, payload.interests, payload.location, payload.options || {}, payload.excludedNames ?? []);
         if (result instanceof Response) {
           return new Response(result.body, { status: result.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }

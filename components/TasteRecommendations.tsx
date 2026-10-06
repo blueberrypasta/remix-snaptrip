@@ -172,12 +172,12 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
     saveSelected(newSel);
   };
 
-  const requestPlaces = async (ids:string[],next:QlooOptions,seq:number) => {
+  const requestPlaces = async (ids:string[],next:QlooOptions,seq:number,names:string[]=selected.map(s=>s.name)) => {
     let loc=location;
     if(!loc) try {loc=await onRequestLocation();} catch { /* Permission denied. */ }
     if(seq!==requestSeqRef.current) return;
     if(!loc) throw new Error('location_required');
-    const places=await recommendQloo(ids,loc,next);
+    const places=await recommendQloo(ids,loc,next,names);
     if(seq!==requestSeqRef.current) return;
     setRecs(places);
     if(!places.length) setError(localCopy.zeroRecs);
@@ -195,10 +195,10 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
       changeOptions(next);setSelected([]);saveSelected([]);setResults(entities);
       if(entities.length) {
         setCategory(draft.favorites[0]?.type ?? 'place');
-        setError(language==='ko'?'검색 결과에서 정확한 식당·브랜드를 선택해주세요.':'Confirm the exact restaurants or brands below.');
+
       } else {
         // Cuisine and drink tags are valid preferences without named businesses.
-        await requestPlaces([],next,seq);
+        await requestPlaces([],next,seq,draft.favorites.map(f=>f.name));
       }
     } finally {
       if(seq===requestSeqRef.current) setLoading(false);
@@ -206,7 +206,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   };
 
   const handleRecommend = async () => {
-    if((!selected.length && !profileReady) || loading || recLoading) return;
+    if((!selected.length && (!profileReady || results.length > 0)) || loading || recLoading) return;
     setRecLoading(true);setError(null);setRecs([]);
     const seq=++requestSeqRef.current;
     try {await requestPlaces(selected.map(s=>s.id),options,seq);}
@@ -237,7 +237,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   }
 
   return (
-    <section className="px-5 mt-4 border-white/10 rounded-[2rem] bg-white/5 text-white overflow-hidden">
+    <section className="px-4 sm:px-5 mt-4 border-white/10 rounded-[2rem] bg-slate-900 text-white overflow-hidden">
       <button type="button" className="w-full text-left flex justify-between items-center py-4 min-h-[44px] group focus-visible:outline-emerald-400" onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
         <div>
           <h3 className="text-lg font-semibold group-hover:text-emerald-400 transition-colors">{localCopy.title}</h3>
@@ -248,102 +248,200 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
 
       {expanded && (
         <div className="pb-6 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div key={userId}><TasteOnboarding language={language} disabled={loading || recLoading} onApply={applyTaste} /></div>
-          <LocalRecommendationControls language={language} value={options} disabled={loading || recLoading} onChange={changeOptions} />
-          {/* Selection Chips */}
-          {selected.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {selected.map(item => (
-                <span key={item.id} className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-emerald-900/50 border border-emerald-700/50 text-emerald-100">
-                  {item.name}
-                  <button onClick={() => toggleSelect(item)} disabled={loading || recLoading} className="ml-2 min-h-[44px] min-w-[44px] hover:text-white focus:outline-none focus-visible:ring-1 ring-white rounded-full" aria-label={`${localCopy.removeChip}: ${item.name}`}>&times;</button>
+        {/* Taste editor collapses once a profile is applied. */}
+          <details open={!profileReady && !results.length && !recs.length} className="group/onboard [&_summary::-webkit-details-marker]:hidden">
+            <summary
+              className="flex items-center justify-between cursor-pointer min-h-[44px] py-2 list-none"
+              aria-label={language === 'ko' ? '취향 입력·수정' : 'Edit my taste'}
+            >
+              <span className="font-medium text-sm flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-600 text-xs font-bold shrink-0">1</span>
+                {language === 'ko' ? '취향 입력·수정' : 'Edit my taste'}
+              </span>
+              <svg className="w-5 h-5 transform transition-transform group-open/onboard:rotate-180 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            </summary>
+            <div key={userId} className="mt-2 pl-0 sm:pl-8 pr-1 pb-2 animate-in fade-in slide-in-from-top-2 duration-200">
+              <TasteOnboarding language={language} disabled={loading || recLoading} onApply={applyTaste} />
+            </div>
+          </details>
+
+        {/* Controls & Actions Section (Visible when ready or has data) */}
+        {(profileReady || selected.length > 0 || results.length > 0) && (
+          <>
+            {/* Adjust Recommendations Details */}
+            <details className="group/controls [&_summary::-webkit-details-marker]:hidden">
+              <summary
+                className="flex items-center justify-between cursor-pointer min-h-[44px] py-2 px-3 -mx-3 rounded-xl hover:bg-slate-800/50 transition-colors list-none"
+                aria-label={language === 'ko' ? '추천 조건 조정' : 'Adjust recommendations'}
+              >
+                <span className="font-medium text-sm text-slate-300">
+                  {language === 'ko' ? '추천 조건 조정' : 'Adjust recommendations'}
                 </span>
-              ))}
-            </div>
-          )}
+                <svg className="w-5 h-5 transform transition-transform group-open/controls:rotate-180 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </summary>
+              <div className="pt-3 pb-2 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                <LocalRecommendationControls language={language} value={options} disabled={loading || recLoading} onChange={changeOptions} />
 
-          {/* Search Form */}
-          <form className="space-y-3" onSubmit={e => {e.preventDefault(); void handleSearch();}}>
-            <label htmlFor="qloo-query" className="block text-xs uppercase tracking-wider opacity-60">{localCopy.searchLabel}</label>
-            <div className="flex flex-wrap gap-2">
-              <select aria-label={localCopy.categoryLabel} disabled={loading || recLoading} value={category} onChange={(e) => setCategory(e.target.value as Category)} className="bg-black/20 border border-white/10 rounded-xl px-3 py-2 min-h-[44px] text-sm focus:border-emerald-500 outline-none">
-                {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-              </select>
-              <input
-                id="qloo-query" minLength={2} maxLength={100} required type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={localCopy[`placeholder${category.charAt(0).toUpperCase() + category.slice(1)}` as keyof typeof localCopy] || 'Search...'}
-                className="min-w-0 flex-1 basis-32 bg-black/20 border border-white/10 rounded-xl px-3 py-2 min-h-[44px] text-sm focus:border-emerald-500 outline-none placeholder:text-white/30"
-              />
-              <button type="submit" disabled={loading || recLoading || query.trim().length < 2} className="min-h-[44px] px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl font-medium text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">
-                {loading ? localCopy.loading : localCopy.btnSearch}
-              </button>
-            </div>
-          </form>
 
-          {/* Results List */}
-          {results.length > 0 && (
-            <ul className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+              </div>
+            </details>
+
+            {/* Selection Chips (Always visible when selected) */}
+            {selected.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  {language === 'ko' ? '추천에서 제외할 취향 기준' : 'Taste references excluded from results'}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {selected.map(item => (
+                    <span key={item.id} className="inline-flex max-w-full items-center px-3 py-1.5 rounded-full text-xs bg-slate-800 border border-slate-600 text-slate-200 shadow-sm">
+                      <span className="min-w-0 break-words">{item.name}</span>
+                      <button onClick={() => toggleSelect(item)} disabled={loading || recLoading} className="ml-2 shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center hover:text-red-400 focus:outline-none focus-visible:ring-2 ring-red-500 rounded-full transition-colors" aria-label={`${localCopy.removeChip}: ${item.name}`}>&times;</button>
+                    </span>
+                  ))}
+                </div>
+              <p className="text-xs text-slate-300">{language === 'ko' ? '이 장소와 같은 상호의 지점은 빼고, 비슷한 취향의 새로운 곳을 찾아요.' : 'Discover similar places while excluding these favorites and outlets with the same name.'}</p>
+              </div>
+            )}
+
+            {/* Manual Search Form */}
+            <details className="group/search [&_summary::-webkit-details-marker]:hidden">
+              <summary
+                className="flex items-center justify-between cursor-pointer min-h-[44px] py-2 px-3 -mx-3 rounded-xl hover:bg-slate-800/50 transition-colors list-none"
+                aria-label={language === 'ko' ? '좋아하는 곳 직접 검색' : 'Search a favorite'}
+              >
+                <span className="font-medium text-sm text-slate-300">
+                  {language === 'ko' ? '좋아하는 곳 직접 검색' : 'Search a favorite'}
+                </span>
+                <svg className="w-5 h-5 transform transition-transform group-open/search:rotate-180 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </summary>
+
+              <form className="mt-3 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200" onSubmit={e => {e.preventDefault(); void handleSearch();}}>
+                <label htmlFor="qloo-query" className="block text-xs uppercase tracking-wider text-slate-400">{localCopy.searchLabel}</label>
+                <div className="flex flex-wrap gap-2">
+                  <select aria-label={localCopy.categoryLabel} disabled={loading || recLoading} value={category} onChange={(e) => setCategory(e.target.value as Category)} className="bg-slate-800 border border-slate-600 rounded-xl px-3 py-2 min-h-[44px] text-sm text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer">
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+                  </select>
+                  <input
+                    id="qloo-query" minLength={2} maxLength={100} required type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder={localCopy[`placeholder${category.charAt(0).toUpperCase() + category.slice(1)}` as keyof typeof localCopy] || 'Search...'}
+                    className="min-w-0 flex-1 basis-32 bg-slate-800 border border-slate-600 rounded-xl px-3 py-2 min-h-[44px] text-sm text-white focus:border-emerald-500 outline-none placeholder:text-slate-500"
+                  />
+                  <button type="submit" disabled={loading || recLoading || query.trim().length < 2} className="min-h-[44px] px-4 bg-slate-700 hover:bg-slate-600 text-white disabled:opacity-50 rounded-xl font-medium text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">
+                    {loading ? localCopy.loading : localCopy.btnSearch}
+                  </button>
+                </div>
+              </form>
+            </details>
+          </>
+        )}
+
+        {/* Search Results (Outside details) */}
+        {results.length > 0 && (
+          <details open={!recs.length} className="space-y-3 pt-2">
+            <summary className="min-h-[44px] cursor-pointer text-sm font-semibold text-emerald-400">
+              {language === 'ko' ? '2 · 취향 기준 확인' : '2 · Confirm taste references'}
+            </summary>
+            <div>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                {language === 'ko'
+                  ? "입력한 식당·브랜드와 일치하는 항목을 골라주세요. 같은 체인은 한 곳만 선택하면 됩니다."
+                  : "Choose the exact restaurants or brands. Select just one outlet per chain."}
+              </p>
+            </div>
+
+            <ul className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
               {results.map(r => {
                 const isSelected = selected.some(s => s.id === r.id);
                 return (
                   <li key={r.id}>
                     <button
                       onClick={() => toggleSelect(r)}
-                      aria-pressed={isSelected} disabled={loading || recLoading || (!isSelected && selected.length >= 3)}
-                      className={`w-full text-left p-3 rounded-xl border transition-all min-h-[44px] flex flex-col justify-center ${isSelected ? 'border-emerald-500 bg-emerald-900/30' : 'border-white/10 bg-white/5 hover:bg-white/10'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                      aria-pressed={isSelected}
+                      disabled={loading || recLoading || (!isSelected && selected.length >= 3)}
+                      className={`w-full text-left p-3 rounded-xl border transition-all min-h-[44px] flex flex-col justify-center active:scale-[0.99] ${isSelected ? 'border-emerald-500 bg-emerald-900/20 ring-1 ring-emerald-500/50' : 'border-slate-700 bg-slate-800/50 hover:bg-slate-800 hover:border-slate-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      <span className="font-medium text-sm">{r.name} <span className="opacity-60">· {r.type}</span></span>
-                      {r.description && <span className="text-xs opacity-60 line-clamp-1">{r.description}</span>}
+                      <span className="font-medium text-sm text-white break-words">{r.name} <span className="opacity-60 font-normal text-xs">· {r.type}</span></span>
+                      {r.description && <span className="text-xs opacity-60 line-clamp-1 text-slate-300 mt-0.5">{r.description}</span>}
                     </button>
                   </li>
                 );
               })}
             </ul>
-          )}
+          </details>
+        )}
 
-          {/* Action Button */}
-          <div className="pt-2 border-t border-white/10">
-             <p className="text-xs text-slate-300 mb-2">{localCopy.disclosure}</p>
-             <p className="text-xs text-slate-300 mb-3">{localCopy.maxChips} · {options.radius / 1000} km</p>
-             <button
-               onClick={handleRecommend}
-               disabled={(selected.length === 0 && !profileReady) || recLoading || loading}
-               className="w-full min-h-[44px] bg-white text-black font-bold rounded-xl hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-             >
-               {recLoading ? localCopy.recLoading : localCopy.btnGetRecs}
-             </button>
+        {(profileReady || selected.length > 0) && (
+                <div className="pt-2 border-t border-slate-700/50">
+                   <p className="text-xs text-slate-400 mb-2">{localCopy.disclosure}</p>
+                   <p className="text-xs text-slate-400 mb-3">{localCopy.maxChips} · {options.radius / 1000} km</p>
+                   <button
+                     onClick={handleRecommend}
+                     disabled={(selected.length === 0 && (!profileReady || results.length > 0)) || recLoading || loading}
+                     className="w-full min-h-[44px] bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                   >
+                     {recLoading ? localCopy.recLoading : recs.length ? (language === 'ko' ? '다시 추천받기' : 'Refresh recommendations') : localCopy.btnGetRecs}
+                   </button>
+                </div>
+        )}
+
+        {/* Errors */}
+        {error && (
+          <div role="alert" className="p-3 bg-red-900/30 border border-red-800 text-red-200 text-sm rounded-xl">
+            {error}
+            {error === localCopy.errAuth && <button onClick={onLogin} className="block min-h-[44px] underline mt-2 text-red-300 hover:text-white">{language === 'ko' ? '로그인' : 'Log in'}</button>}
           </div>
+        )}
 
-          {/* Errors */}
-          {error && (
-            <div role="alert" className="p-3 bg-red-900/30 border border-red-800 text-red-200 text-sm rounded-xl">
-              {error}
-              {error === localCopy.errAuth && <button onClick={onLogin} className="block min-h-[44px] underline">{language === 'ko' ? '로그인' : 'Log in'}</button>}
+        {/* Loading State Accessible */}
+        {(loading || recLoading) && !results.length && !recs.length && (
+           <div role="status" className="flex items-center justify-center py-8 text-slate-400">
+             <svg className="animate-spin h-5 w-5 mr-3 text-emerald-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+             </svg>
+             <span className="sr-only">Loading...</span>
+           </div>
+        )}
+
+        {/* Recommendations */}
+        {recs.length > 0 && (
+          <div className="space-y-4 pt-4 border-t border-slate-700/50">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="text-base font-bold text-white">{language === 'ko' ? '나에게 맞는 새로운 장소' : 'New places for you'}</h4>
+              <span className="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded-md border border-slate-700">
+                {language === 'ko' ? '주변' : 'Within'} {options.radius / 1000} km
+              </span>
             </div>
-          )}
 
-          {/* Recommendations */}
-          {recs.length > 0 && (
-            <div className="space-y-3 pt-4">
-              <h4 className="text-sm font-semibold opacity-80">{localCopy.title}</h4>
-              <div className="grid gap-3">
-                {recs.map(place => (
-                  <div key={place.id} className="p-4 bg-black/20 border border-white/10 rounded-xl relative group">
-                    <h5 className="font-medium text-base leading-tight mb-1">{place.name}</h5>
-                    <p className="text-xs opacity-60 mb-2">{place.address}</p>
-                    {place.description && <p className="text-sm opacity-80 line-clamp-2 mb-3">{place.description}</p>}
-                    <a href={place.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors">
-                      {localCopy.openMaps} <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                    </a>
+            <div className="grid gap-3">
+              {recs.map((place, index) => (
+                <div key={place.id} className="p-4 bg-slate-800/80 border border-slate-700 rounded-xl relative group hover:border-slate-600 transition-colors shadow-sm">
+                  <div className="absolute top-3 right-3 inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-700 text-xs font-bold text-slate-300 border border-slate-600">
+                    {index + 1}
                   </div>
-                ))}
-              </div>
+                  <h5 className="font-medium text-base leading-tight mb-1 pr-8 text-white break-words">{place.name}</h5>
+                  <p className="text-xs opacity-70 mb-2 text-slate-400 line-clamp-1">{place.address}</p>
+                  {place.description && <p className="text-sm opacity-90 line-clamp-2 mb-4 text-slate-300">{place.description}</p>}
+
+                  <a
+                    href={place.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex w-full min-h-[44px] items-center justify-center text-sm font-medium text-emerald-400 hover:text-emerald-300 hover:bg-emerald-900/20 rounded-lg transition-colors border border-transparent hover:border-emerald-900/50"
+                  >
+                    {localCopy.openMaps}
+                    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                  </a>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+        )}
         </div>
       )}
     </section>
   );
-};
+}
