@@ -53,9 +53,27 @@ test('Qloo server boundary', async t=>{
  await t.test('recommendation uses interests and geography without account data',async()=>{
   calls=[];const r=await handleRequest(request(rec));assert.equal(r.status,200);
   const data=await r.json();assert.equal(data.places[0].name,'Test Place');assert.match(data.places[0].url,/^https:\/\/www.google.com\/maps\/search\/\?api=1&query=/);
-  const c=calls.find(c=>c.u.pathname==='/v2/insights');assert.equal(c.u.searchParams.get('signal.interests.entities'),interest);
+  const c=calls.find(c=>c.u.pathname==='/v2/insights' && c.u.searchParams.get('take')==='5');assert.equal(c.u.searchParams.get('signal.interests.entities'),interest);
   assert.equal(c.u.searchParams.get('filter.location'),'POINT(-118.24 34.05)');assert.equal(c.u.searchParams.get('filter.location.radius'),'15000');assert.equal(c.u.searchParams.get('take'),'5');
   assert.ok(!JSON.stringify(data).includes('test-qloo'));assert.ok(!c.u.toString().includes('qa-user'));
+ });
+ await t.test('local categories, cuisine, budget and discovery filters reach Qloo',async()=>{
+  calls=[];
+  let r=await handleRequest(request({...rec,options:{category:'food',mode:'discover',cuisine:'korean',priceMax:2,radius:5000}}));
+  assert.equal(r.status,200);
+  let c=calls.find(c=>c.u.pathname==='/v2/insights');
+  assert.equal(c.u.searchParams.get('filter.tags'),'urn:tag:category:place:restaurant,urn:tag:genre:place:restaurant:korean');
+  assert.equal(c.u.searchParams.get('operator.filter.tags'),'intersection');
+  assert.equal(c.u.searchParams.get('filter.price_level.max'),'2');
+  assert.equal(c.u.searchParams.get('filter.popularity.max'),'0.95');
+  assert.equal(c.u.searchParams.get('filter.location.radius'),'5000');
+  calls=[];r=await handleRequest(request({...rec,options:{category:'shopping',mode:'popular'}}));
+  assert.equal(r.status,200);c=calls.find(c=>c.u.pathname==='/v2/insights');
+  assert.match(c.u.searchParams.get('filter.tags'),/urn:tag:category:place:shopping_mall/);
+  assert.equal(c.u.searchParams.get('filter.popularity.min'),'0.95');
+  assert.equal(c.u.searchParams.get('filter.price_level.max'),null);
+  calls=[];r=await handleRequest(request({...rec,options:{radius:999999}}));
+  assert.equal(r.status,400);assert.ok(!calls.some(c=>c.u.pathname==='/v2/insights'));
  });
  await t.test('upstream auth/rate errors are safe and distinct',async()=>{
   upstreamStatus=401;let r=await handleRequest(request(rec));assert.equal(r.status,503);assert.ok(!(await r.text()).includes('credentials'));

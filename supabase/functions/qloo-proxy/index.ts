@@ -204,7 +204,7 @@ async function handleSearch(qlooApiKey: string, qlooApiUrl: string, query: strin
   }
 }
 
-async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }): Promise<{ places: QlooPlaceResult[] } | Response> {
+async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number} = {}): Promise<{ places: QlooPlaceResult[] } | Response> {
   // Validate Interests: 1-3 unique UUIDs
   if (interests.length < 1 || interests.length > 3) {
     return new Response(JSON.stringify({ error: 'invalid_interest_count' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -231,6 +231,16 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     return new Response(JSON.stringify({ error: 'location_out_of_bounds' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
 
+  const category = options.category ?? 'food';
+  const mode = options.mode ?? 'balanced';
+  const cuisine = options.cuisine ?? 'any';
+  const radius = options.radius ?? 15000;
+  const priceMax = options.priceMax ?? 0;
+  if (!['food','shopping','visits'].includes(category) || !['balanced','popular','discover'].includes(mode)
+    || !['any','korean','japanese','italian','mexican','american','vegetarian'].includes(cuisine)
+    || ![5000,15000,30000].includes(radius) || !Number.isInteger(priceMax) || priceMax < 0 || priceMax > 4) {
+    return Response.json({error:'invalid_options'}, {status:400});
+  }
   const filterLocationStr = `POINT(${Math.round(longitude * 100) / 100} ${Math.round(latitude * 100) / 100})`;
   const interestsStr = interests.join(',');
 
@@ -238,14 +248,34 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     'filter.type': 'urn:entity:place',
     'signal.interests.entities': interestsStr,
     'filter.location': filterLocationStr,
-    'filter.location.radius': '15000',
+    'filter.location.radius': String(radius),
     'take': '5',
     'feature.explainability': 'true',
   });
 
+  const categoryTag = category === 'food' ? 'urn:tag:category:place:restaurant'
+    : category === 'shopping' ? 'urn:tag:category:place:shopping_mall,urn:tag:category:place:clothing_store,urn:tag:category:place:store' : 'urn:tag:category:place:tourist_attraction';
+  params.set('filter.tags', categoryTag);
+  if (category === 'visits') params.set('filter.exclude.tags','urn:tag:category:place:restaurant,urn:tag:category:place:grocery_store');
+  if (category === 'food') {
+    params.set('filter.exclude.tags','urn:tag:category:place:shopping_mall');
+    if (cuisine !== 'any') {
+      params.set('filter.tags', `${categoryTag},urn:tag:genre:place:restaurant:${cuisine}`);
+      params.set('operator.filter.tags','intersection');
+    }
+    if (priceMax) params.set('filter.price_level.max',String(priceMax));
+  }
+  if (mode === 'popular') params.set('filter.popularity.min','0.95');
+  if (mode === 'discover') params.set('filter.popularity.max','0.95');
   try {
     const signal = AbortSignal.timeout(12000);
 
+    const discoverParams = new URLSearchParams(params);
+    discoverParams.set('filter.popularity.max','0.95');
+    discoverParams.set('take','2');
+    const discoveries = mode === 'balanced' ? fetch(`${qlooApiUrl}/v2/insights?${discoverParams}`, {
+      headers:{'X-Api-Key':qlooApiKey}, signal,
+    }).then(async r => r.ok ? (await r.json()).results?.entities ?? [] : []).catch(() => []) : null;
     const res = await fetch(`${qlooApiUrl}/v2/insights?${params.toString()}`, {
       method: 'GET',
       headers: {
@@ -267,7 +297,12 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
 
     const data = await res.json() as any;
     if (data.success === false) return Response.json({error: 'upstream_error'}, {status:502});
-    const rawPlaces = Array.isArray(data.results?.entities) ? data.results.entities : [];
+    let rawPlaces = Array.isArray(data.results?.entities) ? data.results.entities : [];
+    if (discoveries) {
+      const extra = await discoveries;
+      if (Array.isArray(extra) && extra.length) rawPlaces = [...rawPlaces.slice(0,3), ...extra, ...rawPlaces.slice(3)]
+        .filter((p, i, a) => a.findIndex(x => x.entity_id === p.entity_id) === i);
+    }
 
     const places: QlooPlaceResult[] = rawPlaces.map((p: any) => {
       if (typeof p.name !== 'string' || !p.name.trim() || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(p.entity_id || p.id || '')) return null;
@@ -394,7 +429,8 @@ export async function handleRequest(req: Request): Promise<Response> {
 
       if (action === 'recommend') {
         if (!Array.isArray(payload.interests) || payload.interests.some((id: unknown) => typeof id !== 'string') || !payload.location || typeof payload.location !== 'object') return Response.json({error:'bad_request'}, {status:400,headers:corsHeaders});
-        const result = await handleRecommend(qlooApiKey, qlooApiUrl!, payload.interests, payload.location);
+        if (payload.options != null && (typeof payload.options !== 'object' || Array.isArray(payload.options))) return Response.json({error:'invalid_options'}, {status:400,headers:corsHeaders});
+        const result = await handleRecommend(qlooApiKey, qlooApiUrl!, payload.interests, payload.location, payload.options || {});
         if (result instanceof Response) {
           return new Response(result.body, { status: result.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }

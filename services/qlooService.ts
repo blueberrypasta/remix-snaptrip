@@ -1,6 +1,14 @@
 import { supabase } from './supabaseClient';
 import type { LocationData } from '../types';
 
+export interface QlooOptions {
+  category: 'food' | 'shopping' | 'visits';
+  mode: 'balanced' | 'popular' | 'discover';
+  cuisine: 'any' | 'korean' | 'japanese' | 'italian' | 'mexican' | 'american' | 'vegetarian';
+  priceMax: number;
+  radius: number;
+}
+
 export interface QlooInterest {
   id: string;
   name: string;
@@ -113,7 +121,7 @@ export async function searchQloo(query: string, type: string): Promise<QlooInter
   return data.entities.filter((e: any) => e && e.id && e.name);
 }
 
-export async function recommendQloo(interests: string[], location: LocationData): Promise<QlooPlace[]> {
+export async function recommendQloo(interests: string[], location: LocationData, options?: QlooOptions): Promise<QlooPlace[]> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) {
     throw new Error('login_required');
@@ -126,6 +134,7 @@ export async function recommendQloo(interests: string[], location: LocationData)
 
   const payload = {
     action: 'recommend',
+    options,
     interests,
     location: {
       latitude: Math.round(location.latitude * 100) / 100,

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { qlooAvailable, searchQloo, recommendQloo } from '../services/qlooService';
-import type { QlooInterest, QlooPlace } from '../services/qlooService';
+import type { QlooInterest, QlooPlace, QlooOptions } from '../services/qlooService';
+import { LocalRecommendationControls } from './LocalRecommendationControls';
 import type { Language, LocationData } from '../types';
 
 interface Props {
@@ -13,17 +14,17 @@ interface Props {
 
 const COPY: Record<Language, Partial<Record<string, string>>> & { en: Record<string, string> } = {
   en: {
-    title: 'Your next stop',
+    title: 'Eat, shop & explore nearby',
     poweredBy: 'Powered by Qloo',
     loginPrompt: 'Log in to discover personalized recommendations.',
     expand: 'Discover Places',
     collapse: 'Hide Recommendations',
-    searchLabel: 'Find inspiration',
+    searchLabel: 'A restaurant, place or brand you like',
     categoryLabel: 'Category',
     placeholderArtist: 'e.g., Taylor Swift',
     placeholderMovie: 'e.g., Spirited Away',
     placeholderBook: 'e.g., The Little Prince',
-    placeholderPlace: 'e.g., Kyoto Station',
+    placeholderPlace: 'e.g., In-N-Out Burger',
     placeholderBrand: 'e.g., Muji',
     btnSearch: 'Search',
     btnGetRecs: 'Get Recommendations',
@@ -41,16 +42,16 @@ const COPY: Record<Language, Partial<Record<string, string>>> & { en: Record<str
     openMaps: 'View on Map',
     removeChip: 'Remove selection',
   },
-  ko: { title: '다음 여행지', poweredBy: 'Qloo 제공', loginPrompt: '개인화된 추천을 위해 로그인하세요.', expand: '장소 찾기', collapse: '추천 숨기기', searchLabel: '영감 검색', categoryLabel: '카테고리', btnSearch: '검색', btnGetRecs: '추천 받기', disclosure: '선택한 관심사와 대략적인 위치가 Qloo로 전송됩니다.', maxChips: '최대 3개 선택', loading: '검색 중...', recLoading: '아이디어 생성 중...', noMatches: '일치하는 항목이 없습니다.', zeroRecs: '근처 장소를 찾지 못했습니다.', errNetwork: '연결 문제입니다.', errTimeout: '시간 초과됨.', errRateLimit: '요청이 너무 많습니다.', errAuth: '세션 만료됨.', errConfig: '서비스 일시 불가.', openMaps: '지도에서 보기', removeChip: '선택 해제' },
-  ja: { title: '次の目的地', poweredBy: 'Qloo提供', loginPrompt: 'パーソナライズされたおすすめを見るにはログインしてください。', expand: '場所を探す', collapse: 'おすすめを隠す', searchLabel: 'インスピレーション検索', categoryLabel: 'カテゴリ', btnSearch: '検索', btnGetRecs: 'おすすめを取得', disclosure: '選択した興味と概算位置情報がQlooに送信されます。', maxChips: '最大3件まで', loading: '検索中...', recLoading: 'アイデア生成中...', noMatches: '一致する項目が見つかりません。', zeroRecs: '近くのスポットが見つかりませんでした。', errNetwork: '接続エラーです。', errTimeout: 'タイムアウトしました。', errRateLimit: 'リクエストが多すぎます。', errAuth: 'セッション期限切れ。', errConfig: 'サービス一時停止中。', openMaps: '地図で見る', removeChip: '削除' },
-  zh: { title: '下一站', poweredBy: '由 Qloo 驱动', loginPrompt: '登录以获取个性化推荐。', expand: '发现地点', collapse: '隐藏推荐', searchLabel: '寻找灵感', categoryLabel: '类别', btnSearch: '搜索', btnGetRecs: '获取推荐', disclosure: '您选择的兴趣和大致位置将发送给 Qloo。', maxChips: '最多选择3个', loading: '搜索中...', recLoading: '生成建议中...', noMatches: '未找到匹配项。', zeroRecs: '附近未找到特定地点。', errNetwork: '连接问题，请重试。', errTimeout: '请求超时。', errRateLimit: '请求过多，请稍等。', errAuth: '会话过期，请重新登录。', errConfig: '服务暂时不可用。', openMaps: '在地图查看', removeChip: '移除选择' },
+  ko: { title: '이 지역에서 어디 갈까', poweredBy: 'Qloo 제공', loginPrompt: '개인화된 추천을 위해 로그인하세요.', expand: '장소 찾기', collapse: '추천 숨기기', searchLabel: '좋아하는 식당·장소·브랜드 찾기', categoryLabel: '카테고리', btnSearch: '검색', btnGetRecs: '추천 받기', disclosure: '선택한 관심사와 대략적인 위치가 Qloo로 전송됩니다.', maxChips: '최대 3개 선택', loading: '검색 중...', recLoading: '아이디어 생성 중...', noMatches: '일치하는 항목이 없습니다.', zeroRecs: '근처 장소를 찾지 못했습니다.', errNetwork: '연결 문제입니다.', errTimeout: '시간 초과됨.', errRateLimit: '요청이 너무 많습니다.', errAuth: '세션 만료됨.', errConfig: '서비스 일시 불가.', openMaps: '지도에서 보기', removeChip: '선택 해제' },
+  ja: { title: 'このエリアのおすすめ', poweredBy: 'Qloo提供', loginPrompt: 'パーソナライズされたおすすめを見るにはログインしてください。', expand: '場所を探す', collapse: 'おすすめを隠す', searchLabel: 'インスピレーション検索', categoryLabel: 'カテゴリ', btnSearch: '検索', btnGetRecs: 'おすすめを取得', disclosure: '選択した興味と概算位置情報がQlooに送信されます。', maxChips: '最大3件まで', loading: '検索中...', recLoading: 'アイデア生成中...', noMatches: '一致する項目が見つかりません。', zeroRecs: '近くのスポットが見つかりませんでした。', errNetwork: '接続エラーです。', errTimeout: 'タイムアウトしました。', errRateLimit: 'リクエストが多すぎます。', errAuth: 'セッション期限切れ。', errConfig: 'サービス一時停止中。', openMaps: '地図で見る', removeChip: '削除' },
+  zh: { title: '本地吃喝与探索', poweredBy: '由 Qloo 驱动', loginPrompt: '登录以获取个性化推荐。', expand: '发现地点', collapse: '隐藏推荐', searchLabel: '寻找灵感', categoryLabel: '类别', btnSearch: '搜索', btnGetRecs: '获取推荐', disclosure: '您选择的兴趣和大致位置将发送给 Qloo。', maxChips: '最多选择3个', loading: '搜索中...', recLoading: '生成建议中...', noMatches: '未找到匹配项。', zeroRecs: '附近未找到特定地点。', errNetwork: '连接问题，请重试。', errTimeout: '请求超时。', errRateLimit: '请求过多，请稍等。', errAuth: '会话过期，请重新登录。', errConfig: '服务暂时不可用。', openMaps: '在地图查看', removeChip: '移除选择' },
   es: { title: 'Tu próximo destino', poweredBy: 'Impulsado por Qloo', loginPrompt: 'Inicia sesión para ver recomendaciones personalizadas.', expand: 'Descubrir lugares', collapse: 'Ocultar recomendaciones', searchLabel: 'Buscar inspiración', categoryLabel: 'Categoría', btnSearch: 'Buscar', btnGetRecs: 'Obtener recomendaciones', disclosure: 'Tus intereses seleccionados y ubicación aproximada se envían a Qloo.', maxChips: 'Máximo 3 selecciones', loading: 'Buscando...', recLoading: 'Generando ideas...', noMatches: 'Sin coincidencias.', zeroRecs: 'No se encontraron lugares cercanos.', errNetwork: 'Problema de conexión.', errTimeout: 'Tiempo agotado.', errRateLimit: 'Demasiadas solicitudes.', errAuth: 'Sesión expirada.', errConfig: 'Servicio temporalmente no disponible.', openMaps: 'Ver en mapa', removeChip: 'Eliminar selección' },
   fr: { title: 'Votre prochain arrêt', poweredBy: 'Propulsé par Qloo', loginPrompt: 'Connectez-vous pour des recommandations personnalisées.', expand: 'Découvrir des lieux', collapse: 'Masquer les recommandations', searchLabel: 'Trouver de l\'inspiration', categoryLabel: 'Catégorie', btnSearch: 'Rechercher', btnGetRecs: 'Obtenir des recommandations', disclosure: 'Vos intérêts sélectionnés et votre position approximative sont envoyés à Qloo.', maxChips: 'Max 3 sélections', loading: 'Recherche...', recLoading: 'Génération d\'idées...', noMatches: 'Aucun résultat trouvé.', zeroRecs: 'Impossible de trouver des endroits proches.', errNetwork: 'Problème de connexion.', errTimeout: 'Délai dépassé.', errRateLimit: 'Trop de requêtes.', errAuth: 'Session expirée.', errConfig: 'Service temporairement indisponible.', openMaps: 'Voir sur la carte', removeChip: 'Retirer la sélection' },
-  de: { title: 'Dein nächster Halt', poweredBy: 'Bereitgestellt von Qloo', loginPrompt: 'Melde dich an für personalisierte Empfehlungen.', expand: 'Orte entdecken', collapse: 'Empfehlungen ausblenden', searchLabel: 'Inspiration finden', categoryLabel: 'Kategorie', btnSearch: 'Suchen', btnGetRecs: 'Empfehlungen holen', disclosure: 'Deine ausgewählten Interessen und ungefähre Position werden an Qloo gesendet.', maxChips: 'Maximal 3 Auswahlen', loading: 'Suche...', recLoading: 'Ideen generieren...', noMatches: 'Keine Treffer gefunden.', zeroRecs: 'Konnte keine Orte in der Nähe finden.', errNetwork: 'Verbindungsproblem.', errTimeout: 'Zeitüberschreitung.', errRateLimit: 'Zu viele Anfragen.', errAuth: 'Sitzung abgelaufen.', errConfig: 'Dienst vorübergehend nicht verfügbar.', openMaps: 'Auf Karte anzeigen', removeChip: 'Auswahl entfernen' },
-  it: { title: 'La tua prossima tappa', poweredBy: 'Offerto da Qloo', loginPrompt: 'Accedi per consigli personalizzati.', expand: 'Scopri luoghi', collapse: 'Nascondi consigli', searchLabel: 'Trova ispirazione', categoryLabel: 'Categoria', btnSearch: 'Cerca', btnGetRecs: 'Ottieni consigli', disclosure: 'I tuoi interessi selezionati e la posizione approssimativa vengono inviati a Qloo.', maxChips: 'Massimo 3 selezioni', loading: 'Ricerca...', recLoading: 'Generazione idee...', noMatches: 'Nessuna corrispondenza trovata.', zeroRecs: 'Impossibile trovare luoghi nelle vicinanze.', errNetwork: 'Problema di connessione.', errTimeout: 'Richiesta scaduta.', errRateLimit: 'Troppe richieste.', errAuth: 'Sessione scaduta.', errConfig: 'Servizio temporaneamente non disponibile.', openMaps: 'Vedi su mappa', removeChip: 'Rimuovi selezione' },
+  de: { title: 'Essen und Entdecken in der Nähe', poweredBy: 'Bereitgestellt von Qloo', loginPrompt: 'Melde dich an für personalisierte Empfehlungen.', expand: 'Orte entdecken', collapse: 'Empfehlungen ausblenden', searchLabel: 'Inspiration finden', categoryLabel: 'Kategorie', btnSearch: 'Suchen', btnGetRecs: 'Empfehlungen holen', disclosure: 'Deine ausgewählten Interessen und ungefähre Position werden an Qloo gesendet.', maxChips: 'Maximal 3 Auswahlen', loading: 'Suche...', recLoading: 'Ideen generieren...', noMatches: 'Keine Treffer gefunden.', zeroRecs: 'Konnte keine Orte in der Nähe finden.', errNetwork: 'Verbindungsproblem.', errTimeout: 'Zeitüberschreitung.', errRateLimit: 'Zu viele Anfragen.', errAuth: 'Sitzung abgelaufen.', errConfig: 'Dienst vorübergehend nicht verfügbar.', openMaps: 'Auf Karte anzeigen', removeChip: 'Auswahl entfernen' },
+  it: { title: 'Mangiare ed esplorare nei dintorni', poweredBy: 'Offerto da Qloo', loginPrompt: 'Accedi per consigli personalizzati.', expand: 'Scopri luoghi', collapse: 'Nascondi consigli', searchLabel: 'Trova ispirazione', categoryLabel: 'Categoria', btnSearch: 'Cerca', btnGetRecs: 'Ottieni consigli', disclosure: 'I tuoi interessi selezionati e la posizione approssimativa vengono inviati a Qloo.', maxChips: 'Massimo 3 selezioni', loading: 'Ricerca...', recLoading: 'Generazione idee...', noMatches: 'Nessuna corrispondenza trovata.', zeroRecs: 'Impossibile trovare luoghi nelle vicinanze.', errNetwork: 'Problema di connessione.', errTimeout: 'Richiesta scaduta.', errRateLimit: 'Troppe richieste.', errAuth: 'Sessione scaduta.', errConfig: 'Servizio temporaneamente non disponibile.', openMaps: 'Vedi su mappa', removeChip: 'Rimuovi selezione' },
 };
 
-const CATEGORIES = ['artist', 'movie', 'book', 'place', 'brand'] as const;
+const CATEGORIES = ['place', 'brand', 'artist', 'movie', 'book'] as const;
 type Category = typeof CATEGORIES[number];
 
 const STORAGE_PREFIX = 'slaptrip_qloo_interests:';
@@ -58,8 +59,9 @@ const STORAGE_PREFIX = 'slaptrip_qloo_interests:';
 export const TasteRecommendations: React.FC<Props> = ({ language, location, onRequestLocation, onLogin, userId }) => {
   const [isAvailable, setIsAvailable] = useState<boolean>(false);
   const [expanded, setExpanded] = useState(false);
-  const [category, setCategory] = useState<Category>('artist');
+  const [category, setCategory] = useState<Category>('place');
   const [query, setQuery] = useState('');
+  const [options, setOptions] = useState<QlooOptions>({category:'food',mode:'balanced',cuisine:'any',priceMax:0,radius:15000});
   const [results, setResults] = useState<QlooInterest[]>([]);
   const [selected, setSelected] = useState<QlooInterest[]>([]);
   const [recs, setRecs] = useState<QlooPlace[]>([]);
@@ -183,7 +185,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
 
     try {
       const ids = selected.map(s => s.id);
-      const res = await recommendQloo(ids, loc);
+      const res = await recommendQloo(ids, loc, options);
       if (seq === requestSeqRef.current) {
         setRecs(res);
         if (res.length === 0) setError(localCopy.zeroRecs);
@@ -230,6 +232,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
 
       {expanded && (
         <div className="pb-6 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+          <LocalRecommendationControls language={language} value={options} disabled={loading || recLoading} onChange={next => {setOptions(next); setRecs([]); setError(null);}} />
           {/* Selection Chips */}
           {selected.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -286,7 +289,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
           {/* Action Button */}
           <div className="pt-2 border-t border-white/10">
              <p className="text-xs text-slate-300 mb-2">{localCopy.disclosure}</p>
-             <p className="text-xs text-slate-300 mb-3">{localCopy.maxChips} · 15 km</p>
+             <p className="text-xs text-slate-300 mb-3">{localCopy.maxChips} · {options.radius / 1000} km</p>
              <button
                onClick={handleRecommend}
                disabled={selected.length === 0 || recLoading || loading}
