@@ -12,7 +12,7 @@ globalThis.fetch = async (url, options={}) => {
   const u = new URL(String(url)); calls.push({u,options});
   if (u.pathname==='/auth/v1/user') return Response.json(authOK?{id:'qa-user'}:{error:'invalid'}, {status:authOK?200:401});
   if (upstreamStatus!==200) return Response.json({error:'never expose upstream credentials'}, {status:upstreamStatus});
-  return Response.json({results:{entities:[{entity_id:interest,name:'Test Place',subtype:'urn:entity:place',properties:{address:'123 Test St',description:'Verified fixture'}}]}});
+  return Response.json({results:{entities:[{entity_id:interest,name:'Test Place',types:['urn:entity:place'],properties:{address:'123 Test St',description:'Verified fixture'}}]}});
 };
 const request = (body,headers={}) => new Request('https://example.supabase.co/functions/v1/qloo-proxy',{method:'POST',headers:{Origin:'https://slaptrip.com',Authorization:'Bearer user-token','Content-Type':'application/json',...headers},body:typeof body==='string'?body:JSON.stringify(body)});
 const rec = {action:'recommend',interests:[interest],location:{latitude:34.05,longitude:-118.24}};
@@ -54,7 +54,7 @@ test('Qloo server boundary', async t=>{
   calls=[];const r=await handleRequest(request(rec));assert.equal(r.status,200);
   const data=await r.json();assert.equal(data.places[0].name,'Test Place');assert.match(data.places[0].url,/^https:\/\/www.google.com\/maps\/search\/\?api=1&query=/);
   const c=calls.find(c=>c.u.pathname==='/v2/insights');assert.equal(c.u.searchParams.get('signal.interests.entities'),interest);
-  assert.equal(c.u.searchParams.get('filter.location.radius'),'15000');assert.equal(c.u.searchParams.get('take'),'5');
+  assert.equal(c.u.searchParams.get('filter.location'),'POINT(-118.24 34.05)');assert.equal(c.u.searchParams.get('filter.location.radius'),'15000');assert.equal(c.u.searchParams.get('take'),'5');
   assert.ok(!JSON.stringify(data).includes('test-qloo'));assert.ok(!c.u.toString().includes('qa-user'));
  });
  await t.test('upstream auth/rate errors are safe and distinct',async()=>{

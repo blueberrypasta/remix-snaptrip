@@ -180,7 +180,7 @@ async function handleSearch(qlooApiKey: string, qlooApiUrl: string, query: strin
     }
 
     const mappedEntities: QlooEntity[] = entities.map((e: any) => {
-      const subtype = e.subtype || e.type || '';
+      const subtype = Array.isArray(e.types) && e.types.includes(`urn:entity:${type}`) ? `urn:entity:${type}` : (e.subtype || e.type || '');
       const desc = e.properties?.description ? String(e.properties.description).substring(0, 200) : undefined;
 
       // Validate UUID/Name roughly
@@ -231,7 +231,7 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     return new Response(JSON.stringify({ error: 'location_out_of_bounds' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
 
-  const filterLocationStr = `${Math.round(latitude * 100) / 100},${Math.round(longitude * 100) / 100}`;
+  const filterLocationStr = `POINT(${Math.round(longitude * 100) / 100} ${Math.round(latitude * 100) / 100})`;
   const interestsStr = interests.join(',');
 
   const params = new URLSearchParams({
