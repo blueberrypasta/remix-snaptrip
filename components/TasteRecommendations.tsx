@@ -169,8 +169,22 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
       }
 
 
-      const recommendedPlaces = await recommendQloo(Array.from(new Set([...idsToExclude,...(previous?.interestIds||[])])).slice(0,3), loc, {...mergedOptions,language}, uniqueExcluded);
+      const interestIds=Array.from(new Set([...idsToExclude,...(previous?.interestIds||[])])).slice(0,3);
+      let recommendedPlaces:QlooPlace[]=[];
+      try{recommendedPlaces = await recommendQloo(interestIds, loc, {...mergedOptions,language}, uniqueExcluded);}
+      catch(err){if(!(err instanceof Error && err.message==='unsupported_preference' && mergedOptions.foodQuery))throw err;}
       if (currentGen !== generationSeq.current) return;
+      // A specific dish tag (e.g. "pasta") is often missing from Qloo's place tags, so an exact
+      // dish filter can come back empty even in dense areas. Relax step by step instead of failing:
+      // keep the cuisine but drop the dish, then widen the radius. Empty guest calls are refunded.
+      if (!recommendedPlaces.length && !mergedOptions.michelin && mergedOptions.foodQuery) {
+        recommendedPlaces = await recommendQloo(interestIds, loc, {...mergedOptions,foodQuery:'',language}, uniqueExcluded);
+        if (currentGen !== generationSeq.current) return;
+      }
+      if (!recommendedPlaces.length && !mergedOptions.michelin && mergedOptions.radius < 30000) {
+        recommendedPlaces = await recommendQloo(interestIds, loc, {...mergedOptions,foodQuery:'',radius:30000,language}, uniqueExcluded);
+        if (currentGen !== generationSeq.current) return;
+      }
 
       if (!recommendedPlaces || recommendedPlaces.length === 0) {
          throw new Error('empty_results'); // Or specific empty msg
@@ -186,7 +200,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
         stablePreferences:draft.stablePreferences ?? previous?.stablePreferences,
         options: mergedOptions,
         excludedNames: uniqueExcluded,
-        interestIds:Array.from(new Set([...idsToExclude,...(previous?.interestIds||[])])).slice(0,3)
+        interestIds
       };
 
       setAppliedContext(prevContextRef.current);
