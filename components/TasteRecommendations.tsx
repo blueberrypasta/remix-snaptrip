@@ -4,6 +4,8 @@ import { qlooAvailable, searchQloo, recommendQloo } from '../services/qlooServic
 import type { QlooPlace, QlooOptions } from '../services/qlooService';
 import { localizePlaceDescriptions } from '../services/placePresentationService';
 import { interpretTaste } from '../services/tasteProfileService';
+import {mergeTasteOptions,tasteContextInput} from '../services/tasteContextService';
+import {useTasteVoice} from '../hooks/useTasteVoice';
 import { getGuestTasteRemaining } from '../services/guestTasteService';
 import type { Language, LocationData } from '../types';
 
@@ -15,7 +17,6 @@ interface Props {
   userId?: string;
 }
 
-const DEFAULT_OPTIONS: QlooOptions = { category: 'food', mode: 'balanced', cuisine: 'any', priceMax: 0, radius: 15000 };
 const MAX_EXCLUSIONS = 10;
 const LABELS: Record<string, Partial<Record<Language, string>>> = {
   pill: { ko: '✨ 취향저격', en: '✨ Taste Match',ja:'✨ 好みに合う場所',zh:'✨ 我的口味',es:'✨ A mi gusto',fr:'✨ À mon goût',de:'✨ Mein Geschmack',it:'✨ I miei gusti' },
@@ -44,30 +45,43 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   const [results, setResults] = useState<QlooPlace[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  const [history,setHistory]=useState<string[]>([]);
   const [voiceNotice,setVoiceNotice]=useState(false);
   const [guestRemaining, setGuestRemaining] = useState<number | null>(null);
 
-  const prevContextRef = useRef<{ summary: string; options: QlooOptions; excludedNames: string[]; interestIds:string[] } | null>(null);
+  const prevContextRef = useRef<{ summary: string; stablePreferences?:string[]; options: QlooOptions; excludedNames: string[]; interestIds:string[] } | null>(null);
   const [origin,setOrigin] = useState<LocationData | null>(location);
-  const [appliedContext,setAppliedContext]=useState<{summary:string;options:QlooOptions;excludedNames:string[];interestIds:string[]}|null>(null);
+  const [appliedContext,setAppliedContext]=useState<{summary:string;stablePreferences?:string[];options:QlooOptions;excludedNames:string[];interestIds:string[]}|null>(null);
   const generationSeq = useRef(0);
   const busyRef = useRef(false);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
   const dialogRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const t = (key: keyof typeof LABELS) => LABELS[key]?.[language] || LABELS[key]?.en || key;
 
-  const stopCapture=useCallback(()=>{
-    if(timerRef.current){clearTimeout(timerRef.current);timerRef.current=null;}
-    if(recorderRef.current?.state==='recording')recorderRef.current.stop();
-    streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null;
-  },[]);
-  const invalidateAndCleanup=useCallback(()=>{generationSeq.current++;stopCapture();recorderRef.current=null;chunksRef.current=[];busyRef.current=false;setIsBusy(false);setIsRecording(false);},[stopCapture]);
+  const normalizeName=(name:string)=>name.toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
+  const errorMessage=(err:unknown)=>{
+    const code=err instanceof Error?err.message:'unavailable';
+    if(code==='guest_limit_reached')setGuestRemaining(0);
+    const messages:Record<string,[string,string]>={
+      guest_limit_reached:['무료 10회를 모두 사용했어요. 로그인하고 계속하세요.','Your 10 free recommendations are used. Log in to continue.'],
+      login_required:['로그인이 만료됐어요. 다시 로그인해주세요.','Please log in again.'],
+      rate_limited:['요청이 많아요. 잠시 후 다시 시도해주세요.','Please wait a minute and try again.'],
+      timeout:['응답이 늦어지고 있어요. 다시 시도해주세요.','The request timed out. Try again.'],
+      unsupported_preference:['이 음식의 검색 조건을 확인하지 못했어요. 다른 음식명을 알려주세요.','We could not verify filters for that food. Try another food name.'],
+      no_preferences:['좋아하는 음식이나 장소를 조금 더 알려주세요.','Tell us a little more about what you like.'],
+      empty_results:['조건에 맞는 근처 장소가 없어요. 검색 반경을 넓혀보세요.','No nearby matches for these preferences. Try a wider radius.'],
+      location_required:['위치 권한을 허용하고 다시 시도해주세요.','Allow location access and try again.'],
+      places_unavailable:['장소 검색 연결이 원활하지 않아요. 잠시 후 다시 시도해주세요.','Place search is unavailable. Please try again.'],
+      unavailable:['연결이 원활하지 않아요. 잠시 후 다시 시도해주세요.','Connection unavailable. Please try again.'],
+      microphone:['마이크를 사용할 수 없어요. 글로 입력해주세요.','Microphone unavailable. Please type instead.']};
+    return (messages[code]||messages.unavailable)[language==='ko'?0:1];
+  };
+
+  const voice=useTasteVoice(language,(summary)=>{setInputText(prev=>[prev,summary].filter(Boolean).join('\n').slice(-600));setVoiceNotice(true);},err=>setError(errorMessage(err)));
+  const isRecording=voice.state!=='idle';
+  const cancelVoice=voice.cancel;
+  const invalidateAndCleanup=useCallback(()=>{generationSeq.current++;cancelVoice();busyRef.current=false;setIsBusy(false);},[cancelVoice]);
   const handleClose=useCallback(()=>{invalidateAndCleanup();setIsOpen(false);},[invalidateAndCleanup]);
 
   useEffect(()=>{
@@ -102,62 +116,10 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
     return()=>{clearTimeout(timer);document.body.style.overflow=oldOverflow;window.removeEventListener('keydown',keys);previous?.focus();};
   },[isOpen,handleClose]);
   useEffect(()=>{
-    invalidateAndCleanup();prevContextRef.current=null;setAppliedContext(null);setResults([]);setInputText('');setError(null);setGuestRemaining(null);setViewState('composer');
-    const sequence=generationSeq;return()=>{sequence.current++;stopCapture();};
-  },[userId,invalidateAndCleanup,stopCapture]);
+    invalidateAndCleanup();prevContextRef.current=null;setAppliedContext(null);setResults([]);setInputText('');setError(null);setGuestRemaining(null);setViewState('composer');setHistory([]);
+    const sequence=generationSeq;return()=>{sequence.current++;cancelVoice();};
+  },[userId,invalidateAndCleanup,cancelVoice]);
   useEffect(()=>{if(isOpen&&viewState==='composer')textareaRef.current?.focus();},[isOpen,viewState]);
-  const normalizeName=(name:string)=>name.toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
-  const errorMessage=(err:unknown)=>{
-    const code=err instanceof Error?err.message:'unavailable';
-    if(code==='guest_limit_reached')setGuestRemaining(0);
-    const messages:Record<string,[string,string]>={
-      guest_limit_reached:['무료 10회를 모두 사용했어요. 로그인하고 계속하세요.','Your 10 free recommendations are used. Log in to continue.'],
-      login_required:['로그인이 만료됐어요. 다시 로그인해주세요.','Please log in again.'],
-      rate_limited:['요청이 많아요. 잠시 후 다시 시도해주세요.','Please wait a minute and try again.'],
-      timeout:['응답이 늦어지고 있어요. 다시 시도해주세요.','The request timed out. Try again.'],
-      unsupported_preference:['이 음식의 검색 조건을 확인하지 못했어요. 다른 음식명을 알려주세요.','We could not verify filters for that food. Try another food name.'],
-      no_preferences:['좋아하는 음식이나 장소를 조금 더 알려주세요.','Tell us a little more about what you like.'],
-      empty_results:['조건에 맞는 근처 장소가 없어요. 검색 반경을 넓혀보세요.','No nearby matches for these preferences. Try a wider radius.'],
-      location_required:['위치 권한을 허용하고 다시 시도해주세요.','Allow location access and try again.'],
-      places_unavailable:['장소 검색 연결이 원활하지 않아요. 잠시 후 다시 시도해주세요.','Place search is unavailable. Please try again.'],
-      unavailable:['연결이 원활하지 않아요. 잠시 후 다시 시도해주세요.','Connection unavailable. Please try again.'],
-      microphone:['마이크를 사용할 수 없어요. 글로 입력해주세요.','Microphone unavailable. Please type instead.']};
-    return (messages[code]||messages.unavailable)[language==='ko'?0:1];
-  };
-
-  const startRecording=async()=>{
-    if(busyRef.current || isRecording)return;
-    const seq=++generationSeq.current;busyRef.current=true;setIsBusy(true);setError(null);setVoiceNotice(false);
-    try{
-      if(!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder==='undefined')throw Error('microphone');
-      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-      if(seq!==generationSeq.current){stream.getTracks().forEach(t=>t.stop());return;}
-      streamRef.current=stream;
-      const mime=['audio/webm','audio/mp4'].find(m=>MediaRecorder.isTypeSupported(m));
-      if(!mime)throw Error('microphone');
-      const recorder=new MediaRecorder(stream,{mimeType:mime});recorderRef.current=recorder;
-      const chunks:Blob[]=[];chunksRef.current=chunks;
-      recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
-      recorder.onerror=()=>{if(seq===generationSeq.current){invalidateAndCleanup();setError(errorMessage(Error('microphone')));}};
-      recorder.onstop=async()=>{
-        if(seq!==generationSeq.current)return;
-        stopCapture();setIsRecording(false);busyRef.current=true;setIsBusy(true);
-        try{
-          const blob=new Blob(chunks,{type:mime});if(!blob.size||blob.size>1.5*1024*1024)throw Error('microphone');
-          const data=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(Error('microphone'));reader.readAsDataURL(blob);});
-          if(seq!==generationSeq.current)return;
-          const draft=await interpretTaste({audio:{data,mimeType:mime}},language);
-          if(seq!==generationSeq.current)return;
-          setInputText(prev=>[prev,draft.summary].filter(Boolean).join('\n').slice(0,600));setVoiceNotice(true);
-        }catch(err){if(seq===generationSeq.current)setError(errorMessage(err));}
-        finally{if(seq===generationSeq.current){busyRef.current=false;setIsBusy(false);chunksRef.current=[];}}
-      };
-      recorder.start();setIsRecording(true);busyRef.current=false;setIsBusy(false);
-      timerRef.current=setTimeout(()=>stopCapture(),30000);
-    }catch(err){if(seq===generationSeq.current){stopCapture();busyRef.current=false;setIsBusy(false);setError(errorMessage(Error('microphone')));}}
-  };
-  const stopRecordingManually=()=>{busyRef.current=true;setIsBusy(true);stopCapture();};
-
   const handleSubmit = async () => {
     if (busyRef.current || isRecording || (!userId && guestRemaining===0)) return;
 
@@ -178,17 +140,11 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
       if (!available) throw new Error(t('unavailable'));
 
       const previous=prevContextRef.current;
-      const text=previous?`${previous.summary.slice(0,500)}\nAdditional request (takes precedence): ${trimmedInput.slice(0,600)}`:trimmedInput;
+      const text=tasteContextInput(previous,trimmedInput);
       const draft=await interpretTaste({text},language);
       if(currentGen!==generationSeq.current)return;
       const finalSummary=draft.summary;
-      const mergedOptions={...DEFAULT_OPTIONS,...previous?.options,...draft.options};
-      if(draft.options.cuisine && draft.options.cuisine!=='any' && draft.options.foodQuery===undefined)mergedOptions.foodQuery='';
-      if(draft.options.foodQuery){
-        mergedOptions.category='food';mergedOptions.shoppingKind='any';
-        if(!draft.options.cuisine)mergedOptions.cuisine='any';
-        if(!draft.options.drink)mergedOptions.drink='any';
-      }
+      const mergedOptions=mergeTasteOptions(previous?.options,draft.options);
       const uniqueExcluded=Array.from(new Set([...(previous?.excludedNames||[]),...draft.favorites.map(f=>f.name)])).slice(0,MAX_EXCLUSIONS);
       const idsToExclude:string[]=[];
       for(const fav of draft.favorites){
@@ -224,12 +180,14 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
       setViewState('results');
       prevContextRef.current = {
         summary: finalSummary,
+        stablePreferences:draft.stablePreferences ?? previous?.stablePreferences,
         options: mergedOptions,
         excludedNames: uniqueExcluded,
         interestIds:Array.from(new Set([...idsToExclude,...(previous?.interestIds||[])])).slice(0,3)
       };
 
       setAppliedContext(prevContextRef.current);
+      setHistory(prev=>[...prev,trimmedInput].slice(-5));
 
     } catch (err: any) {
       if (currentGen !== generationSeq.current) return;
@@ -244,5 +202,5 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   };
 
   const canRecommend = !isBusy && (!!userId || guestRemaining === null || guestRemaining > 0);
-  return <TasteSheetView language={language} isOpen={isOpen} viewState={viewState} inputText={inputText} results={results} error={error} isBusy={isBusy} isRecording={isRecording} guestRemaining={guestRemaining} userId={userId} voiceNotice={voiceNotice} appliedSummary={appliedContext?.summary||null} origin={origin} canRecommend={canRecommend} dialogRef={dialogRef} textareaRef={textareaRef} t={t} viewport={viewport} onOpen={()=>setIsOpen(true)} onClose={handleClose} onInput={setInputText} onRecommend={handleSubmit} onMicrophone={isRecording?stopRecordingManually:startRecording} onDismissError={()=>setError(null)} onBackResults={()=>setViewState('results')} onRefine={()=>{setViewState('composer');setInputText('');setVoiceNotice(false);setError(null);}} onLogin={()=>{handleClose();onLogin();}} />;
+  return <TasteSheetView language={language} isOpen={isOpen} viewState={viewState} inputText={inputText} results={results} error={error} isBusy={isBusy} isRecording={isRecording} guestRemaining={guestRemaining} userId={userId} voiceNotice={voiceNotice} appliedSummary={appliedContext?.summary||null} origin={origin} canRecommend={canRecommend} dialogRef={dialogRef} textareaRef={textareaRef} t={t} viewport={viewport} onOpen={()=>setIsOpen(true)} onClose={handleClose} onInput={setInputText} onRecommend={handleSubmit} onMicrophone={()=>{setError(null);setVoiceNotice(false);void voice.start();}} voiceState={voice.state} voiceSeconds={voice.seconds} onVoiceStop={voice.stop} onVoiceSend={()=>void voice.send()} onVoiceCancel={voice.cancel} history={history} stablePreferences={appliedContext?.stablePreferences||[]} onReset={()=>{invalidateAndCleanup();prevContextRef.current=null;setAppliedContext(null);setHistory([]);setResults([]);setInputText('');setError(null);setViewState('composer');}} onDismissError={()=>setError(null)} onBackResults={()=>setViewState('results')} onRefine={()=>{setViewState('composer');setInputText('');setVoiceNotice(false);setError(null);}} onLogin={()=>{handleClose();onLogin();}} />;
 };

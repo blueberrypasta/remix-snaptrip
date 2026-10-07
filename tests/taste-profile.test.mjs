@@ -59,3 +59,5 @@ test('taste input validation and request boundary',async t=>{
   globalThis.fetch=async()=>Response.json({error:'private-upstream-info'},{status:503});await assert.rejects(interpretTaste({text:'I like Muji'},'en'),/^Error: unavailable$/);
  });
 });
+
+test('usual tastes are bounded and separate from current request',()=>{const d=normalizeTasteDraft({summary:'Pho today',stablePreferences:['Usually mild food','',42,...Array(8).fill('Like quiet venues')],options:{foodQuery:'pho'}});assert.equal(d.summary,'Pho today');assert.equal(d.stablePreferences.length,5);assert.equal(d.stablePreferences[0],'Usually mild food');});

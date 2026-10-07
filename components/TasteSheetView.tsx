@@ -13,6 +13,14 @@ type Props = {
   error: string | null;
   isBusy: boolean;
   isRecording: boolean;
+  voiceState:'idle'|'requesting'|'recording'|'stopped'|'sending';
+  voiceSeconds:number;
+  onVoiceStop:()=>void;
+  onVoiceSend:()=>void;
+  onVoiceCancel:()=>void;
+  history:string[];
+  stablePreferences:string[];
+  onReset:()=>void;
   guestRemaining: number | null;
   userId?: string;
   voiceNotice: boolean;
@@ -79,7 +87,7 @@ export function TasteSheetView(props: Props) {
     results,
     error,
     isBusy,
-    isRecording,
+    isRecording,voiceState,voiceSeconds,onVoiceStop,onVoiceSend,onVoiceCancel,history,stablePreferences,onReset,
     guestRemaining,
     userId,
     voiceNotice,
@@ -252,7 +260,7 @@ export function TasteSheetView(props: Props) {
                 {appliedSummary && (
                   <div className="bg-white/[0.03] border border-white/5 rounded-xl p-3">
                     <p className="text-[11px] uppercase tracking-wide text-white/40 mb-1 font-medium">
-                      {language === 'ko' ? '이전 취향' : 'Previous Taste'}
+                      {language === 'ko' ? '현재 요청' : 'Current request'}
                     </p>
                     <p className="text-[13px] text-white/70 line-clamp-2 leading-normal">
                       {appliedSummary}
@@ -261,7 +269,8 @@ export function TasteSheetView(props: Props) {
                 )}
 
                 
-                <div className="relative group">
+                {stablePreferences.length>0 && <p className="text-[12px] text-white/50">{language==='ko'?'평소 취향: ':'Usual tastes: '}{stablePreferences.join(' · ')}</p>}
+                {voiceState==='idle' ? <div className="relative group">
                   <textarea
                     ref={textareaRef}
                     value={inputText}
@@ -270,8 +279,8 @@ export function TasteSheetView(props: Props) {
                     rows={5}
                     disabled={isBusy || isRecording}
                     placeholder={language === 'ko'
-                      ? '얼큰한 한식과 말차 라떼를 좋아해요.\n근처에서 새로운 곳을 가보고 싶어요.'
-                      : 'I love spicy Korean food and matcha lattes.\nLooking for somewhere new nearby.'}
+                      ? '오늘은 어떤 곳에 가고 싶으세요?\n메뉴, 좋아하는 맛, 거리나 가격을 편하게 알려주세요.'
+                      : 'What are you in the mood for?\nAdd a dish, preferred flavors, distance or budget.'}
                     aria-label={language === 'ko' ? '취향 또는 추가 요청' : 'Taste or additional request'}
                     className="w-full min-h-[156px] bg-white/[0.03] border border-white/[0.15] rounded-[20px] p-4 pb-14 text-[16px] leading-[1.65] text-white placeholder:text-white/50 focus:outline-none focus:border-emerald-400/50 focus:bg-white/[0.05] transition-all resize-none disabled:opacity-50"
                     style={{ fontSize: '16px',backgroundColor:'rgba(255,255,255,0.03)',color:'inherit' }}
@@ -292,21 +301,28 @@ export function TasteSheetView(props: Props) {
                       disabled:opacity-30 disabled:cursor-not-allowed
                     `}
                   >
-                    <MicIcon active={isRecording} />
+                    <MicIcon active={false} />
                   </button>
-                </div>
-
-                
-                {(voiceNotice || isRecording) && (
-                  <div role="status" aria-live="polite" className="text-[12px] text-emerald-400/80 pl-1 py-1">
-                     {isRecording
-                       ? (language === 'ko' ? '말한 뒤 마이크를 다시 눌러주세요 · 최대 30초' : 'Tap the microphone to stop · 30 sec max')
-                       : t('voiceNotice')
-                     }
+                </div> : <div className="rounded-[20px] border border-emerald-400/25 bg-white/[0.03] p-4">
+                  <p role="status" aria-live="polite" className="text-[14px] text-white/80">{voiceState==='requesting'?(language==='ko'?'마이크 연결 중…':'Connecting microphone…'):voiceState==='sending'?(language==='ko'?'음성을 글로 옮기는 중…':'Turning voice into text…'):voiceState==='recording'?(language==='ko'?'● 녹음 중':'● Recording'):(language==='ko'?'녹음 완료':'Recording ready')} · {String(Math.floor(voiceSeconds/60)).padStart(2,'0')}:{String(voiceSeconds%60).padStart(2,'0')}</p>
+                  <p className="text-[12px] text-white/45 mt-2">{language==='ko'?'정지는 녹음만 멈춰요. 보내면 글로 확인·수정할 수 있어요. 최대 30초.':'Stop keeps the recording. Send turns it into editable text. 30 sec max.'}</p>
+                  <div className="flex gap-2 mt-4">
+                    {voiceState==='recording' && <button type="button" onClick={onVoiceStop} className="min-h-11 flex-1 rounded-xl border border-white/20 text-white text-sm">■ {language==='ko'?'정지':'Stop'}</button>}
+                    <button type="button" onClick={onVoiceSend} disabled={!['recording','stopped'].includes(voiceState)} className="min-h-11 flex-1 rounded-xl bg-emerald-400 text-[#0f1715] font-semibold disabled:opacity-40">↑ {language==='ko'?'보내기':'Send'}</button>
+                    <button type="button" onClick={onVoiceCancel} className="min-h-11 px-3 text-white/60 text-sm">{language==='ko'?'취소':'Cancel'}</button>
                   </div>
-                )}
+                </div>}
 
                 
+                {voiceNotice && <p role="status" className="text-[12px] text-emerald-300">{language==='ko'?'말씀하신 내용을 정리했어요. 수정한 뒤 추천받기를 눌러주세요.':'Your voice is ready as text. Edit it and tap Recommend.'}</p>}
+                <details className="text-[12px] text-white/55">
+                  <summary className="cursor-pointer min-h-9 flex items-center">{language==='ko'?'이렇게 말하면 더 잘 찾아요 ›':'Examples for better matches ›'}</summary>
+                  <p className="mb-2">{language==='ko'?'짧게 “햄버거 먹고 싶어”라고 해도 괜찮아요. 원하는 맛·분위기·거리·가격을 더하면 결과가 구체적이에요.':'“I want a burger” works too. Add flavors, atmosphere, distance or budget for more specific matches.'}</p>
+                  {(language==='ko'?['육즙 많은 두툼한 햄버거, 조용히 앉아서 먹는 곳. 5km 안에서 $$ 이하로.','아니, 오늘은 햄버거 말고 베트남 쌀국수. 진한 육수에 안 맵게. 거리와 가격은 그대로.','유명 브랜드보다 빈티지 구제옷 매장. 15km 안에서 새로운 곳으로.']:['A juicy, thick burger in a quiet sit-down place, within 5 km, $$ or less.','Actually, Vietnamese pho instead of burgers today. Rich broth, not spicy. Keep the distance and budget.','Vintage clothing stores rather than famous brands, within 15 km.']).map(example=><button key={example} disabled={isBusy||isRecording} onClick={()=>onInput(example)} className="block w-full text-left rounded-xl border border-white/10 p-3 mb-2 text-white/70 leading-relaxed">{example}</button>)}
+                  <p>{language==='ko'?'메뉴·영업 여부는 방문 전 지도에서 확인해주세요.':'Verify menu availability and hours before visiting.'}</p>
+                </details>
+                {history.length>0 && <div className="flex items-start justify-between gap-3 text-[12px] text-white/45"><details className="flex-1"><summary className="cursor-pointer min-h-9 flex items-center">{language==='ko'?`이번 대화 ${history.length}개 · 최신 요청 우선`:`This conversation (${history.length}) · latest request wins`}</summary><ol className="space-y-2 pl-4 list-decimal">{history.map((entry,i)=><li key={i}>{entry}</li>)}</ol><p className="mt-2">{language==='ko'?'이 페이지에서만 기억해요.':'Kept only on this page.'}</p></details><button onClick={onReset} disabled={isBusy||isRecording} className="min-h-9 text-emerald-300 whitespace-nowrap">{language==='ko'?'새로 시작':'Start fresh'}</button></div>}
+
                 {guestRemaining !== null && guestRemaining >= 0 && !userId && (
                    <p className="text-[12px] text-white/50 text-center mt-2">
                      {language === 'ko' ? `게스트 추천 기회 ${guestRemaining}회 남음` : `${guestRemaining} guest recommendations left`}
@@ -430,7 +446,7 @@ export function TasteSheetView(props: Props) {
           </div>
 
           
-          <footer className={`shrink-0 px-6 pb-6 pt-4 border-t border-white/[0.08] bg-[#111b19]/95 backdrop-blur-sm ${viewState === 'results' ? '' : ''}`}>
+          {!(viewState==='composer' && voiceState!=='idle') && <footer className={`shrink-0 px-6 pb-6 pt-4 border-t border-white/[0.08] bg-[#111b19]/95 backdrop-blur-sm ${viewState === 'results' ? '' : ''}`}>
              {viewState === 'composer' ? (
                <div className="flex gap-3">
                  
@@ -478,7 +494,7 @@ export function TasteSheetView(props: Props) {
                  {language === 'ko' ? '조건을 더해서 다시 추천' : 'Refine & Re-recommend'}
                </button>
              )}
-          </footer>
+          </footer>}
         </div>
       </div>
     </>

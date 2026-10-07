@@ -6,6 +6,7 @@ import {isGenericTasteName,extractGenericTasteOptions} from '../utils/tasteTerms
 export interface TasteDraft {
   summary: string;
   englishRequest?: string;
+  stablePreferences?: string[];
   favorites: Array<{ name: string; type: 'place' | 'brand'; englishName?: string }>;
   options: Partial<QlooOptions>;
 }
@@ -107,7 +108,8 @@ export function normalizeTasteDraft(value: unknown): TasteDraft {
   else if (generic.drink) options.drink=generic.drink;
   if (['familiar','local','both'].includes(String(optionsRaw.foodApproach))) options.foodApproach=optionsRaw.foodApproach as QlooOptions['foodApproach'];
   const englishRequest=typeof obj.englishRequest==='string'?obj.englishRequest.trim().slice(0,1000):undefined;
-  return { summary, favorites, options, ...(englishRequest?{englishRequest}:{}) };
+  const stablePreferences=Array.isArray(obj.stablePreferences)?obj.stablePreferences.filter((x:unknown)=>typeof x==='string' && x.trim()).slice(0,5).map((x:string)=>x.trim().slice(0,120)):undefined;
+  return { summary, favorites, options, ...(stablePreferences?{stablePreferences}:{}), ...(englishRequest?{englishRequest}:{}) };
 }
 
 export async function interpretTaste(
@@ -154,10 +156,12 @@ Language for Summary Output: ${language}. Language ONLY controls output language
 
 First translate/transcribe the complete input preferences into English, faithfully preserving the latest request and negations. Then derive API fields from that English meaning. Do NOT lose specific foods merely because the input is Korean. 베트남 쌀국수 / 포 / pho -> cuisine:vietnamese, foodQuery:pho, category:food. Vietnamese cuisine alone -> cuisine:vietnamese. Specific food requirements override previous named-brand affinity. Explicitly asking for a cuisine or dish uses foodApproach:familiar unless the user explicitly asks to broaden into other cuisines. English query must be a canonical dish name, NOT a venue/brand name. New specific food/cuisine requests reset old cuisine, drink and dish constraints: set drink:any when old matcha is unrelated; emit foodQuery:"" when changing cuisine without keeping a specific dish. For unsupported cuisines still emit the specific canonical English dish when stated; never broaden a specific dish request silently.
 
+Separate enduring tastes from today's request. stablePreferences contains ONLY explicitly stated habitual likes (e.g. usually like mild food, I like In-N-Out), localized to ${language}. "I want a burger today" is a current request, NEVER a habitual like. When input has a latest correction ("아니", "instead", "actually"), replace conflicting earlier wanted food/cuisine/category; don't mix them. Summary describes the final current request plus still-relevant explicit usual likes, not a transcript of abandoned requests. Preserve previous distance/price constraints unless changed, clear incompatible cuisine/dish/drink/shopping constraints. A clear simple request like "햄버거 먹고 싶어" is sufficient: no required questions. Do not turn positive budget/atmosphere guidance into invented safety guarantees.
 Always emit options.searchQuery: a short English venue search phrase for the latest desired visit, preserving explicit cuisine/dish/store/atmosphere requirements. E.g. Vietnamese pho restaurants, vintage clothing stores, quiet art museums. This phrase describes the places being sought, not previous liked business names. Include constraints retained from earlier context unless the latest request replaces them. On category change reset foodQuery:"", cuisine:any, drink:any, shoppingKind:any as appropriate. Emit openNow:true only if explicitly requesting currently open places, false otherwise. Never put an entire personal narrative or identifying information in searchQuery.
 
 Extracted Data Format (JSON):
 {
+  "stablePreferences": ["Explicit habitual likes only, max5 strings max120 chars, omit temporary meal requests"],
   "englishRequest": "Faithful English translation of preferences including latest changes. Not displayed as the localized summary.",
   "summary": "String summarizing preferences in ${language}. Max 600 chars.",
   "favorites": [
