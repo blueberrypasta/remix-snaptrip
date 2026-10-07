@@ -377,6 +377,7 @@ export function TasteSheetView(props: Props) {
                                 {formatRating(place.rating, place.ratingSource, place.reviewCount)}
                              </span>
                           </div>
+                          {place.michelin && <p className="text-[12px] mt-1 text-rose-200">{place.michelin.bib?(language==='ko'?'미쉐린 빕 구르망':'MICHELIN Bib Gourmand'):place.michelin.stars>0?(language==='ko'?`미쉐린 ${place.michelin.stars}스타`:`MICHELIN ${place.michelin.stars} star`):(language==='ko'?'미쉐린 선정':'MICHELIN selection')}{place.michelin.green?(language==='ko'?' · 그린스타':' · Green Star'):''}{place.michelin.year?` · ${place.michelin.year}`:''}</p>}
                           {typeof place.openNow==='boolean' && <p className={`text-[12px] mt-1 ${place.openNow?'text-emerald-300':'text-white/50'}`}>{language==='ko'?(place.openNow?'영업 중':'현재 영업 종료'):(place.openNow?'Open now':'Closed now')}</p>}
                           {place.ratingSource==='google' && <p translate="no" className="text-[12px] text-white/60 whitespace-nowrap font-sans font-normal mt-1">Google Maps</p>}
                         </div>
@@ -388,6 +389,7 @@ export function TasteSheetView(props: Props) {
 
                       
                       <div className="px-4 pb-4 pt-0 space-y-3">
+                         {place.michelin && <a href={place.michelin.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center text-[13px] text-rose-200">{language==='ko'?'미쉐린 선정 정보 ↗':'MICHELIN selection ↗'}</a>}
                          {place.address && (
                            <p className="text-[14px] text-white/80 leading-relaxed">
                              {place.address}

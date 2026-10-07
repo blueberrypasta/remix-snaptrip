@@ -2,6 +2,7 @@ import { tasteRequestHeaders, notifyGuestTasteRemaining } from './guestTasteServ
 import type { LocationData } from '../types';
 
 export interface QlooOptions {
+  michelin?: {awards:Array<'bib'|'green'|'star'>;maxStars:number}|null;
   category: 'food' | 'shopping' | 'visits';
   mode: 'balanced' | 'popular' | 'discover';
   drink?: 'any' | 'matcha';
@@ -24,6 +25,7 @@ export interface QlooInterest {
 }
 
 export interface QlooPlace {
+  michelin?: {stars:number;bib:boolean;green:boolean;year?:number;sourceUrl:string};
   latitude?: number;
   longitude?: number;
   rating?: number;

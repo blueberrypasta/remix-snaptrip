@@ -14,6 +14,7 @@ interface QlooEntity {
 }
 
 interface QlooPlaceResult {
+  michelin?:MichelinAward;
   latitude?: number;
   longitude?: number;
   rating?: number;
@@ -210,7 +211,6 @@ async function handleSearch(qlooApiKey: string, qlooApiUrl: string, query: strin
 
     return mappedEntities.slice(0, 5);
   } catch (error) {
-
     return new Response(JSON.stringify({ error: 'timeout' }), { status: 502, headers: { 'Content-Type': 'application/json' } });
   }
 }
@@ -718,7 +718,428 @@ async function handlePlacesHybrid(apiKey: string, qlooKey: string, qlooUrl: stri
   return { places: finalPlaces.slice(0, 10) };
 }
 
-async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string;foodApproach?: string;shoppingKind?: string;foodQuery?: string;searchQuery?:string;openNow?:boolean;language?:string} = {}, excludedNames: string[] = []): Promise<{ places: QlooPlaceResult[] } | Response> {
+interface MichelinFilter {
+  awards: Array<'bib' | 'green' | 'star'>;
+  maxStars: number;
+}
+
+interface MichelinAward {
+  stars: number;
+  bib: boolean;
+  green: boolean;
+  year?: number;
+  sourceUrl: string;
+  _id?:number;_lat?:number;_lng?:number;
+}
+
+const MICHELIN_CACHE_TTL_MS = 3600 * 1000;
+const MAX_CACHE_ENTRIES = 24;
+const PARSE_TIMEOUT_MS = 8000;
+const MAX_GROUPS_PER_REQUEST = 3;
+const CONCURRENCY_LIMIT = 3;
+const DISTANCE_THRESHOLD_M = 1000;
+const MICHELIN_API_BASE_URL = "https://api.parse.bot/scraper/70808de2-3170-4ee9-8819-d781d6b15701/search_restaurants";
+
+const michelinCache = new Map<string, { data: any[]; expiry: number }>();
+const inFlightRequests = new Map<string, Promise<any[]>>();
+
+function getParseApiKey(): string {
+  const key = Deno.env.get('PARSE_API_KEY');
+  if (!key) throw new Error('michelin_unavailable');
+  return key;
+}
+
+function normalizeMichelinHit(hit: any): MichelinAward | null {
+  if (!hit || typeof hit !== 'object') return null;
+
+  const objId = hit.objectID;
+  if (typeof objId !== 'string' || !/^\d+$/.test(objId)) return null;
+  const numericId = parseInt(objId, 10);
+  if (isNaN(numericId)) return null;
+
+  const distSlug = hit.distinction?.slug;
+
+  const greenVal = hit.green_star;
+  const guideYear = hit.guide_year;
+  const geoloc = hit._geoloc;
+  const url = hit.url;
+
+  if (!geoloc || typeof geoloc.lat !== 'number' || typeof geoloc.lng !== 'number') return null;
+  const lat = geoloc.lat;
+  const lng = geoloc.lng;
+  if (!Number.isFinite(lat)||!Number.isFinite(lng)||lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+
+  let validYear: number | undefined = undefined;
+  if (typeof guideYear === 'number' && Number.isInteger(guideYear)) {
+    if (guideYear >= 2000 && guideYear <= 2100) {
+      validYear = guideYear;
+    } else {
+      return null; // Invalid year range
+    }
+  }
+
+  let stars:number;
+  let isBib = false;
+  let isValidClassification = false;
+
+  if (distSlug === 'bib-gourmand') {
+    stars = 0;
+    isBib = true;
+    isValidClassification = true;
+  } else if (distSlug === '1-star-michelin') {
+    stars = 1;
+    isValidClassification = true;
+  } else if (distSlug === '2-stars-michelin') {
+    stars = 2;
+    isValidClassification = true;
+  } else if (distSlug === '3-stars-michelin') {
+    stars = 3;
+    isValidClassification = true;
+  } else if (distSlug === 'the-plate-michelin') {
+    if (greenVal === true) {
+      stars = 0;
+      isValidClassification = true;
+    } else {
+      return null; // Reject plate without explicit green true per strict interpretation
+    }
+  } else {
+    return null; // Unknown slug
+  }
+
+  let isGreen:boolean;
+  if (greenVal === true) {
+    isGreen = true;
+  } else if (greenVal === false || greenVal === null || greenVal === undefined) {
+    isGreen = false;
+  } else {
+    return null; // Unexpected type
+  }
+
+
+  let sourceUrl = "";
+  if (typeof url === 'string' && url.startsWith('https://')) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname === 'guide.michelin.com') {
+        sourceUrl = url;
+      }
+    } catch { /* ignore invalid URL */ }
+  }
+
+  if (!sourceUrl && typeof hit.name === 'string' && hit.name.length > 0) {
+     const encodedName = encodeURIComponent(hit.name);
+     sourceUrl = `https://guide.michelin.com/en/restaurants?search=${encodedName}`;
+  } else if (!sourceUrl) {
+     if (typeof hit.name === 'string' && hit.name.length > 0) {
+        const encodedName = encodeURIComponent(hit.name);
+        sourceUrl = `https://guide.michelin.com/en/restaurants?search=${encodedName}`;
+     } else {
+        return null; // Cannot form valid source URL
+     }
+  }
+
+  return {
+    stars,
+    bib: isBib,
+    green: isGreen,
+    year: validYear,
+    sourceUrl,
+    _id: numericId, // Internal marker for matching
+    _lat: lat,      // Internal marker for distance calc
+    _lng: lng       // Internal marker for distance calc
+  };
+}
+
+function michelinDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3; // Earth’s mean radius in meters
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+async function fetchParseData(query: string): Promise<any[]> {
+  const apiKey = getParseApiKey();
+  const params = new URLSearchParams({
+    query,
+    limit: '100',
+    page: '0'
+  });
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), PARSE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${MICHELIN_API_BASE_URL}?${params.toString()}`, {
+      headers: {
+        'X-API-Key': apiKey,
+        'Accept': 'application/json'
+      },
+      signal: controller.signal
+    });
+
+    if (response.status === 429) throw new Error('rate_limited');
+    if (response.status === 402) throw new Error('michelin_quota');
+    if (!response.ok) throw new Error('michelin_unavailable');
+
+    const bodyText = await response.text();
+    let json: any;
+    try {
+      json = JSON.parse(bodyText);
+    } catch (error) {
+      throw new Error('michelin_unavailable',{cause:error});
+    }
+
+    if (json.status !== 'success' || !json.data || !Array.isArray(json.data.hits)) {
+      throw new Error('michelin_unavailable');
+    }
+
+    clearTimeout(timeoutId);
+    const hits = json.data.hits;
+    const nbPages = json.data.nbPages;
+    const nbHits = json.data.nbHits;
+
+    if (!Number.isInteger(nbPages)||!Number.isInteger(nbHits)||nbPages > 1 || nbHits > 100||hits.length>100) {
+      throw new Error('michelin_unavailable');
+    }
+
+    const normalizedAwards: any[] = [];
+    for (const hit of hits) {
+      const norm = normalizeMichelinHit(hit);
+      if (norm) {
+        normalizedAwards.push(norm);
+      }
+    }
+
+    return normalizedAwards;
+
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.message === 'rate_limited' || error.message === 'michelin_quota' || error.message === 'michelin_unavailable') {
+      throw error;
+    }
+    throw new Error('michelin_unavailable',{cause:error});
+  }
+}
+
+function getCacheEntry(key: string): any[] | null {
+  const entry = michelinCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiry) {
+    michelinCache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCacheEntry(key: string, data: any[]): void {
+  if (michelinCache.size >= MAX_CACHE_ENTRIES) {
+    const firstKey = michelinCache.keys().next().value;
+    if (firstKey !== undefined) {
+      michelinCache.delete(firstKey);
+    }
+  }
+  michelinCache.set(key, { data, expiry: Date.now() + MICHELIN_CACHE_TTL_MS });
+}
+
+async function filterMichelinPlaces(raw: any[], filter: MichelinFilter): Promise<any[]> {
+  if (!raw || raw.length === 0) return [];
+
+  const groups = new Map<string, { region: string; country: string; items: any[] }>();
+
+  for (const item of raw) {
+    if (!item || !item.properties) continue;
+
+    const geoCode = item.properties.geocode;
+    let region = '';
+    let country = '';
+
+    if (geoCode) {
+      region = String(geoCode.admin2_region || '').trim();
+      country = typeof geoCode.country_code==='string'?geoCode.country_code.trim():''; // Assuming top level or properties? Prompt says "plus country_code". Usually ISO.
+
+      if (!region) {
+        region = typeof geoCode.city==='string'?geoCode.city.trim():'';
+      }
+    }
+
+    if (region.length === 0 || region.length > 80) throw new Error('michelin_unavailable');
+    if (country.length === 0 || country.length > 80) throw new Error('michelin_unavailable');
+
+    const groupKey = JSON.stringify([country, region]);
+
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, { region, country, items: [] });
+    }
+    groups.get(groupKey)!.items.push(item);
+  }
+
+  const uniqueGroupsCount = groups.size;
+  if (uniqueGroupsCount > MAX_GROUPS_PER_REQUEST) {
+    throw new Error('michelin_unavailable');
+  }
+
+  if (uniqueGroupsCount === 0) return [];
+
+  const groupEntries = Array.from(groups.entries());
+  const resultsPerGroup = new Map<string, any[]>();
+
+  const processQueue = async () => {
+
+    let index = 0;
+
+    const worker = async () => {
+      while (index < groupEntries.length) {
+        const currentIndex = index++;
+        const [cacheKey, groupData] = groupEntries[currentIndex];
+
+        const cached = getCacheEntry(cacheKey);
+        if (cached) {
+          resultsPerGroup.set(cacheKey, cached);
+          continue;
+        }
+
+        if (inFlightRequests.has(cacheKey)) {
+           try {
+             const res = await inFlightRequests.get(cacheKey)!;
+             resultsPerGroup.set(cacheKey, res);
+           } catch (e) {
+             throw e; // Propagate error
+           }
+           continue;
+        }
+
+        const query = groupData.region;
+
+        const flightPromise = fetchParseData(query).then((data) => {
+          setCacheEntry(cacheKey, data);
+          inFlightRequests.delete(cacheKey);
+          return data;
+        }).catch((err) => {
+          inFlightRequests.delete(cacheKey);
+          throw err;
+        });
+
+        inFlightRequests.set(cacheKey, flightPromise);
+
+        try {
+          const data = await flightPromise;
+          resultsPerGroup.set(cacheKey, data);
+        } catch (e) {
+          throw e;
+        }
+      }
+    };
+
+    const workers = [];
+    for (let i = 0; i < Math.min(CONCURRENCY_LIMIT, groupEntries.length); i++) {
+      workers.push(worker());
+    }
+
+    await Promise.all(workers);
+  };
+
+  await processQueue();
+
+  const finalResults: any[] = [];
+  let hasAnyGreenMatch = false;
+  const requestedOnlyGreen = filter.awards.length === 1 && filter.awards[0] === 'green';
+
+  for (const groupData of groups.values()) {
+    const cacheKey = JSON.stringify([groupData.country, groupData.region]);
+    const normalizedAwards = resultsPerGroup.get(cacheKey) || [];
+
+    for (const rawItem of groupData.items) {
+      const externalIds = rawItem.external?.michelin;
+      if (!externalIds || !Array.isArray(externalIds) || externalIds.length === 0) {
+        continue;
+      }
+
+      const loc = rawItem.location;
+      if (!loc || !Number.isFinite(loc.lat)||!Number.isFinite(loc.lon)||typeof loc.lat !== 'number' || typeof loc.lon !== 'number') {
+        continue;
+      }
+      const pLat = loc.lat;
+      const pLon = loc.lon;
+
+      let matchedAward: MichelinAward | null = null;
+
+      for (const extIdObj of externalIds) {
+        const mIdStr = extIdObj.id;
+        if (typeof mIdStr !== 'string' && typeof mIdStr !== 'number') continue;
+
+        if(!/^\d{1,15}$/.test(String(mIdStr)))continue;
+        const targetNumericId = Number(mIdStr);
+        if (isNaN(targetNumericId)) continue;
+
+        for (const award of normalizedAwards) {
+
+          const awardId = (award as any)._id;
+          const awardLat = (award as any)._lat;
+          const awardLng = (award as any)._lng;
+
+          if (awardId === targetNumericId) {
+            const dist = michelinDistanceMeters(pLat, pLon, awardLat, awardLng);
+            if (dist <= DISTANCE_THRESHOLD_M) {
+              matchedAward = award;
+              break;
+            }
+          }
+        }
+        if (matchedAward) break;
+      }
+
+      if (!matchedAward) continue;
+
+      const { stars, bib, green } = matchedAward;
+
+      if (green) hasAnyGreenMatch = true;
+
+      let qualifies = false;
+
+
+      if (stars > filter.maxStars) {
+        qualifies = false;
+      } else {
+        const condBib = bib && filter.awards.includes('bib');
+        const condGreen = green && filter.awards.includes('green');
+        const condStar = stars >= 1 && filter.awards.includes('star');
+
+        if (condBib || condGreen || condStar) {
+          qualifies = true;
+        }
+      }
+
+      if (qualifies) {
+        const cleanAward: MichelinAward = {
+          stars: matchedAward.stars,
+          bib: matchedAward.bib,
+          green: matchedAward.green,
+          year: matchedAward.year,
+          sourceUrl: matchedAward.sourceUrl
+        };
+
+        (rawItem as any)._michelin = cleanAward;
+        finalResults.push(rawItem);
+      }
+    }
+  }
+
+  if (requestedOnlyGreen && !hasAnyGreenMatch) {
+    throw new Error('michelin_green_unavailable');
+  }
+
+  return raw.filter(p=>finalResults.includes(p));
+}
+
+async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {michelin?:MichelinFilter|null;category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string;foodApproach?: string;shoppingKind?: string;foodQuery?: string;searchQuery?:string;openNow?:boolean;language?:string} = {}, excludedNames: string[] = []): Promise<{ places: QlooPlaceResult[] } | Response> {
   // Optional explicit entities; generic tastes are represented by tags.
   if (interests.length > 3) {
     return new Response(JSON.stringify({ error: 'invalid_interest_count' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -765,7 +1186,9 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     || !['familiar','local','both'].includes(foodApproach) || !['any','matcha'].includes(drink) || ![5000,15000,30000].includes(radius) || !Number.isInteger(priceMax) || priceMax < 0 || priceMax > 4) {
     return Response.json({error:'invalid_options'}, {status:400});
   }
-  if(Deno.env.get('GOOGLE_PLACES_API_KEY'))return handlePlacesHybrid(Deno.env.get('GOOGLE_PLACES_API_KEY')!,qlooApiKey,qlooApiUrl,interests,location,options,excludedNames);
+  const michelin=options.michelin;
+  if(michelin && (category!=='food'||!Array.isArray(michelin.awards)||!michelin.awards.length||michelin.awards.length>3||michelin.awards.some(a=>!['bib','green','star'].includes(a))||!Number.isInteger(michelin.maxStars)||michelin.maxStars<0||michelin.maxStars>3))return Response.json({error:'invalid_options'},{status:400});
+  if(!michelin && Deno.env.get('GOOGLE_PLACES_API_KEY'))return handlePlacesHybrid(Deno.env.get('GOOGLE_PLACES_API_KEY')!,qlooApiKey,qlooApiUrl,interests,location,options,excludedNames);
   let dishTag:string|undefined;
   if(category==='food' && foodQuery){
     try{dishTag=await resolveFoodTag(qlooApiKey,qlooApiUrl,foodQuery);}catch(error){const code=error instanceof Error&&['unsupported_preference','rate_limited'].includes(error.message)?error.message:'upstream_error';return Response.json({error:code},{status:code==='unsupported_preference'?422:code==='rate_limited'?429:502});}
@@ -781,6 +1204,7 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     'feature.explainability': 'true',
   });
 
+  if(michelin)params.set('filter.external.exists','michelin');
   if (interestsStr) params.set('filter.exclude.entities',interestsStr);
 
   const categoryTag = category === 'food' ? 'urn:tag:category:place:restaurant'
@@ -860,6 +1284,7 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
       });
     }
     if(category==='food' && (filterCuisine!=='any' || dishTag))rawPlaces=rawPlaces.filter((p:any)=>matchesFoodConstraint(p,filterCuisine,dishTag) || (!dishTag && drink==='matcha' && Array.isArray(p.tags) && p.tags.some((t:any)=>t.id==='urn:tag:menu_highlight:qloo:matcha_latte')));
+    if(michelin)rawPlaces=await filterMichelinPlaces(rawPlaces,michelin);
     const places: QlooPlaceResult[] = rawPlaces.map((p: any) => {
       if (typeof p.name !== 'string' || !p.name.trim() || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(p.entity_id || p.id || '')) return null;
       const name = p.name;
@@ -877,6 +1302,7 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
       const url = `https://www.google.com/maps/search/?api=1&query=${queryStr}${placeSuffix}`;
 
       return {
+        michelin:p._michelin,
         id: p.id || p.entity_id || '',
         name,
         address,
@@ -894,7 +1320,8 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     return { places };
   } catch (error) {
 
-    return new Response(JSON.stringify({ error: 'timeout' }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+    const code=error instanceof Error && ['michelin_unavailable','michelin_green_unavailable','michelin_quota','rate_limited'].includes(error.message)?error.message:'timeout';
+    return new Response(JSON.stringify({ error: code }), { status: 502, headers: { 'Content-Type': 'application/json' } });
   }
 }
 

@@ -68,6 +68,11 @@ export function normalizeTasteDraft(value: unknown): TasteDraft {
   const optionsRaw = obj.options && typeof obj.options === 'object' ? obj.options as Record<string, unknown> : {};
   const options: Partial<QlooOptions> = {};
 
+  if(optionsRaw.michelin===null)options.michelin=null;
+  else if(optionsRaw.michelin && typeof optionsRaw.michelin==='object'){
+    const m=optionsRaw.michelin as Record<string,unknown>;
+    if(Array.isArray(m.awards)&&m.awards.length>0&&m.awards.length<=3&&m.awards.every(a=>['bib','green','star'].includes(a))&&Number.isInteger(m.maxStars)&&Number(m.maxStars)>=0&&Number(m.maxStars)<=3){options.michelin={awards:[...new Set(m.awards)] as Array<'bib'|'green'|'star'>,maxStars:Number(m.maxStars)};options.category='food';}
+  }
   if (CUISINES.includes(optionsRaw.cuisine as any)) {
     options.cuisine = optionsRaw.cuisine as QlooOptions['cuisine'];
   }
@@ -158,6 +163,8 @@ First translate/transcribe the complete input preferences into English, faithful
 
 Separate enduring tastes from today's request. stablePreferences contains ONLY explicitly stated habitual likes (e.g. usually like mild food, I like In-N-Out), localized to ${language}. "I want a burger today" is a current request, NEVER a habitual like. When input has a latest correction ("아니", "instead", "actually"), replace conflicting earlier wanted food/cuisine/category; don't mix them. Summary describes the final current request plus still-relevant explicit usual likes, not a transcript of abandoned requests. Preserve previous distance/price constraints unless changed, clear incompatible cuisine/dish/drink/shopping constraints. A clear simple request like "햄버거 먹고 싶어" is sufficient: no required questions. Do not turn positive budget/atmosphere guidance into invented safety guarantees.
 Always emit options.searchQuery: a short English venue search phrase for the latest desired visit, preserving explicit cuisine/dish/store/atmosphere requirements. E.g. Vietnamese pho restaurants, vintage clothing stores, quiet art museums. This phrase describes the places being sought, not previous liked business names. Include constraints retained from earlier context unless the latest request replaces them. On category change reset foodQuery:"", cuisine:any, drink:any, shoppingKind:any as appropriate. Emit openNow:true only if explicitly requesting currently open places, false otherwise. Never put an entire personal narrative or identifying information in searchQuery.
+
+Michelin is an optional RESTAURANT-only requirement, not a named favorite or foodQuery. Korean 미슐랭/미쉐린/미슐렌/미쉘린 -> Michelin. 골맷/구르망/빕 구르망 -> Bib Gourmand when in Michelin context. Green Star is separate from culinary stars. Emit options.michelin:{awards:["bib","green","star"],maxStars:1} for Bib Gourmand OR Green Star OR at most one culinary star; default a generic Michelin restaurant request to this affordable range unless explicit higher stars are requested. Only Bib ->awards:["bib"],maxStars:0; only Green ->awards:["green"],maxStars:1 unless explicit higher star cap. Only one star ->awards:["star"],maxStars:1; explicit2/3stars use corresponding maxStars. An explicit new Michelin restaurant search without retaining a previous dish clears foodQuery:"", cuisine:"any",drink:"any". If user says Michelin pho, preserve pho/vietnamese. On shopping/visits or explicit remove-Michelin requirement emit michelin:null. Omit michelin when not mentioned, retain a previous explicit Michelin restriction unless changed. Summary should state requested awards and maximum culinary stars. Do not claim Green data availability.
 
 Extracted Data Format (JSON):
 {
