@@ -8,6 +8,14 @@ interface Translations {
 }
 
 export const translations: Translations = {
+  initializingGuide: { en: 'Initializing Guide...', ko: '가이드 준비 중...', ja: 'ガイドを準備中...', zh: '正在准备导览...', es: 'Preparando la guía...', fr: 'Préparation du guide...', de: 'Guide wird vorbereitet...', it: 'Preparazione guida...' },
+  searchingIn: { en: 'Searching in', ko: '검색 지역:', ja: '検索地域:', zh: '搜索地区:', es: 'Buscando en', fr: 'Recherche à', de: 'Suche in', it: 'Ricerca a' },
+  consultingGuide: { en: 'Consulting Expert Guide...', ko: '전문 가이드에게 묻는 중...', ja: '専門ガイドに確認中...', zh: '正在咨询专家导览...', es: 'Consultando al guía experto...', fr: 'Consultation du guide expert...', de: 'Expertenguide wird befragt...', it: 'Consultazione della guida esperta...' },
+  mobileBrowserTip: { en: 'Mobile Browser Tip', ko: '모바일 브라우저 안내', ja: 'モバイルブラウザのヒント', zh: '移动浏览器提示', es: 'Consejo para el navegador móvil', fr: 'Conseil navigateur mobile', de: 'Tipp für mobilen Browser', it: 'Suggerimento browser mobile' },
+  loginIssue: { en: 'Login Issue', ko: '로그인 문제', ja: 'ログインの問題', zh: '登录问题', es: 'Problema de inicio de sesión', fr: 'Problème de connexion', de: 'Anmeldeproblem', it: 'Problema di accesso' },
+  enterCode: { en: 'Enter code', ko: '코드 입력', ja: 'コードを入力', zh: '输入代码', es: 'Introduce el código', fr: 'Saisir le code', de: 'Code eingeben', it: 'Inserisci il codice' },
+  settings: { en: 'Settings', ko: '설정', ja: '設定', zh: '设置', es: 'Ajustes', fr: 'Paramètres', de: 'Einstellungen', it: 'Impostazioni' },
+  howToIdentify: { en: 'How to identify a landmark', ko: '랜드마크 알아보는 법', ja: 'ランドマークの調べ方', zh: '如何识别地标', es: 'Cómo identificar un lugar', fr: 'Comment identifier un lieu', de: 'So erkennst du einen Ort', it: 'Come identificare un luogo' },
   appName: { en: 'SlapTrip', ko: '슬랩트립', ja: 'スラップトリップ', zh: 'SlapTrip', es: 'SlapTrip', fr: 'SlapTrip', de: 'SlapTrip', it: 'SlapTrip' },
   languageName: { 
     en: 'English', ko: '한국어', ja: '日本語', zh: '中文', es: 'Español', fr: 'Français', de: 'Deutsch', it: 'Italiano' 
@@ -43,7 +51,7 @@ export const translations: Translations = {
   historyEmptyGuide: { en: 'Your discoveries will appear here.', ko: '발견한 장소가 여기에 저장돼요.', ja: '見つけた場所がここに表示されます。', zh: '你的发现会显示在这里。', es: 'Tus descubrimientos aparecerán aquí.', fr: 'Vos découvertes apparaîtront ici.', de: 'Deine Entdeckungen erscheinen hier.', it: 'Le tue scoperte appariranno qui.' },
   scanFirstLandmark: { en: 'Scan your first landmark', ko: '첫 랜드마크 알아보기', ja: '最初のランドマークを調べる', zh: '识别第一个地标', es: 'Escanea tu primer lugar', fr: 'Scanner votre premier lieu', de: 'Ersten Ort scannen', it: 'Scansiona il primo luogo' },
   analyzing: { en: 'Analyzing...', ko: '분석 중...', ja: '分析中...', zh: '分析中...', es: 'Analizando...', fr: 'Analyse...', de: 'Analysieren...', it: 'Analisi...' },
-  processing: { en: 'Processing', ko: '처리 중', ja: '처리중', zh: '处理中', es: 'Procesando', fr: 'Traitement', de: 'Verarbeitung', it: 'In elaborazione' },
+  processing: { en: 'Processing', ko: '처리 중', ja: '処理中', zh: '处理中', es: 'Procesando', fr: 'Traitement', de: 'Verarbeitung', it: 'In elaborazione' },
   failed: { en: 'Analysis Failed', ko: '분석 실패', ja: '分析失敗', zh: '分析失败', es: 'Error de análisis', fr: 'Échec de l\'analyse', de: 'Analyse fehlgeschlagen', it: 'Analisi fallita' },
   success: { en: 'Completed', ko: '완료됨', ja: '完了', zh: '已完成', es: 'Completado', fr: 'Terminé', de: 'Abgeschlossen', it: 'Completato' },
   recentActivity: { en: 'Recent Explorations', ko: '최근 탐색 기록', ja: '最近の探索', zh: '最近探索', es: 'Exploraciones recientes', fr: 'Explorations récentes', de: 'Kürzliche Erkundungen', it: 'Esplorazioni recenti' },
