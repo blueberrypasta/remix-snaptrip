@@ -134,7 +134,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
   const locationBadge = getLocationBadge();
 
   return (
-    <div className={`w-full max-w-xl mx-auto animate-fade-in pb-48 px-0 relative ${isStreaming ? 'min-h-[130dvh]' : ''}`}>
+    <div ref={resultRef} className={`w-full max-w-xl mx-auto animate-fade-in pb-48 px-0 relative ${isStreaming ? 'min-h-[130dvh]' : ''}`}>
       {/* Top Bar — Cinematic Glass */}
       <nav className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-xl z-50 flex items-center justify-between px-5 py-4 pt-[env(safe-area-inset-top,20px)] pointer-events-none">
         <button 
