@@ -193,7 +193,7 @@ export const Header: React.FC<HeaderProps> = ({
                       type="text"
                       value={promoCode}
                       onChange={(e) => setPromoCode(e.target.value)}
-                      placeholder="Enter code"
+                      placeholder={t('enterCode')}
                       className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:ring-1 focus:ring-primary outline-none"
                       onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
                     />
@@ -221,7 +221,7 @@ export const Header: React.FC<HeaderProps> = ({
            <div className="relative hidden sm:block" ref={settingsRef}>
               <button 
                 onClick={() => setOpenMenu(openMenu === 'settings' ? null : 'settings')} 
-                aria-label="Settings"
+                aria-label={t('settings')}
                 className={`w-11 h-11 flex items-center justify-center rounded-full transition-all ${openMenu === 'settings' ? 'bg-primary text-[#1B130A] shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
               >
                 <span className="material-symbols-outlined text-[24px]">settings</span>
