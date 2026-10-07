@@ -351,7 +351,7 @@ export async function resolveFoodTag(
 
   for (const tag of tags) {
     if (typeof tag.id !== 'string' || typeof tag.name !== 'string') continue;
-    
+
     const tagNameNorm = normalizeName(tag.name);
     if (!targetNames.includes(tagNameNorm)) continue;
 
@@ -435,11 +435,11 @@ export function matchesFoodConstraint(
       // Allow equivalent slugs across approved namespaces if the base slug matches
       // Extract slug from dishTag assuming format urn:tag:<namespace>:<slug_part>...
       // We need to find if any other tag in tagIds shares the same semantic identity
-      
+
       // Parse the dishTag to extract potential equivalents
       // Example: urn:tag:menu_highlight:qloo:ramen -> slug "ramen"
       // Equivalents: urn:tag:specialty_dish:place:ramen, urn:tag:genre:place:restaurant:ramen
-      
+
       const parts = dishTag.split(':');
       if (parts.length >= 4) {
         const lastPart = parts[parts.length - 1];
@@ -449,11 +449,11 @@ export function matchesFoodConstraint(
           'urn:tag:genre:place:restaurant:',
           'urn:tag:menu_highlight:qloo:'
         ];
-        
+
         let foundEquivalent = false;
         for (const prefix of altPrefixes) {
           if (prefix === dishTag.substring(0, dishTag.lastIndexOf(lastPart))) continue;
-          
+
           const candidateId = prefix + lastPart;
           if (tagIds.has(candidateId)) {
             foundEquivalent = true;
