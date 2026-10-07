@@ -1,22 +1,6 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
 import type { AnalysisResultData, Language, LocationData, GroundingSource, LocationSource, DepictedFigure } from '../types';
 import { supabase } from './supabaseClient';
-import { isValidGeminiApiKey } from '../utils/apiKeyUtils';
-
-// --- API Key & Mode ---
-
-const getApiKey = () => {
-    if (typeof window !== 'undefined') {
-        const localKey = localStorage.getItem('SNAPTRIP_API_KEY');
-        if (localKey && localKey.trim() !== '' && localKey.trim() !== 'null' && localKey.trim() !== 'undefined') return localKey.trim();
-    }
-    return '';
-};
-
-const hasUserKey = () => isValidGeminiApiKey(getApiKey());
-
-const getAI = () => new GoogleGenAI({ apiKey: getApiKey() });
 
 // --- Edge Function Proxy ---
 
@@ -168,25 +152,6 @@ Accuracy rules:
 Return JSON only with this shape: {"title":"", "fact":"", "story":"", "hiddenStory":"", "depictedFigures":[{"name":"", "role":"", "visualCue":"", "certainty":"confirmed|probable|unknown"}], "identificationStatus":"confirmed|probable|uncertain|needs_retake", "confidence":0.0, "uncertaintyExplanation":"", "retakeReason":"", "visit":{"atAGlance":"", "bestLight":"", "crowds":""}}.`;
         const userText = `Identify this place. If visible text is too small, blurred, angled, cropped, or reflective, explicitly ask for a close, head-on photo of that text in retakeReason. Return only the JSON object.`;
 
-        // --- BYOK path: use SDK with streaming ---
-        if (hasUserKey()) {
-            const imagePart = { inlineData: { data: base64Image, mimeType } };
-            const textPart = { text: userText };
-            const ai = getAI();
-            const response = await ai.models.generateContent({
-                model: 'gemini-3.1-flash-lite',
-                contents: { parts: [imagePart, textPart] },
-                config: { systemInstruction, tools: [{ googleSearch: {} }], temperature: 0.2 }
-            });
-            const sources: GroundingSource[] = [];
-            response.candidates?.[0]?.groundingMetadata?.groundingChunks?.filter(c => c.web).forEach(c => {
-                if (!sources.some(s => s.uri === c.web!.uri)) sources.push({ uri: c.web!.uri, title: c.web!.title });
-            });
-            const result = parseAnalysis(response.text || '{}', sources);
-            onChunk(result);
-            return result;
-        }
-
         // --- Proxy path: use Edge Function (non-streaming) ---
         const contents = [
             {
@@ -228,34 +193,6 @@ export const fetchGuidePointList = async (landmarkName: string, language: Langua
 
             Format: { "ko": "Title in ${language}", "en": "Title in English", "wikiTitle": "Wiki Title", "backupQuery": "Tags", "visualDescription": "Desc", "isOverview": true/false }`;
 
-    // --- BYOK path ---
-    if (hasUserKey()) {
-        const ai = getAI();
-        const response = await ai.models.generateContent({
-            model: "gemini-3.1-flash-lite",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            ko: { type: Type.STRING },
-                            en: { type: Type.STRING },
-                            wikiTitle: { type: Type.STRING },
-                            backupQuery: { type: Type.STRING },
-                            visualDescription: { type: Type.STRING },
-                            isOverview: { type: Type.BOOLEAN }
-                        },
-                        required: ["ko", "en", "wikiTitle", "backupQuery", "visualDescription"]
-                    }
-                }
-            }
-        });
-        return JSON.parse(response.text || "[]");
-    }
-
     // --- Proxy path ---
     const contents = [{ role: "user", parts: [{ text: prompt }] }];
     const data = await callGeminiProxy('gemini-3.1-flash-lite', contents, {
@@ -284,24 +221,6 @@ export const streamGuideDetail = async (
         ? `Give an overview of '${landmarkName}'.`
         : `Tell me about '${pointName}' in '${landmarkName}'.`;
 
-    // --- BYOK path ---
-    if (hasUserKey()) {
-        const ai = getAI();
-        const stream = await ai.models.generateContentStream({
-            model: "gemini-3.1-flash-lite",
-            contents: userPrompt,
-            config: { systemInstruction: instruction }
-        });
-        let full = "";
-        for await (const chunk of stream) {
-            if (chunk.text) {
-                full += chunk.text;
-                onChunk(sanitizeText(full));
-            }
-        }
-        return;
-    }
-
     // --- Proxy path ---
     const contents = [{ role: "user", parts: [{ text: userPrompt }] }];
     const data = await callGeminiProxy('gemini-3.1-flash-lite', contents, {
@@ -320,19 +239,7 @@ export const fetchNearbyPlaces = async (location: LocationData, language: Langua
 
     let responseText: string;
 
-    // --- BYOK path ---
-    if (hasUserKey()) {
-        const ai = getAI();
-        const response = await ai.models.generateContent({
-            model: "gemini-3.1-flash-lite",
-            contents: prompt,
-            config: {
-                tools: [{ googleSearch: {} }],
-                responseMimeType: "application/json"
-            }
-        });
-        responseText = response.text || "{}";
-    } else {
+    {
         // --- Proxy path ---
         const contents = [{ role: "user", parts: [{ text: prompt }] }];
         const data = await callGeminiProxy('gemini-3.1-flash-lite', contents, {
@@ -365,19 +272,8 @@ export const fetchMoreNearbyPlaces = async (location: LocationData, language: La
     let responseText: string;
 
     try {
-        // --- BYOK path ---
-        if (hasUserKey()) {
-            const ai = getAI();
-            const response = await ai.models.generateContent({
-                model: "gemini-3.1-flash-lite",
-                contents: prompt,
-                config: {
-                    tools: [{ googleSearch: {} }],
-                    responseMimeType: "application/json"
-                }
-            });
-            responseText = response.text || "{}";
-        } else {
+
+        {
             // --- Proxy path ---
             const contents = [{ role: "user", parts: [{ text: prompt }] }];
             const data = await callGeminiProxy('gemini-3.1-flash-lite', contents, {

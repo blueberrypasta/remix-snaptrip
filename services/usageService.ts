@@ -1,7 +1,6 @@
 
 import { supabase } from './supabaseClient';
 import type { Language } from '../types';
-import { isValidGeminiApiKey } from '../utils/apiKeyUtils';
 
 const PROMO_CODE = 'joshjoshjosh';
 const DAILY_FREE_CREDITS = 10;
@@ -177,20 +176,12 @@ export const usageService = {
   },
 
   async canAnalyze(userId: string): Promise<boolean> {
-    // 0. 본인 API 키가 있으면 항상 허용
-    if (typeof window !== 'undefined' && isValidGeminiApiKey(localStorage.getItem('SNAPTRIP_API_KEY'))) {
-      return true;
-    }
+
     const profile = await this.getUserCredits(userId);
     return profile.isPremium || profile.credits > 0;
   },
 
   async deductCredit(userId: string): Promise<number> {
-    // 0. 본인 API 키가 있으면 크레딧 차감 안함
-    if (typeof window !== 'undefined' && isValidGeminiApiKey(localStorage.getItem('SNAPTRIP_API_KEY'))) {
-      const profile = await this.getUserCredits(userId);
-      return profile.credits;
-    }
 
     if (!userId || userId === 'guest') {
       const guestDataRaw = localStorage.getItem(GUEST_STORAGE_KEY);

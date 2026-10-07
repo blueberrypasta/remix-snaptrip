@@ -51,15 +51,12 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const handleReload = () => { window.location.reload(); };
+  useEffect(() => {
+    try { localStorage.removeItem('SNAPTRIP_API_KEY'); } catch { /* Storage may be unavailable. */ }
+  }, []);
 
-  const handleOpenSelectKey = async () => {
-    if (window.aistudio?.openSelectKey) {
-      await window.aistudio.openSelectKey();
-      setIsQuotaExceeded(false);
-      window.location.reload();
-    }
-  };
+  const handleCloseHistory = useCallback(() => setSidebarOpen(false), []);
+  const handleReload = () => { window.location.reload(); };
 
   const handleSetLanguage = (lang: Language) => {
     hasUserSelectedLanguage.current = true;
@@ -443,7 +440,6 @@ const App: React.FC = () => {
             <p className="text-sm font-black text-white">{t('quotaExceeded')}</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleOpenSelectKey} className="flex-1 bg-white/20 hover:bg-white/30 text-white text-[10px] font-black py-2 rounded-xl border border-white/20 transition-all uppercase tracking-widest">{t('useOwnKey')}</button>
             <button onClick={() => setIsQuotaExceeded(false)} className="px-4 bg-black/20 text-white text-[10px] font-black py-2 rounded-xl transition-all">{t('cancel')}</button>
           </div>
         </div>
@@ -455,9 +451,8 @@ const App: React.FC = () => {
             <span className="material-symbols-outlined">hourglass_empty</span>
             <p className="text-sm font-black text-white">[{t('error')}] API 서버 접속량이 많습니다.</p>
           </div>
-          <p className="text-xs text-white/90 font-bold mb-3">개인 API 키를 등록하면 대기 없이 바로 이용 가능해요!</p>
+          <p className="text-xs text-white/90 font-bold mb-3">{language === 'ko' ? '잠시 후 다시 시도해 주세요.' : 'Please try again shortly.'}</p>
           <div className="flex gap-2">
-            <button onClick={() => { setIsApiRateLimited(false); handleOpenSelectKey(); }} className="flex-1 bg-white/20 hover:bg-white/30 text-white text-[10px] font-black py-2 rounded-xl border border-white/20 transition-all uppercase tracking-widest">{t('useOwnKey')}</button>
             <button onClick={() => setIsApiRateLimited(false)} className="px-4 bg-black/20 text-white text-[10px] font-black py-2 rounded-xl transition-all">{t('cancel')}</button>
           </div>
         </div>
@@ -500,11 +495,12 @@ const App: React.FC = () => {
         </div>
       </main>
       <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 px-4 py-3 text-center text-[11px] text-slate-400">
+        <a href="mailto:blueberrypastaco@gmail.com?subject=%5BSlapTrip%20Support%5D%20Inquiry" className="underline underline-offset-4 hover:text-white">{t('contactDev')}</a>
         <a href="/identify-landmark-from-photo.html" className="underline underline-offset-4 hover:text-white">How to identify a landmark</a>
         <a href="/privacy.html" className="underline underline-offset-4 hover:text-white">Privacy · 개인정보처리방침</a>
         <span className="mx-2">·</span><a href="/terms.html" className="underline underline-offset-4 hover:text-white">Terms · 이용약관</a>
       </footer>
-      <HistorySidebar history={history} onSelect={handleHistorySelection} isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} language={language} onClearHistory={handleClearHistory} user={user} isSyncing={isSyncing} onRefresh={() => user && syncUserData(user.id)} />
+      <HistorySidebar history={history} onSelect={handleHistorySelection} isOpen={isSidebarOpen} onClose={handleCloseHistory} language={language} onClearHistory={handleClearHistory} user={user} isSyncing={isSyncing} onRefresh={() => user && syncUserData(user.id)} />
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setLoginModalOpen(false)} onLogin={() => {}} language={language} />
       </div>
     </div>

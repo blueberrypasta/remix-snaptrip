@@ -4,7 +4,6 @@ import type { Language, User } from '../types';
 import { useTranslations, translations } from '../translations';
 import { SnapTripLogo } from './SnapTripLogo';
 import { usageService } from '../services/usageService';
-import { isValidGeminiApiKey } from '../utils/apiKeyUtils';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -47,17 +46,6 @@ export const Header: React.FC<HeaderProps> = ({
   const [promoCode, setPromoCode] = useState('');
   const [promoMessage, setPromoMessage] = useState({ text: '', type: '' });
   const [isApplying, setIsApplying] = useState(false);
-  const [localApiKey, setLocalApiKey] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('SNAPTRIP_API_KEY');
-      return (stored && stored !== 'null' && stored !== 'undefined') ? stored : '';
-    }
-    return '';
-  });
-
-  const hasValidApiKey = isValidGeminiApiKey(localApiKey);
-  const [showKeySaved, setShowKeySaved] = useState(false);
-  
   const settingsRef = useRef<HTMLDivElement>(null);
   const langRef = useRef<HTMLDivElement>(null);
   const promoRef = useRef<HTMLDivElement>(null);
@@ -182,11 +170,11 @@ export const Header: React.FC<HeaderProps> = ({
            <div className="relative" ref={promoRef}>
               <button 
                 onClick={() => setOpenMenu(openMenu === 'promo' ? null : 'promo')}
-                aria-label={`${t('credits')}: ${hasValidApiKey ? 'API' : (credits || 0)}`}
+                aria-label={`${t('credits')}: ${(credits || 0)}`}
                 className="min-h-11 flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 rounded-full border border-primary/20 mr-1 hover:bg-primary/20 transition-all active:scale-95"
               >
-                  <span className="material-symbols-outlined text-[16px] text-primary">{hasValidApiKey ? 'key' : 'diamond'}</span>
-                  <span className="text-[13px] font-black text-white">{hasValidApiKey ? 'API' : (credits || 0)}</span>
+                  <span className="material-symbols-outlined text-[16px] text-primary">{'diamond'}</span>
+                  <span className="text-[13px] font-black text-white">{(credits || 0)}</span>
               </button>
               
               {openMenu === 'promo' && (
@@ -242,42 +230,6 @@ export const Header: React.FC<HeaderProps> = ({
                 <>
                 <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setOpenMenu(null)}></div>
                 <div className="fixed top-[70px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 mt-3 w-auto sm:w-72 bg-slate-900 rounded-2xl shadow-2xl border border-white/10 p-2 flex flex-col gap-1 z-50 animate-fade-in-up">
-                   <div className="p-3 mb-2">
-                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-3 px-1">{t('useOwnKey')}</p>
-                     <div className="flex flex-col gap-2">
-                       <input 
-                         type="password"
-                         value={localApiKey}
-                         onChange={(e) => setLocalApiKey(e.target.value)}
-                         placeholder="Gemini API Key"
-                         className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:ring-1 focus:ring-primary outline-none w-full"
-                       />
-                       <button 
-                         onClick={() => {
-                           const cleanKey = localApiKey.trim();
-                           localStorage.setItem('SNAPTRIP_API_KEY', cleanKey);
-                           setLocalApiKey(cleanKey);
-                           setShowKeySaved(true);
-                           setTimeout(() => { setShowKeySaved(false); setOpenMenu(null); window.location.reload(); }, 1500);
-                         }}
-                         className={`w-full py-2.5 rounded-xl text-white font-black text-[10px] uppercase transition-all active:scale-95 flex items-center justify-center gap-2 ${showKeySaved ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-primary'}`}
-                       >
-                         {showKeySaved ? (
-                           <>
-                             <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                             {t('savedLocally')}
-                           </>
-                         ) : t('saveKey')}
-                       </button>
-                       <p className="text-[9px] text-[#F4EFE6]/40 px-1 leading-tight">
-                         • Key is stored strictly on this device.<br/>
-                         • Never uploaded to any server.
-                       </p>
-                     </div>
-                   </div>
-
-                   <div className="h-px bg-white/5 mb-1 mx-2"></div>
-
                    <button 
                      onClick={() => { setOpenMenu(null); onShowAbout(); }}
                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-white/10 text-primary transition-colors group"
@@ -371,15 +323,13 @@ export const Header: React.FC<HeaderProps> = ({
                    {LANGUAGES.map((lang) => <button key={lang.code} onClick={() => { setLanguage(lang.code); setOpenMenu(null); }} className={`min-h-11 rounded-xl text-xs font-black ${language === lang.code ? 'bg-primary text-[#1B130A]' : 'bg-white/5 text-slate-200'}`}>{lang.code.toUpperCase()}</button>)}
                  </div>
                  <div className="my-4 h-px bg-white/10" />
-                 <div className="grid grid-cols-3 gap-2">
+                 <div className="grid grid-cols-2 gap-2">
                    <button onClick={() => { setOpenMenu(null); onToggleSidebar(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><span className="material-symbols-outlined block text-[20px]">bookmarks</span>{t('history')}</button>
+                   <a href="mailto:blueberrypastaco@gmail.com?subject=%5BSlapTrip%20Support%5D%20Inquiry" className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100 flex flex-col items-center justify-center"><span className="material-symbols-outlined block text-[20px]">mail</span>{t('contactDev')}</a>
                    <button onClick={() => { setOpenMenu(null); onShowAbout(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><span className="material-symbols-outlined block text-[20px]">info</span>{t('aboutSnapTrip')}</button>
                    <button onClick={() => { setOpenMenu(null); if (user) onLogout(); else onLogin(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><span className="material-symbols-outlined block text-[20px]">account_circle</span>{user ? t('logout') : t('login')}</button>
                  </div>
-                 <div className="mt-3 flex gap-2">
-                   <input aria-label="Gemini API Key" type="password" value={localApiKey} onChange={(e) => setLocalApiKey(e.target.value)} placeholder="Gemini API Key" className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-white outline-none focus:border-primary" />
-                   <button onClick={() => { const cleanKey = localApiKey.trim(); localStorage.setItem('SNAPTRIP_API_KEY', cleanKey); setLocalApiKey(cleanKey); setShowKeySaved(true); }} className="min-h-11 rounded-xl bg-primary px-4 text-xs font-black text-[#1B130A]">{showKeySaved ? t('savedLocally') : t('saveKey')}</button>
-                 </div>
+
                </div>
              )}
            </div>
