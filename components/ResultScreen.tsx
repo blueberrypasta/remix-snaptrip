@@ -1,5 +1,5 @@
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from '../translations';
 import type { HistoryItem, Language } from '../types';
 
@@ -26,39 +26,66 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
     if (!resultRef.current) return null;
     try {
         const canvas = await html2canvas(resultRef.current, { 
-            useCORS: true, scale: 3, backgroundColor: '#101922', logging: false,
+            useCORS: true, scale: 2, backgroundColor: '#101922', logging: false,
             width: resultRef.current.offsetWidth, height: resultRef.current.offsetHeight
         });
         return new Promise((resolve) => canvas.toBlob((blob: Blob | null) => resolve(blob), 'image/png', 1.0));
     } catch (e) { return null; }
   };
 
+  // iOS Safari only allows navigator.share() during a fresh tap. Rendering the card with
+  // html2canvas takes long enough that the tap "expires", so the first share silently failed.
+  // Keep the rendered file, and if the browser refuses, the next tap shares it instantly.
+  const preparedFile = useRef<File | null>(null);
+  useEffect(() => { preparedFile.current = null; }, [result.title, result.status]);
+
+  const downloadFile = (file: File) => {
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setNotification(t('savedSuccess'));
+    setTimeout(() => setNotification(''), 3000);
+  };
+
   const handleAction = async () => {
     if (isProcessing) return;
     setIsProcessing(true);
+    let file = preparedFile.current;
     try {
-        const blob = await generateBlob();
-        if (!blob) throw new Error();
-        const file = new File([blob], `SlapTrip_${result.title}.png`, { type: 'image/png' });
-        
+        if (!file) {
+          const blob = await generateBlob();
+          if (!blob) throw new Error('render_failed');
+          file = new File([blob], `SlapTrip_${result.title.replace(/[\\/:*?"<>|]+/g, '_')}.png`, { type: 'image/png' });
+          preparedFile.current = file;
+        }
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ 
-              files: [file], 
+            await navigator.share({
+              files: [file],
               title: 'SlapTrip Discovery',
               text: `[SlapTrip] ${result.title}`
             });
         } else {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `SlapTrip_${result.title}.png`;
-            link.click();
-            URL.revokeObjectURL(url);
-            setNotification(t('savedSuccess'));
-            setTimeout(() => setNotification(''), 3000);
+            downloadFile(file);
         }
     } catch (e) {
-      console.error("Share error:", e);
+      const name = e instanceof Error ? e.name : '';
+      if (name === 'AbortError') {
+        // User closed the share sheet.
+      } else if (name === 'NotAllowedError' && file) {
+        setNotification(language === 'ko' ? '이미지가 준비됐어요. 한 번 더 누르면 공유돼요.' : 'Image ready. Tap share again.');
+        setTimeout(() => setNotification(''), 4000);
+      } else if (file) {
+        downloadFile(file);
+      } else {
+        console.error("Share error:", e);
+        setNotification(language === 'ko' ? '공유 이미지를 만들지 못했어요. 다시 시도해주세요.' : 'Could not create the share image. Please try again.');
+        setTimeout(() => setNotification(''), 3000);
+      }
     }
     setIsProcessing(false);
   };
