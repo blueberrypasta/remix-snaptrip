@@ -145,7 +145,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
       if(currentGen!==generationSeq.current)return;
       const finalSummary=draft.summary;
       const mergedOptions=mergeTasteOptions(previous?.options,draft.options);
-      const uniqueExcluded=Array.from(new Set([...(previous?.excludedNames||[]),...draft.favorites.map(f=>f.name)])).slice(0,MAX_EXCLUSIONS);
+      const uniqueExcluded=Array.from(new Set([...(previous?.excludedNames||[]),...draft.favorites.flatMap(f=>f.englishName?[f.name,f.englishName]:[f.name])])).slice(0,MAX_EXCLUSIONS);
       const idsToExclude:string[]=[];
       for(const fav of draft.favorites){
         try{
