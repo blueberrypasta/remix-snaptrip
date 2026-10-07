@@ -119,7 +119,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 className="flex-1 flex items-center justify-center gap-2.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 h-14 text-white text-sm font-black active:scale-95 disabled:opacity-50 transition-all font-sans hover:bg-white/10"
               >
                 {isSyncing ? (
-                  <span className="text-[10px] animate-pulse uppercase tracking-widest">Syncing...</span>
+                  <span className="text-[10px] animate-pulse uppercase tracking-widest">{t('syncing')}</span>
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-[20px]">upload_file</span>
