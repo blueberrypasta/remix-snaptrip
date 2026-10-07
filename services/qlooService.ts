@@ -5,9 +5,10 @@ export interface QlooOptions {
   category: 'food' | 'shopping' | 'visits';
   mode: 'balanced' | 'popular' | 'discover';
   drink?: 'any' | 'matcha';
+  foodQuery?: string;
   shoppingKind?: 'any' | 'thrift' | 'vintage' | 'secondhand';
   foodApproach?: 'familiar' | 'local' | 'both';
-  cuisine: 'any' | 'korean' | 'japanese' | 'italian' | 'mexican' | 'american' | 'vegetarian';
+  cuisine: 'any' | 'korean' | 'japanese' | 'italian' | 'mexican' | 'american' | 'vegetarian' | 'vietnamese' | 'thai' | 'chinese' | 'indian' | 'french' | 'mediterranean' | 'greek' | 'spanish' | 'brazilian';
   priceMax: number;
   radius: number;
 }

@@ -20,6 +20,7 @@ globalThis.fetch = async (url, options={}) => {
    if(op==='consume'){if(used===10)return Response.json(-1);used++;}else if(op==='refund')used=Math.max(0,used-1);
    guestUsage.set(id,used);return Response.json(used);
   }
+  if(u.pathname==='/v2/tags')return Response.json({results:{tags:[{id:'urn:tag:menu_highlight:qloo:pho',name:'Pho'},{id:'urn:tag:category:place:photographer',name:'Photographer'}]}});
   if (upstreamStatus!==200) return Response.json({error:'never expose upstream credentials'}, {status:upstreamStatus});
   return Response.json({results:{entities:u.pathname==='/search'?[{entity_id:interest,name:'Test Place',types:['urn:entity:place']}]:fixtures}});
 };
@@ -162,6 +163,16 @@ test('Qloo server boundary', async t=>{
   fixtures=[thrift,{...thrift,entity_id:'32345678-1234-4234-8234-123456789abc',name:'Church Fixture',tags:[{id:'urn:tag:category:place:thrift_store'}],properties:{primary_genre:{id:'urn:tag:genre:place:church'}}},{...thrift,name:'Mall Fixture',tags:[{id:'urn:tag:category:place:shopping_mall'}]}];
   try{calls=[];const r=await handleRequest(request({...rec,options:{category:'shopping',shoppingKind:'secondhand'}}));assert.equal(r.status,200);const data=await r.json();assert.deepEqual(data.places.map(p=>p.name),['Vintage Fixture']);assert.equal(data.places[0].hours.monday[0].opens,'T10:00:00');assert.equal(data.places[0].hours.unexpected,undefined);assert.ok(calls.some(c=>c.u.searchParams.get('filter.tags')?.includes('used_clothing_store')));
   assert.equal((await handleRequest(request({...rec,options:{category:'shopping',shoppingKind:'invented'}}))).status,400);
+  }finally{fixtures=old;authUser=oldUser;}
+ });
+ await t.test('English pho filters override burger interests and unrelated discovery candidates',async()=>{
+  const old=fixtures,oldUser=authUser;authUser='pho-qa';
+  const pho={...old[0],name:'Verified Pho Fixture',tags:[{id:'urn:tag:genre:place:restaurant:vietnamese'},{id:'urn:tag:menu_highlight:qloo:pho'}],properties:{primary_genre:{id:'urn:tag:genre:place:restaurant:vietnamese'}}};
+  fixtures=[pho,{...pho,entity_id:'42345678-1234-4234-8234-123456789abc',name:'In-N-Out Fixture',tags:[{id:'urn:tag:genre:place:restaurant:american'}],properties:{primary_genre:{id:'urn:tag:genre:place:restaurant:american'}}}];
+  try{calls=[];const r=await handleRequest(request({...rec,options:{cuisine:'vietnamese',foodQuery:'pho',drink:'matcha',foodApproach:'local'}}));assert.equal(r.status,200);const data=await r.json();assert.deepEqual(data.places.map(p=>p.name),['Verified Pho Fixture']);
+    const insights=calls.filter(c=>c.u.pathname==='/v2/insights');assert.ok(insights.length);for(const c of insights){assert.match(c.u.searchParams.get('filter.tags'),/:vietnamese/);assert.match(c.u.searchParams.get('filter.tags'),/:pho/);assert.equal(c.u.searchParams.get('operator.filter.tags'),'intersection');assert.equal(c.u.searchParams.get('signal.interests.entities'),null);}
+    assert.ok(calls.some(c=>c.u.pathname==='/v2/tags' && c.u.searchParams.get('filter.query')==='pho'));
+    calls=[];const missing=await handleRequest(request({...rec,options:{foodQuery:'unknown noodles'}}));assert.equal(missing.status,422);assert.equal((await missing.json()).error,'unsupported_preference');assert.ok(!calls.some(c=>c.u.pathname==='/v2/insights'));
   }finally{fixtures=old;authUser=oldUser;}
  });
  await t.test('bounded requests reject excessive calls',async()=>{

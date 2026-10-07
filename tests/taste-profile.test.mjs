@@ -19,6 +19,11 @@ test('taste input validation and request boundary',async t=>{
  assert.deepEqual(d.favorites,[]);assert.deepEqual(d.options,{shoppingKind:'secondhand',category:'shopping'});
  assert.equal(normalizeTasteDraft({summary:'Shopping',options:{shoppingKind:'fake'}}).options.shoppingKind,undefined);
  });
+ await t.test('Korean pho preserves Vietnamese cuisine and an English API dish term',()=>{
+  const d=normalizeTasteDraft({summary:'베트남 쌀국수',englishRequest:'I want Vietnamese pho',favorites:[{name:'베트남 쌀국수',type:'place'}],options:{cuisine:'vietnamese',foodQuery:'pho'}});
+  assert.equal(d.englishRequest,'I want Vietnamese pho');assert.deepEqual(d.favorites,[]);assert.deepEqual(d.options,{cuisine:'vietnamese',foodQuery:'pho',category:'food'});
+  assert.throws(()=>normalizeTasteDraft({summary:'쌀국수',options:{foodQuery:'쌀국수'}}),/unsupported_preference/);
+ });
  await t.test('unknown inferred constraints and malformed fields are not applied',()=>{
   const d=normalizeTasteDraft({summary:'I like noodles',favorites:[{name:'Muji',type:'brand'},{name:'muji',type:'brand'},{name:'fake',type:'url'}],options:{cuisine:'japanese',radius:999999,priceMax:'2',mode:'quiet',category:'shopping',allergy:'safe',ethnicity:'invented',foodApproach:'invented'}});
   assert.deepEqual(d.options,{cuisine:'japanese',category:'shopping'});assert.equal(d.favorites.length,1);

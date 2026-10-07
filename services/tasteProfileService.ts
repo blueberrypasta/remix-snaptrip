@@ -5,11 +5,12 @@ import {isGenericTasteName,extractGenericTasteOptions} from '../utils/tasteTerms
 
 export interface TasteDraft {
   summary: string;
-  favorites: Array<{ name: string; type: 'place' | 'brand' }>;
+  englishRequest?: string;
+  favorites: Array<{ name: string; type: 'place' | 'brand'; englishName?: string }>;
   options: Partial<QlooOptions>;
 }
 
-const CUISINES = ['any', 'korean', 'japanese', 'italian', 'mexican', 'american', 'vegetarian'] as const;
+const CUISINES = ['any', 'korean', 'japanese', 'italian', 'mexican', 'american', 'vegetarian', 'vietnamese', 'thai', 'chinese', 'indian', 'french', 'mediterranean', 'greek', 'spanish', 'brazilian'] as const;
 const MODES = ['balanced', 'popular', 'discover'] as const;
 const RADII = [5000, 15000, 30000] as const;
 const CATEGORIES = ['food', 'shopping', 'visits'] as const;
@@ -41,7 +42,7 @@ export function normalizeTasteDraft(value: unknown): TasteDraft {
   // Validate favorites
   const favoritesRaw = Array.isArray(obj.favorites) ? obj.favorites : [];
   const seenNames = new Set<string>();
-  const favorites: Array<{ name: string; type: 'place' | 'brand' }> = [];
+  const favorites: Array<{ name: string; type: 'place' | 'brand'; englishName?: string }> = [];
 
   for (const fav of favoritesRaw) {
     if (favorites.length >= 3) break;
@@ -58,7 +59,8 @@ export function normalizeTasteDraft(value: unknown): TasteDraft {
     if (seenNames.has(key)) continue;
     
     seenNames.add(key);
-    favorites.push({ name, type });
+    const englishName=typeof fObj.englishName==='string' && /^[\x20-\x7E]{1,100}$/.test(fObj.englishName) ? fObj.englishName.trim() : undefined;
+    favorites.push({ name, type, ...(englishName?{englishName}:{}) });
   }
 
   // Validate options
@@ -87,12 +89,19 @@ export function normalizeTasteDraft(value: unknown): TasteDraft {
 
   if (['any','thrift','vintage','secondhand'].includes(String(optionsRaw.shoppingKind))) options.shoppingKind=optionsRaw.shoppingKind as QlooOptions['shoppingKind'];
   if (options.shoppingKind && options.shoppingKind !== 'any') options.category='shopping';
+  if (optionsRaw.foodQuery === '') options.foodQuery='';
+  else if (typeof optionsRaw.foodQuery==='string') {
+    const query=optionsRaw.foodQuery.trim().toLowerCase();
+    if(!/^[a-z][a-z -]{1,59}$/.test(query))throw new Error('unsupported_preference');
+    options.foodQuery=query;options.category='food';
+  }
   const generic = extractGenericTasteOptions(favoritesRaw.flatMap(f=>f && typeof f.name==='string'?[f.name]:[]));
   if ((!options.cuisine || options.cuisine === 'any') && generic.cuisine) options.cuisine=generic.cuisine;
   if (optionsRaw.drink === 'any' || optionsRaw.drink === 'matcha') options.drink=optionsRaw.drink;
   else if (generic.drink) options.drink=generic.drink;
   if (['familiar','local','both'].includes(String(optionsRaw.foodApproach))) options.foodApproach=optionsRaw.foodApproach as QlooOptions['foodApproach'];
-  return { summary, favorites, options };
+  const englishRequest=typeof obj.englishRequest==='string'?obj.englishRequest.trim().slice(0,1000):undefined;
+  return { summary, favorites, options, ...(englishRequest?{englishRequest}:{}) };
 }
 
 export async function interpretTaste(
@@ -137,14 +146,18 @@ If there is no clear preference expressed, set summary to "".
 Input Type: ${hasAudio ? 'AUDIO' : 'TEXT'}
 Language for Summary Output: ${language}. Language ONLY controls output language. NEVER infer ethnicity, race, nationality or food preferences from language. Cuisine must be explicitly stated.
 
+First translate/transcribe the complete input preferences into English, faithfully preserving the latest request and negations. Then derive API fields from that English meaning. Do NOT lose specific foods merely because the input is Korean. 베트남 쌀국수 / 포 / pho -> cuisine:vietnamese, foodQuery:pho, category:food. Vietnamese cuisine alone -> cuisine:vietnamese. Specific food requirements override previous named-brand affinity. Explicitly asking for a cuisine or dish uses foodApproach:familiar unless the user explicitly asks to broaden into other cuisines. English query must be a canonical dish name, NOT a venue/brand name. New specific food/cuisine requests reset old cuisine, drink and dish constraints: set drink:any when old matcha is unrelated; emit foodQuery:"" when changing cuisine without keeping a specific dish. For unsupported cuisines still emit the specific canonical English dish when stated; never broaden a specific dish request silently.
+
 Extracted Data Format (JSON):
 {
+  "englishRequest": "Faithful English translation of preferences including latest changes. Not displayed as the localized summary.",
   "summary": "String summarizing preferences in ${language}. Max 600 chars.",
   "favorites": [
-    { "name": "String", "type": "place" | "brand" }
+    { "name": "String", "englishName": "Official Latin/English business name when identifiable, not a literal invented translation", "type": "place" | "brand" }
   ],
   "options": {
-    "cuisine": "any"|"korean"|"japanese"|"italian"|"mexican"|"american"|"vegetarian"; omit if unknown,
+    "cuisine": "any"|"korean"|"japanese"|"italian"|"mexican"|"american"|"vegetarian"|"vietnamese"|"thai"|"chinese"|"indian"|"french"|"mediterranean"|"greek"|"spanish"|"brazilian"; omit if unknown,
+    "foodQuery": "Canonical English name of specifically requested food such as pho, ramen, pizza, sushi; lowercase ASCII letters/spaces/hyphens max60; omit if no specific food. Empty string explicitly clears earlier dish constraint.",
     "drink": "any"|"matcha"; omit if unknown,
     "foodApproach": "familiar"|"local"|"both"; only when user explicitly requests familiar food, local exploration, or a mix; omit otherwise,
     "priceMax": integer 0..4 (0=unrestricted, 1=$,2=$$,3=$$$,4=$$$$); omit if unknown,

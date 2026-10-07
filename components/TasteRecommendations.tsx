@@ -115,8 +115,9 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
       login_required:['로그인이 만료됐어요. 다시 로그인해주세요.','Please log in again.'],
       rate_limited:['요청이 많아요. 잠시 후 다시 시도해주세요.','Please wait a minute and try again.'],
       timeout:['응답이 늦어지고 있어요. 다시 시도해주세요.','The request timed out. Try again.'],
+      unsupported_preference:['이 음식의 검색 조건을 확인하지 못했어요. 다른 음식명을 알려주세요.','We could not verify filters for that food. Try another food name.'],
       no_preferences:['좋아하는 음식이나 장소를 조금 더 알려주세요.','Tell us a little more about what you like.'],
-      empty_results:['근처에서 결과를 찾지 못했어요. 취향을 조금 바꿔 알려주세요.','No nearby matches. Try changing your request.'],
+      empty_results:['조건에 맞는 근처 장소가 없어요. 검색 반경을 넓혀보세요.','No nearby matches for these preferences. Try a wider radius.'],
       location_required:['위치 권한을 허용하고 다시 시도해주세요.','Allow location access and try again.'],
       unavailable:['연결이 원활하지 않아요. 잠시 후 다시 시도해주세요.','Connection unavailable. Please try again.'],
       microphone:['마이크를 사용할 수 없어요. 글로 입력해주세요.','Microphone unavailable. Please type instead.']};
@@ -181,13 +182,19 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
       if(currentGen!==generationSeq.current)return;
       const finalSummary=draft.summary;
       const mergedOptions={...DEFAULT_OPTIONS,...previous?.options,...draft.options};
+      if(draft.options.cuisine && draft.options.cuisine!=='any' && draft.options.foodQuery===undefined)mergedOptions.foodQuery='';
+      if(draft.options.foodQuery){
+        mergedOptions.category='food';mergedOptions.shoppingKind='any';
+        if(!draft.options.cuisine)mergedOptions.cuisine='any';
+        if(!draft.options.drink)mergedOptions.drink='any';
+      }
       const uniqueExcluded=Array.from(new Set([...(previous?.excludedNames||[]),...draft.favorites.map(f=>f.name)])).slice(0,MAX_EXCLUSIONS);
       const idsToExclude:string[]=[];
       for(const fav of draft.favorites){
         try{
-          const matches=await searchQloo(fav.name,fav.type);
+          const matches=await searchQloo(fav.englishName||fav.name,fav.type);
           if(currentGen!==generationSeq.current)return;
-          const key=normalizeName(fav.name);
+          const key=normalizeName(fav.englishName||fav.name);
           const match=matches.find(p=>key && normalizeName(p.name)===key)||matches.find(p=>key.length>=3 && normalizeName(p.name).startsWith(key));
           if(match&&!idsToExclude.includes(match.id))idsToExclude.push(match.id);
         }catch(err){if(currentGen!==generationSeq.current)return;if(err instanceof Error&&['guest_limit_reached','login_required'].includes(err.message))throw err;}

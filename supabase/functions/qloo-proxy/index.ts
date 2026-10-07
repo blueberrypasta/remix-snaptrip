@@ -231,7 +231,252 @@ function isFavoritePlace(place: any, ids: Set<string>, names: string[]): boolean
   });
 }
 
-async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string;foodApproach?: string;shoppingKind?: string} = {}, excludedNames: string[] = []): Promise<{ places: QlooPlaceResult[] } | Response> {
+// TypeScript helper functions for Qloo food preference resolution and post-filtering.
+// These functions are designed to be embedded directly into a single-file Deno server.
+
+interface TagResult {
+  id: string;
+  name: string;
+}
+
+interface TagsResponse { results?: {tags?: TagResult[]}; }
+
+interface PlaceTagsEntry {
+  id?: string;
+  tag_id?: string;
+}
+
+interface PrimaryGenre {
+  id?: string;
+}
+
+interface Properties {
+  primary_genre?: PrimaryGenre;
+  cuisine_description?: string;
+}
+
+interface PlaceRecord {
+  tags?: PlaceTagsEntry[];
+  properties?: Properties;
+}
+
+const CACHE_MAX_SIZE = 20;
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+type CacheValue = { value: string; expiresAt: number };
+const cache = new Map<string, CacheValue>();
+
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function isValidQuery(query: string): boolean {
+  const trimmed = query.trim().toLowerCase();
+  if (!trimmed) return false;
+  return /^[a-z][a-z -]{1,59}$/.test(trimmed);
+}
+
+function getCacheKey(apiUrl: string, englishQuery: string): string {
+  // Key includes apiUrl and normalized query, never the API key
+  return `${apiUrl}|${englishQuery.trim().toLowerCase()}`;
+}
+
+function getCachedTag(cacheKey: string): string | null {
+  const entry = cache.get(cacheKey);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    cache.delete(cacheKey);
+    return null;
+  }
+  return entry.value;
+}
+
+function setCachedTag(cacheKey: string, tagId: string): void {
+  // Evict oldest entries if exceeding max size
+  if (cache.size >= CACHE_MAX_SIZE) {
+    const firstKey = cache.keys().next().value;
+    if (firstKey !== undefined) {
+      cache.delete(firstKey);
+    }
+  }
+  cache.set(cacheKey, { value: tagId, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+/**
+ * Resolves an English canonical dish term to a specific Qloo tag ID.
+ * Validates input, queries /v2/tags with strict filtering, and caches successful results.
+ * Throws errors for invalid inputs, upstream issues, or lack of exact match.
+ */
+export async function resolveFoodTag(
+  apiKey: string,
+  apiUrl: string,
+  englishQuery: string
+): Promise<string> {
+  if (!isValidQuery(englishQuery)) {
+    throw new Error('unsupported_preference');
+  }
+
+  const normalizedQuery = englishQuery.trim().toLowerCase();
+  const normQ = normalizeName(normalizedQuery);
+  const targetNames = [normQ, normQ + 'restaurant'];
+
+  const cacheKey = getCacheKey(apiUrl, normalizedQuery);
+  const cached = getCachedTag(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const params = new URLSearchParams({'filter.query':normalizedQuery,take:'30'});
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),5000);
+  let tags:TagResult[];
+  try {
+    const response=await fetch(`${apiUrl}/v2/tags?${params}`,{headers:{'X-Api-Key':apiKey},signal:controller.signal});
+    if(!response.ok)throw new Error(response.status===429?'rate_limited':'upstream_error');
+    const data:unknown=await response.json();
+    const raw=data && typeof data==='object' ? (data as TagsResponse).results?.tags : null;
+    if(!Array.isArray(raw))throw new Error('upstream_error');
+    tags=raw.filter(t=>t && typeof t==='object' && typeof t.id==='string' && typeof t.name==='string');
+  } finally { clearTimeout(timeout); }
+
+  // Allowed namespaces for selection priority
+  const ALLOWED_PREFIXES = [
+    'urn:tag:menu_highlight:qloo:',
+    'urn:tag:specialty_dish:place:',
+    'urn:tag:genre:place:restaurant:'
+  ];
+
+  type Candidate = { id: string; prefixIndex: number };
+  const candidates: Candidate[] = [];
+
+  for (const tag of tags) {
+    if (typeof tag.id !== 'string' || typeof tag.name !== 'string') continue;
+    
+    const tagNameNorm = normalizeName(tag.name);
+    if (!targetNames.includes(tagNameNorm)) continue;
+
+    // Check if it belongs to one of the allowed prefixes
+    let matchedPrefixIndex = -1;
+    for (let i = 0; i < ALLOWED_PREFIXES.length; i++) {
+      if (tag.id.startsWith(ALLOWED_PREFIXES[i])) {
+        matchedPrefixIndex = i;
+        break;
+      }
+    }
+
+    if (matchedPrefixIndex !== -1) {
+      candidates.push({ id: tag.id, prefixIndex: matchedPrefixIndex });
+    }
+  }
+
+  if (candidates.length === 0) {
+    throw new Error('unsupported_preference');
+  }
+
+  // Sort by prefix index (priority: menu_highlight=0, specialty_dish=1, genre=2)
+  // Then by ID stability if needed, though prefix determines category primarily
+  candidates.sort((a, b) => a.prefixIndex - b.prefixIndex);
+
+  const selectedTagId = candidates[0].id;
+  setCachedTag(cacheKey, selectedTagId);
+
+  return selectedTagId;
+}
+
+/**
+ * Checks if a place record satisfies cuisine and optional dish constraints based on its tags.
+ * Fails closed if proof is missing. Does not use free-text name/description fallbacks for dishes.
+ */
+export function matchesFoodConstraint(
+  place: unknown,
+  cuisine: string,
+  dishTag?: string
+): boolean {
+  // Guard against non-object or null places
+  if (typeof place !== 'object' || place === null) {
+    return false;
+  }
+
+  const p = place as PlaceRecord;
+
+  // Collect all relevant tag IDs from the place
+  const tagIds = new Set<string>();
+
+  if (Array.isArray(p.tags)) {
+    for (const t of p.tags) {
+      if (t && typeof t === 'object') {
+        if (typeof t.id === 'string') {
+          tagIds.add(t.id);
+        } else if (typeof t.tag_id === 'string') {
+          tagIds.add(t.tag_id);
+        }
+      }
+    }
+  }
+
+  // Also consider primary_genre.id if present in properties
+  if (p.properties && typeof p.properties === 'object') {
+    if (p.properties.primary_genre && typeof p.properties.primary_genre === 'object') {
+      if (typeof p.properties.primary_genre.id === 'string') {
+        tagIds.add(p.properties.primary_genre.id);
+      }
+    }
+  }
+
+  // Normalize cuisine for matching logic
+  const normCuisine = cuisine.trim().toLowerCase();
+  const hasCuisineConstraint = normCuisine !== '' && normCuisine !== 'any';
+
+  if(hasCuisineConstraint && !tagIds.has(`urn:tag:genre:place:restaurant:${normCuisine}`) && !tagIds.has(`urn:tag:cuisine:qloo:${normCuisine}`)) return false;
+
+  // If there's a dish tag requirement, verify it exists exactly or via equivalent namespaces
+  if (dishTag && typeof dishTag === 'string' && dishTag.length > 0) {
+    if (!tagIds.has(dishTag)) {
+      // Allow equivalent slugs across approved namespaces if the base slug matches
+      // Extract slug from dishTag assuming format urn:tag:<namespace>:<slug_part>...
+      // We need to find if any other tag in tagIds shares the same semantic identity
+      
+      // Parse the dishTag to extract potential equivalents
+      // Example: urn:tag:menu_highlight:qloo:ramen -> slug "ramen"
+      // Equivalents: urn:tag:specialty_dish:place:ramen, urn:tag:genre:place:restaurant:ramen
+      
+      const parts = dishTag.split(':');
+      if (parts.length >= 4) {
+        const lastPart = parts[parts.length - 1];
+        // Construct potential alternatives using other prefixes
+        const altPrefixes = [
+          'urn:tag:specialty_dish:place:',
+          'urn:tag:genre:place:restaurant:',
+          'urn:tag:menu_highlight:qloo:'
+        ];
+        
+        let foundEquivalent = false;
+        for (const prefix of altPrefixes) {
+          if (prefix === dishTag.substring(0, dishTag.lastIndexOf(lastPart))) continue;
+          
+          const candidateId = prefix + lastPart;
+          if (tagIds.has(candidateId)) {
+            foundEquivalent = true;
+            break;
+          }
+        }
+
+        if (!foundEquivalent) {
+          // No exact match and no valid cross-namespace equivalent found
+          // Fail closed: do not rely on name/description free text for dish verification
+          return false;
+        }
+      } else {
+        // Malformed dishTag structure cannot be verified safely
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string;foodApproach?: string;shoppingKind?: string;foodQuery?: string} = {}, excludedNames: string[] = []): Promise<{ places: QlooPlaceResult[] } | Response> {
   // Optional explicit entities; generic tastes are represented by tags.
   if (interests.length > 3) {
     return new Response(JSON.stringify({ error: 'invalid_interest_count' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -270,11 +515,17 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
   const drink = options.drink ?? 'any';
   const shoppingKind=options.shoppingKind ?? 'any';
   const foodApproach=options.foodApproach ?? 'familiar';
-  const filterCuisine=foodApproach==='familiar'?cuisine:'any';
+  const filterCuisine=options.foodQuery || foodApproach==='familiar'?cuisine:'any';
+  const foodQuery=options.foodQuery ?? '';
+  if(typeof foodQuery!=='string' || (foodQuery!=='' && !/^[a-z][a-z -]{1,59}$/.test(foodQuery))) return Response.json({error:'unsupported_preference'},{status:422});
   if (!['any','thrift','vintage','secondhand'].includes(shoppingKind) || !['food','shopping','visits'].includes(category) || !['balanced','popular','discover'].includes(mode)
-    || !['any','korean','japanese','italian','mexican','american','vegetarian'].includes(cuisine)
+    || !['any','korean','japanese','italian','mexican','american','vegetarian','vietnamese','thai','chinese','indian','french','mediterranean','greek','spanish','brazilian'].includes(cuisine)
     || !['familiar','local','both'].includes(foodApproach) || !['any','matcha'].includes(drink) || ![5000,15000,30000].includes(radius) || !Number.isInteger(priceMax) || priceMax < 0 || priceMax > 4) {
     return Response.json({error:'invalid_options'}, {status:400});
+  }
+  let dishTag:string|undefined;
+  if(category==='food' && foodQuery){
+    try{dishTag=await resolveFoodTag(qlooApiKey,qlooApiUrl,foodQuery);}catch(error){const code=error instanceof Error&&['unsupported_preference','rate_limited'].includes(error.message)?error.message:'upstream_error';return Response.json({error:code},{status:code==='unsupported_preference'?422:code==='rate_limited'?429:502});}
   }
   const filterLocationStr = `POINT(${Math.round(longitude * 100) / 100} ${Math.round(latitude * 100) / 100})`;
   const interestsStr = interests.join(',');
@@ -297,7 +548,7 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     params.set('filter.tags',tags.map(t=>'urn:tag:genre:place:'+t).join(','));
     params.set('filter.exclude.tags','urn:tag:category:place:shopping_mall,urn:tag:category:place:book_store');
   }
-  if (interestsStr && (category!=='food' || foodApproach!=='local')) params.set('signal.interests.entities',interestsStr);
+  if (interestsStr && (category!=='food' || (foodApproach!=='local' && filterCuisine==='any' && !dishTag))) params.set('signal.interests.entities',interestsStr);
   if (category === 'food' && cuisine !== 'any' && foodApproach!=='local') params.set('signal.interests.tags',`urn:tag:genre:place:restaurant:${cuisine}`);
   if (category === 'visits') params.set('filter.exclude.tags','urn:tag:category:place:restaurant,urn:tag:category:place:grocery_store');
   if (category === 'food') {
@@ -306,6 +557,7 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
       params.set('filter.tags', `${categoryTag},urn:tag:genre:place:restaurant:${filterCuisine}`);
       params.set('operator.filter.tags','intersection');
     }
+    if(dishTag){params.set('filter.tags',[params.get('filter.tags'),dishTag].filter(Boolean).join(','));params.set('operator.filter.tags','intersection');}
     if (priceMax) params.set('filter.price_level.max',String(priceMax));
   }
   if (mode === 'popular') params.set('filter.popularity.min','0.95');
@@ -316,14 +568,14 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     const discoverParams = new URLSearchParams(params);
     discoverParams.set('filter.popularity.max','0.95');
     discoverParams.set('take','10');
-    if (category === 'food' && drink === 'matcha') {
+    if (category === 'food' && drink === 'matcha' && !dishTag) {
       discoverParams.set('filter.tags','urn:tag:category:place:cafe,urn:tag:menu_highlight:qloo:matcha_latte');
       discoverParams.set('operator.filter.tags','intersection');
       discoverParams.set('signal.interests.tags','urn:tag:menu_highlight:qloo:matcha_latte');
       discoverParams.delete('filter.popularity.max');
       if (mode === 'discover') discoverParams.set('filter.popularity.max','0.95');
     }
-    const discoveries = (mode === 'balanced' || (category === 'food' && drink === 'matcha')) ? fetch(`${qlooApiUrl}/v2/insights?${discoverParams}`, {
+    const discoveries = (mode === 'balanced' || (category === 'food' && drink === 'matcha' && !dishTag)) ? fetch(`${qlooApiUrl}/v2/insights?${discoverParams}`, {
       headers:{'X-Api-Key':qlooApiKey}, signal,
     }).then(async r => r.ok ? (await r.json()).results?.entities ?? [] : []).catch(() => []) : null;
     const res = await fetch(`${qlooApiUrl}/v2/insights?${params.toString()}`, {
@@ -364,6 +616,7 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
         return ids.some((id:string)=>allowed.some(t=>id==='urn:tag:genre:place:'+t || id==='urn:tag:category:place:'+t)) && !ids.includes('urn:tag:category:place:shopping_mall') && !ids.includes('urn:tag:category:place:book_store');
       });
     }
+    if(category==='food' && (filterCuisine!=='any' || dishTag))rawPlaces=rawPlaces.filter((p:any)=>matchesFoodConstraint(p,filterCuisine,dishTag) || (!dishTag && drink==='matcha' && Array.isArray(p.tags) && p.tags.some((t:any)=>t.id==='urn:tag:menu_highlight:qloo:matcha_latte')));
     const places: QlooPlaceResult[] = rawPlaces.map((p: any) => {
       if (typeof p.name !== 'string' || !p.name.trim() || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(p.entity_id || p.id || '')) return null;
       const name = p.name;
