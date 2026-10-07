@@ -1317,6 +1317,18 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
       };
     }).filter(Boolean).slice(0, 5);
 
+    // Exact dish tags are sparse in Qloo (e.g. "pasta" matched 0-1 Italian places in Irvine).
+    // Top up with same-cuisine places so a common dish never returns an empty or single result.
+    if (dishTag && places.length < 3 && !michelin && cuisine !== 'any') {
+      const broader = await handleRecommend(qlooApiKey, qlooApiUrl, interests, location, { ...options, foodQuery: '', foodApproach: 'familiar', drink: 'any' }, excludedNames);
+      if (!(broader instanceof Response)) {
+        for (const p of broader.places) {
+          if (places.length >= 5) break;
+          if (!places.some(x => x.id === p.id)) places.push(p);
+        }
+      }
+    }
+
     return { places };
   } catch (error) {
 
