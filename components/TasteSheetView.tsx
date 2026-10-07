@@ -279,8 +279,8 @@ export function TasteSheetView(props: Props) {
                     rows={5}
                     disabled={isBusy || isRecording}
                     placeholder={language === 'ko'
-                      ? '오늘은 어떤 곳에 가고 싶으세요?\n메뉴, 좋아하는 맛, 거리나 가격을 편하게 알려주세요.'
-                      : 'What are you in the mood for?\nAdd a dish, preferred flavors, distance or budget.'}
+                      ? '오늘은 어떤 곳에 가고 싶으세요?\n좋아하는 가게, 찾는 음식, 거리·가격을 알려주세요.'
+                      : 'What are you in the mood for?\nAdd favorite places, a dish, distance or price range.'}
                     aria-label={language === 'ko' ? '취향 또는 추가 요청' : 'Taste or additional request'}
                     className="w-full min-h-[156px] bg-white/[0.03] border border-white/[0.15] rounded-[20px] p-4 pb-14 text-[16px] leading-[1.65] text-white placeholder:text-white/50 focus:outline-none focus:border-emerald-400/50 focus:bg-white/[0.05] transition-all resize-none disabled:opacity-50"
                     style={{ fontSize: '16px',backgroundColor:'rgba(255,255,255,0.03)',color:'inherit' }}
@@ -317,8 +317,8 @@ export function TasteSheetView(props: Props) {
                 {voiceNotice && <p role="status" className="text-[12px] text-emerald-300">{language==='ko'?'말씀하신 내용을 정리했어요. 수정한 뒤 추천받기를 눌러주세요.':'Your voice is ready as text. Edit it and tap Recommend.'}</p>}
                 <details className="text-[12px] text-white/55">
                   <summary className="cursor-pointer min-h-9 flex items-center">{language==='ko'?'이렇게 말하면 더 잘 찾아요 ›':'Examples for better matches ›'}</summary>
-                  <p className="mb-2">{language==='ko'?'짧게 “햄버거 먹고 싶어”라고 해도 괜찮아요. 원하는 맛·분위기·거리·가격을 더하면 결과가 구체적이에요.':'“I want a burger” works too. Add flavors, atmosphere, distance or budget for more specific matches.'}</p>
-                  {(language==='ko'?['육즙 많은 두툼한 햄버거, 조용히 앉아서 먹는 곳. 5km 안에서 $$ 이하로.','아니, 오늘은 햄버거 말고 베트남 쌀국수. 진한 육수에 안 맵게. 거리와 가격은 그대로.','유명 브랜드보다 빈티지 구제옷 매장. 15km 안에서 새로운 곳으로.']:['A juicy, thick burger in a quiet sit-down place, within 5 km, $$ or less.','Actually, Vietnamese pho instead of burgers today. Rich broth, not spicy. Keep the distance and budget.','Vintage clothing stores rather than famous brands, within 15 km.']).map(example=><button key={example} disabled={isBusy||isRecording} onClick={()=>onInput(example)} className="block w-full text-left rounded-xl border border-white/10 p-3 mb-2 text-white/70 leading-relaxed">{example}</button>)}
+                  <p className="mb-2">{language==='ko'?'짧게 “햄버거 먹고 싶어”라고 해도 괜찮아요. 좋아하는 가게·찾는 음식·거리·가격대를 더해보세요. 예시를 누르면 입력칸에 들어가요.':'“I want a burger” works too. Add favorite places, a dish, distance or price range. Tap an example to fill the input.'}</p>
+                  {(language==='ko'?['평소 In-N-Out을 좋아해요. 그곳은 제외하고 5km 안에서 $$ 이하인 새로운 식당을 추천해줘.','아니, 오늘은 베트남 쌀국수로 바꿔줘. 거리와 가격 조건은 그대로.','구제옷을 파는 중고 의류 매장을 15km 안에서 찾아줘.']:['I usually like In-N-Out. Exclude it and recommend a new restaurant within 5 km, $$ or less.','Actually, switch to Vietnamese pho today. Keep the distance and price range.','Find secondhand clothing stores within 15 km.']).map(example=><button key={example} disabled={isBusy||isRecording} onClick={()=>onInput(example)} className="block w-full text-left rounded-xl border border-white/10 p-3 mb-2 text-white/70 leading-relaxed">{example}</button>)}
                   <p>{language==='ko'?'메뉴·영업 여부는 방문 전 지도에서 확인해주세요.':'Verify menu availability and hours before visiting.'}</p>
                 </details>
                 {history.length>0 && <div className="flex items-start justify-between gap-3 text-[12px] text-white/45"><details className="flex-1"><summary className="cursor-pointer min-h-9 flex items-center">{language==='ko'?`이번 대화 ${history.length}개 · 최신 요청 우선`:`This conversation (${history.length}) · latest request wins`}</summary><ol className="space-y-2 pl-4 list-decimal">{history.map((entry,i)=><li key={i}>{entry}</li>)}</ol><p className="mt-2">{language==='ko'?'이 페이지에서만 기억해요.':'Kept only on this page.'}</p></details><button onClick={onReset} disabled={isBusy||isRecording} className="min-h-9 text-emerald-300 whitespace-nowrap">{language==='ko'?'새로 시작':'Start fresh'}</button></div>}
