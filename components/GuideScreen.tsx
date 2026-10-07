@@ -204,8 +204,8 @@ export const GuideScreen: React.FC<GuideScreenProps> = ({ landmarkName, language
         <div className="flex-1 flex flex-col items-center justify-center gap-6">
           <div className="w-14 h-14 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
           <div className="flex flex-col items-center gap-1 animate-pulse">
-            <p className="text-[10px] font-black text-primary uppercase tracking-[0.5em]">Initializing Guide...</p>
-            {locationHint && <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Searching in {locationHint}</p>}
+            <p className="text-[10px] font-black text-primary uppercase tracking-[0.5em]">{t('initializingGuide')}</p>
+            {locationHint && <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{t('searchingIn')} {locationHint}</p>}
           </div>
         </div>
       ) : (
@@ -262,7 +262,7 @@ export const GuideScreen: React.FC<GuideScreenProps> = ({ landmarkName, language
                   ) : (
                     <div className="h-full flex flex-col justify-center items-center opacity-20 gap-4">
                         <div className="w-12 h-0.5 bg-primary animate-pulse"></div>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-widest animate-pulse">Consulting Expert Guide...</p>
+                        <p className="text-[10px] font-black text-primary uppercase tracking-widest animate-pulse">{t('consultingGuide')}</p>
                     </div>
                   )}
                 </div>
