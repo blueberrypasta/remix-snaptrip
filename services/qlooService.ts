@@ -6,6 +6,9 @@ export interface QlooOptions {
   mode: 'balanced' | 'popular' | 'discover';
   drink?: 'any' | 'matcha';
   foodQuery?: string;
+  searchQuery?: string;
+  openNow?: boolean;
+  language?: string;
   shoppingKind?: 'any' | 'thrift' | 'vintage' | 'secondhand';
   foodApproach?: 'familiar' | 'local' | 'both';
   cuisine: 'any' | 'korean' | 'japanese' | 'italian' | 'mexican' | 'american' | 'vegetarian' | 'vietnamese' | 'thai' | 'chinese' | 'indian' | 'french' | 'mediterranean' | 'greek' | 'spanish' | 'brazilian';
@@ -26,6 +29,10 @@ export interface QlooPlace {
   rating?: number;
   ratingSource?: 'qloo' | 'google';
   reviewCount?: number;
+  openNow?: boolean;
+  openingHoursText?: string[];
+  rankingSource?: 'google' | 'qloo';
+  googleAttributions?: Array<{displayName:string;uri:string}>;
   priceLevel?: number;
   id: string;
   name: string;

@@ -95,6 +95,12 @@ export function normalizeTasteDraft(value: unknown): TasteDraft {
     if(!/^[a-z][a-z -]{1,59}$/.test(query))throw new Error('unsupported_preference');
     options.foodQuery=query;options.category='food';
   }
+  if (typeof optionsRaw.searchQuery==='string') {
+    const query=optionsRaw.searchQuery.trim().slice(0,120);
+    if(query && !/^[a-zA-Z0-9 ,&'()/-]{2,120}$/.test(query))throw new Error('unsupported_preference');
+    options.searchQuery=query;
+  }
+  if(typeof optionsRaw.openNow==='boolean')options.openNow=optionsRaw.openNow;
   const generic = extractGenericTasteOptions(favoritesRaw.flatMap(f=>f && typeof f.name==='string'?[f.name]:[]));
   if ((!options.cuisine || options.cuisine === 'any') && generic.cuisine) options.cuisine=generic.cuisine;
   if (optionsRaw.drink === 'any' || optionsRaw.drink === 'matcha') options.drink=optionsRaw.drink;
@@ -148,6 +154,8 @@ Language for Summary Output: ${language}. Language ONLY controls output language
 
 First translate/transcribe the complete input preferences into English, faithfully preserving the latest request and negations. Then derive API fields from that English meaning. Do NOT lose specific foods merely because the input is Korean. 베트남 쌀국수 / 포 / pho -> cuisine:vietnamese, foodQuery:pho, category:food. Vietnamese cuisine alone -> cuisine:vietnamese. Specific food requirements override previous named-brand affinity. Explicitly asking for a cuisine or dish uses foodApproach:familiar unless the user explicitly asks to broaden into other cuisines. English query must be a canonical dish name, NOT a venue/brand name. New specific food/cuisine requests reset old cuisine, drink and dish constraints: set drink:any when old matcha is unrelated; emit foodQuery:"" when changing cuisine without keeping a specific dish. For unsupported cuisines still emit the specific canonical English dish when stated; never broaden a specific dish request silently.
 
+Always emit options.searchQuery: a short English venue search phrase for the latest desired visit, preserving explicit cuisine/dish/store/atmosphere requirements. E.g. Vietnamese pho restaurants, vintage clothing stores, quiet art museums. This phrase describes the places being sought, not previous liked business names. Include constraints retained from earlier context unless the latest request replaces them. On category change reset foodQuery:"", cuisine:any, drink:any, shoppingKind:any as appropriate. Emit openNow:true only if explicitly requesting currently open places, false otherwise. Never put an entire personal narrative or identifying information in searchQuery.
+
 Extracted Data Format (JSON):
 {
   "englishRequest": "Faithful English translation of preferences including latest changes. Not displayed as the localized summary.",
@@ -157,6 +165,8 @@ Extracted Data Format (JSON):
   ],
   "options": {
     "cuisine": "any"|"korean"|"japanese"|"italian"|"mexican"|"american"|"vegetarian"|"vietnamese"|"thai"|"chinese"|"indian"|"french"|"mediterranean"|"greek"|"spanish"|"brazilian"; omit if unknown,
+    "searchQuery": "Short English venue search phrase max120 ASCII characters; always emit for a clear visit request",
+    "openNow": boolean; true only if explicitly asking for currently open places,
     "foodQuery": "Canonical English name of specifically requested food such as pho, ramen, pizza, sushi; lowercase ASCII letters/spaces/hyphens max60; omit if no specific food. Empty string explicitly clears earlier dish constraint.",
     "drink": "any"|"matcha"; omit if unknown,
     "foodApproach": "familiar"|"local"|"both"; only when user explicitly requests familiar food, local exploration, or a mix; omit otherwise,

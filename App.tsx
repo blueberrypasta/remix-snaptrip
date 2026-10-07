@@ -502,6 +502,7 @@ const App: React.FC = () => {
       <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 px-4 py-3 text-center text-[11px] text-slate-400">
         <a href="/identify-landmark-from-photo.html" className="underline underline-offset-4 hover:text-white">How to identify a landmark</a>
         <a href="/privacy.html" className="underline underline-offset-4 hover:text-white">Privacy · 개인정보처리방침</a>
+        <span className="mx-2">·</span><a href="/terms.html" className="underline underline-offset-4 hover:text-white">Terms · 이용약관</a>
       </footer>
       <HistorySidebar history={history} onSelect={handleHistorySelection} isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} language={language} onClearHistory={handleClearHistory} user={user} isSyncing={isSyncing} onRefresh={() => user && syncUserData(user.id)} />
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setLoginModalOpen(false)} onLogin={() => {}} language={language} />

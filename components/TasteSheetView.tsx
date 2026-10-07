@@ -361,6 +361,8 @@ export function TasteSheetView(props: Props) {
                                 {formatRating(place.rating, place.ratingSource, place.reviewCount)}
                              </span>
                           </div>
+                          {typeof place.openNow==='boolean' && <p className={`text-[12px] mt-1 ${place.openNow?'text-emerald-300':'text-white/50'}`}>{language==='ko'?(place.openNow?'영업 중':'현재 영업 종료'):(place.openNow?'Open now':'Closed now')}</p>}
+                          {place.ratingSource==='google' && <p translate="no" className="text-[12px] text-white/60 whitespace-nowrap font-sans font-normal mt-1">Google Maps</p>}
                         </div>
 
                         <div className="self-center text-white/30 group-open:rotate-90 transition-transform duration-200">
@@ -385,10 +387,12 @@ export function TasteSheetView(props: Props) {
                          {place.descriptionUnavailable && <p className="text-[12px] text-white/45">{language==='ko'?'설명을 번역하지 못했어요. 지도에서 확인해주세요.':'Description translation unavailable. Check the map.'}</p>}
                          <div className="rounded-xl border border-white/10 p-3">
                            <p className="text-[12px] font-semibold text-white/75 mb-2">{language==='ko'?'정규 영업시간 · 현지 시간':'Regular opening hours · local time'}</p>
-                           {formatOpeningHours(place.hours,language).length ? <dl className="grid grid-cols-[2rem_1fr] gap-x-3 gap-y-1 text-[12px] text-white/60">{formatOpeningHours(place.hours,language).map(row=><React.Fragment key={row.day}><dt>{row.day}</dt><dd>{row.value}</dd></React.Fragment>)}</dl> : <p className="text-[12px] text-white/50">{language==='ko'?'영업시간 미제공 · 지도에서 확인':'Hours unavailable · check the map'}</p>}
-                           <p className="text-[10px] text-white/35 mt-2">{language==='ko'?'Qloo 제공 · 방문 전 지도에서 최신 시간 확인':'Source: Qloo · check latest hours on the map'}</p>
+                           {place.openingHoursText?.length ? <ul className="space-y-1 text-[12px] text-white/60">{place.openingHoursText.map((row,i)=><li key={i}>{row}</li>)}</ul> : formatOpeningHours(place.hours,language).length ? <dl className="grid grid-cols-[2rem_1fr] gap-x-3 gap-y-1 text-[12px] text-white/60">{formatOpeningHours(place.hours,language).map(row=><React.Fragment key={row.day}><dt>{row.day}</dt><dd>{row.value}</dd></React.Fragment>)}</dl> : <p className="text-[12px] text-white/50">{language==='ko'?'영업시간 미제공 · 지도에서 확인':'Hours unavailable · check the map'}</p>}
+                           <p className="text-[10px] text-white/35 mt-2">{place.ratingSource==='google'?'Google Maps':(language==='ko'?'Qloo 제공':'Source: Qloo')} · {language==='ko'?'방문 전 최신 시간 확인':'Check latest hours before visiting'}</p>
                          </div>
 
+                         {place.rankingSource && <p className="text-[12px] text-white/50">{place.rankingSource==='qloo'?(language==='ko'?'Qloo 취향 순위 반영':'Ranked with Qloo taste affinity'):(language==='ko'?'요청 조건에 맞는 검색 결과':'Search results matching your request')}</p>}
+                         {place.googleAttributions?.map((a,i)=><a key={i} href={/^https:\/\//.test(a.uri)?a.uri:undefined} target="_blank" rel="noopener noreferrer" className="block text-[12px] text-white/60">{a.displayName}</a>)}
                          {isValidGoogleMapUrl(place.url) && (
                            <a
                              href={place.url}

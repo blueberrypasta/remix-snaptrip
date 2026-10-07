@@ -19,6 +19,10 @@ interface QlooPlaceResult {
   rating?: number;
   ratingSource?: 'qloo' | 'google';
   reviewCount?: number;
+  openNow?: boolean;
+  openingHoursText?: string[];
+  rankingSource?: 'google'|'qloo';
+  googleAttributions?: Array<{displayName:string;uri:string}>;
   priceLevel?: number;
   id: string;
   name: string;
@@ -476,7 +480,245 @@ export function matchesFoodConstraint(
   return true;
 }
 
-async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string;foodApproach?: string;shoppingKind?: string;foodQuery?: string} = {}, excludedNames: string[] = []): Promise<{ places: QlooPlaceResult[] } | Response> {
+const HYBRID_LANGS = ['ko', 'en', 'ja', 'zh-CN', 'zh-TW', 'es', 'fr', 'de', 'it', 'pt', 'vi', 'th', 'id'];
+const PRICE_MAP: Record<string, number> = { FREE: 0, INEXPENSIVE: 1, MODERATE: 2, EXPENSIVE: 3, VERY_EXPENSIVE: 4 };
+
+function hybridValidateQuery(q: any): string | null {
+  if(q===undefined)return '';
+  if (typeof q !== 'string') return null;
+  const trimmed = q.trim();
+  if (!trimmed) return '';
+  if (trimmed.length > 120) return null;
+  for (let i = 0; i < trimmed.length; i++) {
+    const c = trimmed.charCodeAt(i);
+    if (c < 32 || c > 126) return null;
+  }
+  if (/https?:\/\//i.test(trimmed)) return null;
+  return trimmed;
+}
+
+function hybridDeriveQuery(opts:any):string {
+  const query=opts.searchQuery?.trim();
+  if(query)return query;
+  if(opts.category==='shopping' && opts.shoppingKind && opts.shoppingKind!=='any')return `${opts.shoppingKind} clothing stores`;
+  if(opts.category==='food'){
+    if(opts.foodQuery)return `${opts.foodQuery} restaurants`;
+    if(opts.drink==='matcha')return 'matcha cafes';
+    if(opts.cuisine && opts.cuisine!=='any' && opts.foodApproach!=='local')return `${opts.cuisine} restaurants`;
+    return 'restaurants';
+  }
+  return opts.category==='shopping'?'shopping':'tourist attractions';
+}
+
+function hybridHaversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function hybridBuildGoogleRequest(apiKey: string, query: string, lang: string, loc: { latitude: number; longitude: number }, radius: number, openNow: boolean | undefined, priceMax: number | undefined,options:any) {
+  const body: any = { textQuery: query, languageCode: lang, pageSize: 10, locationBias: { circle: { center: { latitude: loc.latitude, longitude: loc.longitude }, radius: radius } } };
+  if(options.category==='food'){body.includedType=options.drink==='matcha'?'cafe':'restaurant';body.strictTypeFiltering=true;}
+  if (openNow === true) body.openNow = true;
+  if (priceMax !== undefined && priceMax > 0) {
+    const levels = Object.entries(PRICE_MAP).filter(([_, v]) => v <= priceMax).map(([k]) => `PRICE_LEVEL_${k}`);
+    if (levels.length) body.priceLevels = levels;
+  }
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Goog-Api-Key': apiKey,
+    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.currentOpeningHours,places.regularOpeningHours,places.businessStatus,places.types,places.attributions',
+  };
+  return { method: 'POST', headers, body: JSON.stringify(body) };
+}
+
+function hybridSanitizePlace(p: any): QlooPlaceResult | null {
+  if (!p || typeof p.id !== 'string' || !/^[A-Za-z0-9_-]{10,200}$/.test(p.id)) return null;
+  const nameObj = p.displayName;
+  const name = nameObj?.text ? String(nameObj.text).slice(0, 200) : '';
+  if (!name) return null;
+  const address = p.formattedAddress ? String(p.formattedAddress).slice(0, 300) : '';
+  const lat = p.location?.latitude;
+  const lng = p.location?.longitude;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat)>90 || Math.abs(lng)>180) return null;
+  const ratingRaw = p.rating;
+  let rating:number|undefined;
+  if (typeof ratingRaw === 'number' && isFinite(ratingRaw) && ratingRaw >= 0 && ratingRaw <= 5) rating = Math.round(ratingRaw * 10) / 10;
+  const countRaw = p.userRatingCount;
+  let reviewCount:number|undefined;
+  if (typeof countRaw === 'number' && Number.isInteger(countRaw) && countRaw >= 0) reviewCount = countRaw;
+  const status = p.businessStatus;
+  if (status && status !== 'OPERATIONAL') return null;
+  const curOH = p.currentOpeningHours;
+  let openNow: boolean | undefined;
+  if (curOH && typeof curOH.openNow === 'boolean') openNow = curOH.openNow;
+  const regOH = p.regularOpeningHours;
+  let openingHoursText: string[] | undefined;
+  if (regOH && Array.isArray(regOH.weekdayDescriptions)) {
+    const descs = regOH.weekdayDescriptions.filter((d: any) => typeof d === 'string').slice(0, 7).map((d: string) => d.slice(0, 300));
+    if (descs.length) openingHoursText = descs;
+  }
+  const attrs = p.attributions;
+  let googleAttributions: Array<{ displayName: string; uri: string }> | undefined;
+  if (Array.isArray(attrs) && attrs.length) {
+    const valid = attrs.slice(0, 10).map((a: any) => ({
+      displayName: typeof a.displayName === 'string' ? a.displayName.slice(0, 200) : '',
+      uri: typeof a.uri === 'string' && /^https:\/\//.test(a.uri) ? a.uri : '',
+    })).filter((a: any) => a.displayName && a.uri);
+    if (valid.length) googleAttributions = valid;
+  }
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name},${address}`)}&query_place_id=${encodeURIComponent(p.id)}`;
+  return { id: `google:${p.id}`, name, address, latitude:lat, longitude:lng, priceLevel:PRICE_MAP[String(p.priceLevel).replace('PRICE_LEVEL_','')], ratingSource:'google', url: mapUrl, reviewCount, rating, openNow, openingHoursText, rankingSource: 'google', googleAttributions };
+}
+
+function hybridGoogleIds(entity:any):string[]{
+  const links=[entity.external?.google_place,entity.properties?.external?.google_place].flatMap(link=>Array.isArray(link)?link:link?[link]:[]);
+  return links.map((link:any)=>link?.place_id).filter((id:any)=>typeof id==='string');
+}
+
+async function hybridFetchQlooMatch(qlooKey: string, qlooUrl: string, placeName: string, types: string[], googleId:string, excludedNames:string[], signal: AbortSignal): Promise<string[]> {
+  try {
+    const params = new URLSearchParams({ query: placeName, take: '5' });
+    if (types.length) params.set('types', types.join(','));
+    const res = await fetch(`${qlooUrl}/search?${params.toString()}`, {
+      headers: { 'X-Api-Key': qlooKey },
+      signal,
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const entities = data.results?.entities ?? data.results ?? data.entities ?? [];
+    if (!Array.isArray(entities)) return [];
+    return entities.filter((e:any)=>hybridGoogleIds(e).includes(googleId) && !isFavoritePlace(e,new Set(),excludedNames.map(favoriteNameKey))).map((e: any) => e.entity_id ?? e.id).filter((id: any) => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+  } catch {
+    return [];
+  }
+}
+
+async function hybridRankWithQloo(qlooKey: string, qlooUrl: string, matchedIds: string[], interests: string[], cuisineGenre: string | null, signal: AbortSignal): Promise<string[]> {
+  if (!matchedIds.length) return [];
+  const params=new URLSearchParams({'filter.type':'urn:entity:place','filter.results.entities':matchedIds.join(','),take:String(matchedIds.length)});
+  if(interests.length)params.set('signal.interests.entities',interests.join(','));
+  else if(cuisineGenre)params.set('signal.interests.tags',cuisineGenre);
+  else return [];
+  const url=`${qlooUrl}/v2/insights?${params}`;
+  try {
+    const res = await fetch(url, { headers: { 'X-Api-Key': qlooKey }, signal });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const ents = data.results?.entities ?? data.results ?? [];
+    if (!Array.isArray(ents)) return [];
+    const ranked = ents.map((e: any) => e.id ?? e.entity_id).filter((id: any) => typeof id === 'string' && matchedIds.includes(id));
+    const seen = new Set<string>();
+    return ranked.filter((id: string) => { if (seen.has(id)) return false; seen.add(id); return true; });
+  } catch {
+    return [];
+  }
+}
+
+async function handlePlacesHybrid(apiKey: string, qlooKey: string, qlooUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: any, excludedNames: string[]): Promise<{ places: QlooPlaceResult[] } | Response> {
+  if (!apiKey) return new Response(JSON.stringify({ error: 'places_unavailable' }), { status: 503, headers: { 'Content-Type': 'application/json' } });
+  const rawQuery = options.searchQuery;
+  const validatedQuery = hybridValidateQuery(rawQuery);
+  if (validatedQuery === null) return new Response(JSON.stringify({ error: 'invalid_query' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  const query = validatedQuery || hybridDeriveQuery(options);
+  if (!query) return new Response(JSON.stringify({ error: 'no_query' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  const lang = HYBRID_LANGS.includes(options.language) ? options.language : 'en';
+  const openNowOpt = typeof options.openNow === 'boolean' ? options.openNow : undefined;
+  const priceMaxVal = typeof options.priceMax === 'number' && options.priceMax >= 0 && options.priceMax <= 4 ? options.priceMax : undefined;
+  const radius=options.radius ?? 15000;
+  const abortCtrl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtrl.abort(), 8000);
+  let googlePlaces: QlooPlaceResult[] = [];
+  try {
+    const reqOpts = hybridBuildGoogleRequest(apiKey, query, lang, location, radius, openNowOpt, priceMaxVal,options);
+    const gRes = await fetch('https://places.googleapis.com/v1/places:searchText', { ...reqOpts, signal: abortCtrl.signal });
+    if (gRes.status === 429) {clearTimeout(timeoutId);return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: { 'Content-Type': 'application/json' } });}
+    if (!gRes.ok) {clearTimeout(timeoutId);return new Response(JSON.stringify({ error: 'places_unavailable' }), { status: 502, headers: { 'Content-Type': 'application/json' } });}
+    const gData = await gRes.json();
+    const placesArr = Array.isArray(gData.places) ? gData.places : [];
+    const seenIds = new Set<string>();
+    for (const gp of placesArr) {
+      const sanitized = hybridSanitizePlace(gp);
+      if (!sanitized) continue;
+      if (seenIds.has(sanitized.id)) continue;
+      seenIds.add(sanitized.id);
+      if (gp.id && seenIds.has(`raw:${gp.id}`)) continue;
+      if (gp.id) seenIds.add(`raw:${gp.id}`);
+      if(isFavoritePlace({name:sanitized.name},new Set(),excludedNames.map(favoriteNameKey)))continue;
+      if(options.category==='shopping' && options.shoppingKind && options.shoppingKind!=='any' && Array.isArray(gp.types) && gp.types.some((t:string)=>['shopping_mall','book_store','school','university'].includes(t)))continue;
+      if (openNowOpt === true && sanitized.openNow !== true) continue;
+      if (priceMaxVal !== undefined && priceMaxVal > 0) {
+        const pl = gp.priceLevel;
+        if (pl && PRICE_MAP[String(pl).replace('PRICE_LEVEL_', '')] !== undefined && PRICE_MAP[String(pl).replace('PRICE_LEVEL_', '')]! > priceMaxVal) continue;
+        if (PRICE_MAP[String(pl).replace('PRICE_LEVEL_','')]===undefined) continue;
+      }
+      const dist = hybridHaversine(location.latitude, location.longitude, gp.location.latitude, gp.location.longitude);
+      if (dist > radius) continue;
+      googlePlaces.push(sanitized);
+      if (googlePlaces.length >= 10) break;
+    }
+  } catch (e) {
+    clearTimeout(timeoutId);
+    return new Response(JSON.stringify({ error: 'places_unavailable' }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+  }
+  clearTimeout(timeoutId);
+  if (!googlePlaces.length) return { places: [] };
+  const matchAbort = new AbortController();
+  const matchTimeout = setTimeout(() => matchAbort.abort(), 7000);
+  const candidatesToMatch = googlePlaces.slice(0, 8);
+  const matchResults: Map<number, string[]> = new Map();
+  const workerQueue = [...candidatesToMatch.keys()];
+  const workers = Array.from({ length: Math.min(3, workerQueue.length) }, async () => {
+    while (workerQueue.length) {
+      const idx = workerQueue.shift()!;
+      const place = candidatesToMatch[idx];
+      const origId = place.id.replace(/^google:/, '');
+      const typesForSearch = ['urn:entity:place'];
+      const matchedIds = await hybridFetchQlooMatch(qlooKey, qlooUrl, place.name, typesForSearch, origId, excludedNames, matchAbort.signal);
+      const filtered = matchedIds.filter((mid: string) => mid && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mid));
+      if (filtered.length) matchResults.set(idx, filtered);
+    }
+  });
+  await Promise.all(workers);
+  const allMatchedIds = new Set<string>();
+  const candidateToQlooIds: Map<number, string[]> = new Map();
+  for (const [idx, ids] of matchResults) {
+    candidateToQlooIds.set(idx, ids);
+    ids.forEach((id: string) => allMatchedIds.add(id));
+  }
+  const matchedIdList = Array.from(allMatchedIds);
+  let rankedIds: string[] = [];
+  if (matchedIdList.length) {
+    const cuisineGenre = options.category==='food' && options.cuisine && options.cuisine!=='any' ? `urn:tag:genre:place:restaurant:${options.cuisine}` : null;
+    rankedIds = await hybridRankWithQloo(qlooKey, qlooUrl, matchedIdList, interests, cuisineGenre, matchAbort.signal);
+  }
+  clearTimeout(matchTimeout);
+  const finalPlaces: QlooPlaceResult[] = [];
+  const usedOriginalIndices = new Set<number>();
+  for (const rid of rankedIds) {
+    if (finalPlaces.length >= 10) break;
+    for (const [idx, qlooIds] of candidateToQlooIds) {
+      if (usedOriginalIndices.has(idx)) continue;
+      if (qlooIds.includes(rid)) {
+        const orig = candidatesToMatch[idx];
+        const updated: QlooPlaceResult = { ...orig, rankingSource: 'qloo' };
+        finalPlaces.push(updated);
+        usedOriginalIndices.add(idx);
+        break;
+      }
+    }
+  }
+  for (let i = 0; i < googlePlaces.length && finalPlaces.length < 10; i++) {
+    if (!usedOriginalIndices.has(i)) {
+      finalPlaces.push(googlePlaces[i]);
+    }
+  }
+  return { places: finalPlaces.slice(0, 10) };
+}
+
+async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string;foodApproach?: string;shoppingKind?: string;foodQuery?: string;searchQuery?:string;openNow?:boolean;language?:string} = {}, excludedNames: string[] = []): Promise<{ places: QlooPlaceResult[] } | Response> {
   // Optional explicit entities; generic tastes are represented by tags.
   if (interests.length > 3) {
     return new Response(JSON.stringify({ error: 'invalid_interest_count' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -523,6 +765,7 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     || !['familiar','local','both'].includes(foodApproach) || !['any','matcha'].includes(drink) || ![5000,15000,30000].includes(radius) || !Number.isInteger(priceMax) || priceMax < 0 || priceMax > 4) {
     return Response.json({error:'invalid_options'}, {status:400});
   }
+  if(Deno.env.get('GOOGLE_PLACES_API_KEY'))return handlePlacesHybrid(Deno.env.get('GOOGLE_PLACES_API_KEY')!,qlooApiKey,qlooApiUrl,interests,location,options,excludedNames);
   let dishTag:string|undefined;
   if(category==='food' && foodQuery){
     try{dishTag=await resolveFoodTag(qlooApiKey,qlooApiUrl,foodQuery);}catch(error){const code=error instanceof Error&&['unsupported_preference','rate_limited'].includes(error.message)?error.message:'upstream_error';return Response.json({error:code},{status:code==='unsupported_preference'?422:code==='rate_limited'?429:502});}

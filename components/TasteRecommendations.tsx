@@ -119,6 +119,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
       no_preferences:['좋아하는 음식이나 장소를 조금 더 알려주세요.','Tell us a little more about what you like.'],
       empty_results:['조건에 맞는 근처 장소가 없어요. 검색 반경을 넓혀보세요.','No nearby matches for these preferences. Try a wider radius.'],
       location_required:['위치 권한을 허용하고 다시 시도해주세요.','Allow location access and try again.'],
+      places_unavailable:['장소 검색 연결이 원활하지 않아요. 잠시 후 다시 시도해주세요.','Place search is unavailable. Please try again.'],
       unavailable:['연결이 원활하지 않아요. 잠시 후 다시 시도해주세요.','Connection unavailable. Please try again.'],
       microphone:['마이크를 사용할 수 없어요. 글로 입력해주세요.','Microphone unavailable. Please type instead.']};
     return (messages[code]||messages.unavailable)[language==='ko'?0:1];
@@ -209,7 +210,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
       }
 
 
-      const recommendedPlaces = await recommendQloo(Array.from(new Set([...idsToExclude,...(previous?.interestIds||[])])).slice(0,3), loc, mergedOptions, uniqueExcluded);
+      const recommendedPlaces = await recommendQloo(Array.from(new Set([...idsToExclude,...(previous?.interestIds||[])])).slice(0,3), loc, {...mergedOptions,language}, uniqueExcluded);
       if (currentGen !== generationSeq.current) return;
 
       if (!recommendedPlaces || recommendedPlaces.length === 0) {
