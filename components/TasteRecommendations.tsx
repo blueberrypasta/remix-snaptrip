@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { TasteSheetView } from './TasteSheetView';
-import { qlooAvailable, searchQloo, recommendQloo } from '../services/qlooService';
+import { qlooAvailable, searchQloo, recommendQlooDetailed } from '../services/qlooService';
 import type { QlooPlace, QlooOptions } from '../services/qlooService';
 import { localizePlaceDescriptions } from '../services/placePresentationService';
 import { interpretTaste } from '../services/tasteProfileService';
@@ -43,6 +43,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   const [viewState, setViewState] = useState<'composer' | 'results'>('composer');
   const [inputText, setInputText] = useState('');
   const [results, setResults] = useState<QlooPlace[]>([]);
+  const [michelinNearby, setMichelinNearby] = useState<QlooPlace[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [history,setHistory]=useState<string[]>([]);
@@ -119,7 +120,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
     return()=>{clearTimeout(timer);document.body.style.overflow=oldOverflow;window.removeEventListener('keydown',keys);previous?.focus();};
   },[isOpen,handleClose]);
   useEffect(()=>{
-    invalidateAndCleanup();prevContextRef.current=null;setAppliedContext(null);setResults([]);setInputText('');setError(null);setGuestRemaining(null);setViewState('composer');setHistory([]);
+    invalidateAndCleanup();prevContextRef.current=null;setAppliedContext(null);setResults([]);setMichelinNearby([]);setInputText('');setError(null);setGuestRemaining(null);setViewState('composer');setHistory([]);
     const sequence=generationSeq;return()=>{sequence.current++;cancelVoice();};
   },[userId,invalidateAndCleanup,cancelVoice]);
   useEffect(()=>{if(isOpen&&viewState==='composer')textareaRef.current?.focus();},[isOpen,viewState]);
@@ -171,18 +172,20 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
 
       const interestIds=Array.from(new Set([...idsToExclude,...(previous?.interestIds||[])])).slice(0,3);
       let recommendedPlaces:QlooPlace[]=[];
-      try{recommendedPlaces = await recommendQloo(interestIds, loc, {...mergedOptions,language}, uniqueExcluded);}
+      let nearbyMichelin:QlooPlace[]=[];
+      const fetchPlaces=async(opts:QlooOptions)=>{const r=await recommendQlooDetailed(interestIds, loc!, opts, uniqueExcluded);if(r.michelinNearby.length)nearbyMichelin=r.michelinNearby;return r.places;};
+      try{recommendedPlaces = await fetchPlaces({...mergedOptions,language});}
       catch(err){if(!(err instanceof Error && err.message==='unsupported_preference' && mergedOptions.foodQuery))throw err;}
       if (currentGen !== generationSeq.current) return;
       // A specific dish tag (e.g. "pasta") is often missing from Qloo's place tags, so an exact
       // dish filter can come back empty even in dense areas. Relax step by step instead of failing:
       // keep the cuisine but drop the dish, then widen the radius. Empty guest calls are refunded.
       if (!recommendedPlaces.length && !mergedOptions.michelin && mergedOptions.foodQuery) {
-        recommendedPlaces = await recommendQloo(interestIds, loc, {...mergedOptions,foodQuery:'',language}, uniqueExcluded);
+        recommendedPlaces = await fetchPlaces({...mergedOptions,foodQuery:'',language});
         if (currentGen !== generationSeq.current) return;
       }
       if (!recommendedPlaces.length && !mergedOptions.michelin && mergedOptions.radius < 30000) {
-        recommendedPlaces = await recommendQloo(interestIds, loc, {...mergedOptions,foodQuery:'',radius:30000,language}, uniqueExcluded);
+        recommendedPlaces = await fetchPlaces({...mergedOptions,foodQuery:'',radius:30000,language});
         if (currentGen !== generationSeq.current) return;
       }
 
@@ -194,6 +197,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
       if(currentGen!==generationSeq.current)return;
       setOrigin(loc);
       setResults(localized);
+      setMichelinNearby(nearbyMichelin.slice(0,3));
       setViewState('results');
       prevContextRef.current = {
         summary: finalSummary,
@@ -219,5 +223,5 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
   };
 
   const canRecommend = !isBusy && (!!userId || guestRemaining === null || guestRemaining > 0);
-  return <TasteSheetView language={language} isOpen={isOpen} viewState={viewState} inputText={inputText} results={results} error={error} isBusy={isBusy} isRecording={isRecording} guestRemaining={guestRemaining} userId={userId} voiceNotice={voiceNotice} appliedSummary={appliedContext?.summary||null} origin={origin} canRecommend={canRecommend} dialogRef={dialogRef} textareaRef={textareaRef} t={t} viewport={viewport} onOpen={()=>setIsOpen(true)} onClose={handleClose} onInput={setInputText} onRecommend={handleSubmit} onMicrophone={()=>{setError(null);setVoiceNotice(false);void voice.start();}} voiceState={voice.state} voiceSeconds={voice.seconds} onVoiceStop={voice.stop} onVoiceSend={()=>void voice.send()} onVoiceCancel={voice.cancel} history={history} stablePreferences={appliedContext?.stablePreferences||[]} onReset={()=>{invalidateAndCleanup();prevContextRef.current=null;setAppliedContext(null);setHistory([]);setResults([]);setInputText('');setError(null);setViewState('composer');}} onDismissError={()=>setError(null)} onBackResults={()=>setViewState('results')} onRefine={()=>{setViewState('composer');setInputText('');setVoiceNotice(false);setError(null);}} onLogin={()=>{handleClose();onLogin();}} />;
+  return <TasteSheetView language={language} isOpen={isOpen} viewState={viewState} inputText={inputText} results={results} michelinNearby={michelinNearby} error={error} isBusy={isBusy} isRecording={isRecording} guestRemaining={guestRemaining} userId={userId} voiceNotice={voiceNotice} appliedSummary={appliedContext?.summary||null} origin={origin} canRecommend={canRecommend} dialogRef={dialogRef} textareaRef={textareaRef} t={t} viewport={viewport} onOpen={()=>setIsOpen(true)} onClose={handleClose} onInput={setInputText} onRecommend={handleSubmit} onMicrophone={()=>{setError(null);setVoiceNotice(false);void voice.start();}} voiceState={voice.state} voiceSeconds={voice.seconds} onVoiceStop={voice.stop} onVoiceSend={()=>void voice.send()} onVoiceCancel={voice.cancel} history={history} stablePreferences={appliedContext?.stablePreferences||[]} onReset={()=>{invalidateAndCleanup();prevContextRef.current=null;setAppliedContext(null);setHistory([]);setResults([]);setMichelinNearby([]);setInputText('');setError(null);setViewState('composer');}} onDismissError={()=>setError(null)} onBackResults={()=>setViewState('results')} onRefine={()=>{setViewState('composer');setInputText('');setVoiceNotice(false);setError(null);}} onLogin={()=>{handleClose();onLogin();}} />;
 };
