@@ -125,6 +125,10 @@ export function TasteSheetView(props: Props) {
 
   const formatDistance = (meters: number | null): string => {
     if (meters === null || isNaN(meters)) return '';
+    if (language !== 'ko' && typeof navigator !== 'undefined' && /^en-(US|LR|MM)$/i.test(navigator.language)) {
+      const miles = meters / 1609.344;
+      return miles < 0.1 ? `${Math.round(meters * 3.28084)} ft` : `${miles.toFixed(1)} mi`;
+    }
     if (meters < 1000) return `${Math.round(meters)}m`;
     return `${(meters / 1000).toFixed(1)}km`;
   };
@@ -364,20 +368,30 @@ export function TasteSheetView(props: Props) {
                           </h3>
 
                           
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-[13px] text-white/70">
-                             {dist !== null && (
-                               <span>{formatDistance(dist)}</span>
-                             )}
-                             {dist !== null && <span className="text-white/20">·</span>}
-
-                             <span>{formatPrice(place.priceLevel)}</span>
-                             <span className="text-white/20">·</span>
-
-                             <span className="text-[#D9B26A]">
-                                {formatRating(place.rating, place.ratingSource, place.reviewCount)}
-                             </span>
-                          </div>
-                          {place.michelin && <p className="text-[12px] mt-1 text-rose-200">{place.michelin.bib?(language==='ko'?'미쉐린 빕 구르망':'MICHELIN Bib Gourmand'):place.michelin.stars>0?(language==='ko'?`미쉐린 ${place.michelin.stars}스타`:`MICHELIN ${place.michelin.stars} star`):(language==='ko'?'미쉐린 선정':'MICHELIN selection')}{place.michelin.green?(language==='ko'?' · 그린스타':' · Green Star'):''}{place.michelin.year?` · ${place.michelin.year}`:''}</p>}
+                          {(() => {
+                            const meta = [
+                              dist !== null ? <span key="d">{formatDistance(dist)}</span> : null,
+                              Number.isInteger(place.priceLevel) && place.priceLevel! >= 1 && place.priceLevel! <= 4 ? <span key="p">{formatPrice(place.priceLevel)}</span> : null,
+                              typeof place.rating === 'number' && Number.isFinite(place.rating) ? <span key="r" className="text-[#D9B26A]">{formatRating(place.rating, place.ratingSource, place.reviewCount)}</span> : null,
+                            ].filter(Boolean) as React.ReactElement[];
+                            return meta.length ? (
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-[13px] text-white/70">
+                                {meta.map((m, i) => <React.Fragment key={i}>{i > 0 && <span className="text-white/20">·</span>}{m}</React.Fragment>)}
+                              </div>
+                            ) : null;
+                          })()}
+                          {place.michelin && (
+                            <span className="inline-flex items-center gap-1 mt-2 rounded-full border border-rose-300/30 bg-rose-500/15 px-2.5 py-1 text-[12px] font-semibold text-rose-100">
+                              <span aria-hidden="true">✿</span>
+                              {place.michelin.stars > 0
+                                ? (language === 'ko' ? `미쉐린 ${place.michelin.stars}스타` : `MICHELIN ${place.michelin.stars} Star${place.michelin.stars > 1 ? 's' : ''}`)
+                                : place.michelin.bib
+                                  ? (language === 'ko' ? '미쉐린 빕 구르망' : 'MICHELIN Bib Gourmand')
+                                  : (language === 'ko' ? '미쉐린 가이드 선정' : 'MICHELIN Guide')}
+                              {place.michelin.green ? (language === 'ko' ? ' · 그린스타' : ' · Green Star') : ''}
+                              {place.michelin.year ? <span className="font-normal text-rose-100/70"> · {place.michelin.year}</span> : null}
+                            </span>
+                          )}
                           {typeof place.openNow==='boolean' && <p className={`text-[12px] mt-1 ${place.openNow?'text-emerald-300':'text-white/50'}`}>{language==='ko'?(place.openNow?'영업 중':'현재 영업 종료'):(place.openNow?'Open now':'Closed now')}</p>}
                           {place.ratingSource==='google' && <p translate="no" className="text-[12px] text-white/60 whitespace-nowrap font-sans font-normal mt-1">Google Maps</p>}
                         </div>
@@ -389,7 +403,7 @@ export function TasteSheetView(props: Props) {
 
                       
                       <div className="px-4 pb-4 pt-0 space-y-3">
-                         {place.michelin && <a href={place.michelin.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center text-[13px] text-rose-200">{language==='ko'?'미쉐린 선정 정보 ↗':'MICHELIN selection ↗'}</a>}
+                         {place.michelin && <a href={place.michelin.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center text-[13px] text-rose-200">{language==='ko'?'미쉐린 가이드에서 보기 ↗':'View on MICHELIN Guide ↗'}</a>}
                          {place.address && (
                            <p className="text-[14px] text-white/80 leading-relaxed">
                              {place.address}
