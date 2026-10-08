@@ -1044,7 +1044,63 @@ async function annotateMichelin(items: any[]): Promise<void> {
 }
 
 
-async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {michelin?:MichelinFilter|null;category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string;foodApproach?: string;shoppingKind?: string;foodQuery?: string;searchQuery?:string;openNow?:boolean;language?:string} = {}, excludedNames: string[] = []): Promise<{ places: QlooPlaceResult[] } | Response> {
+function toPlaceResult(p: any): QlooPlaceResult | null {
+      if (typeof p.name !== 'string' || !p.name.trim() || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(p.entity_id || p.id || '')) return null;
+      const name = p.name;
+      const addressProps = p.properties?.address;
+      const geocodeAddr = p.properties?.geocode?.formatted_address;
+      const address = typeof addressProps === 'string' ? addressProps : (typeof geocodeAddr === 'string' ? geocodeAddr : '');
+
+      const descRaw = p.properties?.description || p.properties?.short_description;
+      const description = descRaw ? String(descRaw).substring(0, 400) : undefined;
+
+      // Construct Google Maps URL strictly
+      const queryStr = encodeURIComponent(`${name} ${address}`.trim());
+      const googlePlaceId=p.external?.google_place?.[0]?.place_id;
+      const placeSuffix=typeof googlePlaceId==='string' && /^[A-Za-z0-9_-]{10,200}$/.test(googlePlaceId) ? `&query_place_id=${encodeURIComponent(googlePlaceId)}` : '';
+      const url = `https://www.google.com/maps/search/?api=1&query=${queryStr}${placeSuffix}`;
+
+      return {
+        michelin:p._michelin,
+        id: p.id || p.entity_id || '',
+        name,
+        address,
+        description,
+        hours: p.properties?.hours && typeof p.properties.hours==='object' && !Array.isArray(p.properties.hours) ? Object.fromEntries(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].filter(day=>Array.isArray(p.properties.hours[day])).map(day=>[day,p.properties.hours[day].slice(0,4).map((h:any)=>({opens:typeof h?.opens==='string'?h.opens.slice(0,10):undefined,closes:typeof h?.closes==='string'?h.closes.slice(0,10):undefined,closed:h?.closed===true?true:undefined}))])) : undefined,
+        latitude: Number.isFinite(p.location?.lat) && Math.abs(p.location.lat)<=90 ? p.location.lat : undefined,
+        longitude: Number.isFinite(p.location?.lon) && Math.abs(p.location.lon)<=180 ? p.location.lon : undefined,
+        rating: Number.isFinite(p.properties?.business_rating) && p.properties.business_rating >= 0 && p.properties.business_rating <= 5 ? p.properties.business_rating : undefined,
+        ratingSource: Number.isFinite(p.properties?.business_rating) ? 'qloo' as const : undefined,
+        priceLevel: Number.isInteger(p.properties?.price_level) && p.properties.price_level >= 1 && p.properties.price_level <= 4 ? p.properties.price_level : undefined,
+        url,
+      };
+}
+
+const NEARBY_MICHELIN_RADIUS = 50000; // ~1 hour by car in a metro area (straight-line estimate).
+// Best effort, bounded by its own time budget so normal results never wait long for it.
+async function findNearbyMichelin(qlooApiUrl: string, qlooApiKey: string, base: URLSearchParams, excludedIds: Set<string>, excludedKeys: string[]): Promise<QlooPlaceResult[]> {
+  const work = (async () => {
+    const params = new URLSearchParams(base);
+    params.set('filter.external.exists', 'michelin');
+    params.set('filter.location.radius', String(NEARBY_MICHELIN_RADIUS));
+    params.set('take', '12');
+    params.delete('filter.popularity.min');
+    params.delete('filter.popularity.max');
+    params.delete('filter.price_level.max');
+    const res = await fetch(`${qlooApiUrl}/v2/insights?${params}`, { headers: { 'X-Api-Key': qlooApiKey }, signal: AbortSignal.timeout(6000) });
+    if (!res.ok) return [];
+    const data = await res.json() as any;
+    const raw = (Array.isArray(data.results?.entities) ? data.results.entities : []).filter((p: any) => !isFavoritePlace(p, excludedIds, excludedKeys));
+    const found = await filterMichelinPlaces(raw, { awards: ['bib', 'green', 'star'], maxStars: 3 });
+    // Stars first, then Bib Gourmand, then Green Star.
+    found.sort((a, b) => (b._michelin.stars - a._michelin.stars) || (Number(b._michelin.bib) - Number(a._michelin.bib)));
+    return found.map(toPlaceResult).filter(Boolean) as QlooPlaceResult[];
+  })().catch(() => [] as QlooPlaceResult[]);
+  const budget = new Promise<QlooPlaceResult[]>(resolve => setTimeout(() => resolve([]), 7000));
+  return Promise.race([work, budget]);
+}
+
+async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {michelin?:MichelinFilter|null;category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string;foodApproach?: string;shoppingKind?: string;foodQuery?: string;searchQuery?:string;openNow?:boolean;language?:string;skipNearbyMichelin?:boolean} = {}, excludedNames: string[] = []): Promise<{ places: QlooPlaceResult[]; michelinNearby?: QlooPlaceResult[] } | Response> {
   // Optional explicit entities; generic tastes are represented by tags.
   if (interests.length > 3) {
     return new Response(JSON.stringify({ error: 'invalid_interest_count' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -1150,6 +1206,9 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     const discoveries = (mode === 'balanced' || (category === 'food' && drink === 'matcha' && !dishTag)) ? fetch(`${qlooApiUrl}/v2/insights?${discoverParams}`, {
       headers:{'X-Api-Key':qlooApiKey}, signal,
     }).then(async r => r.ok ? (await r.json()).results?.entities ?? [] : []).catch(() => []) : null;
+    // "멀지만 미쉐린": a Michelin restaurant within roughly an hour's drive, shown beside normal food results.
+    const nearbyMichelin = category === 'food' && !michelin && !options.skipNearbyMichelin
+      ? findNearbyMichelin(qlooApiUrl, qlooApiKey, params, excludedIds, excludedKeys) : null;
     const res = await fetch(`${qlooApiUrl}/v2/insights?${params.toString()}`, {
       method: 'GET',
       headers: {
@@ -1191,42 +1250,12 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     if(category==='food' && (filterCuisine!=='any' || dishTag))rawPlaces=rawPlaces.filter((p:any)=>matchesFoodConstraint(p,filterCuisine,dishTag) || (!dishTag && drink==='matcha' && Array.isArray(p.tags) && p.tags.some((t:any)=>t.id==='urn:tag:menu_highlight:qloo:matcha_latte')));
     if(michelin)rawPlaces=await filterMichelinPlaces(rawPlaces,michelin);
     else if(category==='food')await annotateMichelin(rawPlaces.slice(0,6));
-    const places: QlooPlaceResult[] = rawPlaces.map((p: any) => {
-      if (typeof p.name !== 'string' || !p.name.trim() || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(p.entity_id || p.id || '')) return null;
-      const name = p.name;
-      const addressProps = p.properties?.address;
-      const geocodeAddr = p.properties?.geocode?.formatted_address;
-      const address = typeof addressProps === 'string' ? addressProps : (typeof geocodeAddr === 'string' ? geocodeAddr : '');
-
-      const descRaw = p.properties?.description || p.properties?.short_description;
-      const description = descRaw ? String(descRaw).substring(0, 400) : undefined;
-
-      // Construct Google Maps URL strictly
-      const queryStr = encodeURIComponent(`${name} ${address}`.trim());
-      const googlePlaceId=p.external?.google_place?.[0]?.place_id;
-      const placeSuffix=typeof googlePlaceId==='string' && /^[A-Za-z0-9_-]{10,200}$/.test(googlePlaceId) ? `&query_place_id=${encodeURIComponent(googlePlaceId)}` : '';
-      const url = `https://www.google.com/maps/search/?api=1&query=${queryStr}${placeSuffix}`;
-
-      return {
-        michelin:p._michelin,
-        id: p.id || p.entity_id || '',
-        name,
-        address,
-        description,
-        hours: p.properties?.hours && typeof p.properties.hours==='object' && !Array.isArray(p.properties.hours) ? Object.fromEntries(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].filter(day=>Array.isArray(p.properties.hours[day])).map(day=>[day,p.properties.hours[day].slice(0,4).map((h:any)=>({opens:typeof h?.opens==='string'?h.opens.slice(0,10):undefined,closes:typeof h?.closes==='string'?h.closes.slice(0,10):undefined,closed:h?.closed===true?true:undefined}))])) : undefined,
-        latitude: Number.isFinite(p.location?.lat) && Math.abs(p.location.lat)<=90 ? p.location.lat : undefined,
-        longitude: Number.isFinite(p.location?.lon) && Math.abs(p.location.lon)<=180 ? p.location.lon : undefined,
-        rating: Number.isFinite(p.properties?.business_rating) && p.properties.business_rating >= 0 && p.properties.business_rating <= 5 ? p.properties.business_rating : undefined,
-        ratingSource: Number.isFinite(p.properties?.business_rating) ? 'qloo' as const : undefined,
-        priceLevel: Number.isInteger(p.properties?.price_level) && p.properties.price_level >= 1 && p.properties.price_level <= 4 ? p.properties.price_level : undefined,
-        url,
-      };
-    }).filter(Boolean).slice(0, 5);
+    const places: QlooPlaceResult[] = rawPlaces.map(toPlaceResult).filter(Boolean).slice(0, 5) as QlooPlaceResult[];
 
     // Exact dish tags are sparse in Qloo (e.g. "pasta" matched 0-1 Italian places in Irvine).
     // Top up with same-cuisine places so a common dish never returns an empty or single result.
     if (dishTag && places.length < 3 && !michelin && cuisine !== 'any') {
-      const broader = await handleRecommend(qlooApiKey, qlooApiUrl, interests, location, { ...options, foodQuery: '', foodApproach: 'familiar', drink: 'any' }, excludedNames);
+      const broader = await handleRecommend(qlooApiKey, qlooApiUrl, interests, location, { ...options, foodQuery: '', foodApproach: 'familiar', drink: 'any', skipNearbyMichelin: true }, excludedNames);
       if (!(broader instanceof Response)) {
         for (const p of broader.places) {
           if (places.length >= 5) break;
@@ -1235,7 +1264,12 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
       }
     }
 
-    return { places };
+    let michelinNearby: QlooPlaceResult[] = [];
+    if (nearbyMichelin) {
+      const ids = new Set(places.map(p => p.id));
+      michelinNearby = (await nearbyMichelin).filter(p => !ids.has(p.id)).slice(0, 3);
+    }
+    return michelinNearby.length ? { places, michelinNearby } : { places };
   } catch (error) {
 
     const code=error instanceof Error && ['michelin_unavailable','michelin_green_unavailable','michelin_quota','rate_limited'].includes(error.message)?error.message:'timeout';
