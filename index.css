@@ -114,3 +114,8 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 
 /* nice scrollbars off in the device */
 ::-webkit-scrollbar { width: 0; height: 0; }
+
+@layer utilities {
+  .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+}
