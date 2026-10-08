@@ -25,6 +25,8 @@ globalThis.fetch = async (url, options={}) => {
   return Response.json({results:{entities:u.pathname==='/search'?[{entity_id:interest,name:'Test Place',types:['urn:entity:place']}]:fixtures}});
 };
 const request = (body,headers={}) => new Request('https://example.supabase.co/functions/v1/qloo-proxy',{method:'POST',headers:{Origin:'https://slaptrip.com',Authorization:'Bearer user-token','Content-Type':'application/json',...headers},body:typeof body==='string'?body:JSON.stringify(body)});
+// The nearby-Michelin side query (filter.external.exists=michelin) is checked separately.
+const isMainInsights=c=>c.u.pathname==='/v2/insights'&&c.u.searchParams.get('filter.external.exists')!=='michelin';
 const rec = {action:'recommend',interests:[interest],location:{latitude:34.05,longitude:-118.24}};
 test('Qloo server boundary', async t=>{
  await t.test('health hides key and reports disabled when absent',async()=>{
@@ -72,23 +74,23 @@ test('Qloo server boundary', async t=>{
   calls=[];
   let r=await handleRequest(request({...rec,options:{category:'food',mode:'discover',cuisine:'korean',priceMax:2,radius:5000}}));
   assert.equal(r.status,200);
-  let c=calls.find(c=>c.u.pathname==='/v2/insights');
+  let c=calls.find(c=>isMainInsights(c));
   assert.equal(c.u.searchParams.get('filter.tags'),'urn:tag:category:place:restaurant,urn:tag:genre:place:restaurant:korean');
   assert.equal(c.u.searchParams.get('operator.filter.tags'),'intersection');
   assert.equal(c.u.searchParams.get('filter.price_level.max'),'2');
   assert.equal(c.u.searchParams.get('filter.popularity.max'),'0.95');
   assert.equal(c.u.searchParams.get('filter.location.radius'),'5000');
   calls=[];r=await handleRequest(request({...rec,options:{category:'shopping',mode:'popular'}}));
-  assert.equal(r.status,200);c=calls.find(c=>c.u.pathname==='/v2/insights');
+  assert.equal(r.status,200);c=calls.find(c=>isMainInsights(c));
   assert.match(c.u.searchParams.get('filter.tags'),/urn:tag:category:place:shopping_mall/);
   assert.equal(c.u.searchParams.get('filter.popularity.min'),'0.95');
   assert.equal(c.u.searchParams.get('filter.price_level.max'),null);
   calls=[];r=await handleRequest(request({...rec,options:{radius:999999}}));
-  assert.equal(r.status,400);assert.ok(!calls.some(c=>c.u.pathname==='/v2/insights'));
+  assert.equal(r.status,400);assert.ok(!calls.some(c=>isMainInsights(c)));
  });
  await t.test('generic Korean and matcha tastes do not require restaurant entity IDs',async()=>{
   calls=[];const r=await handleRequest(request({...rec,interests:[],options:{category:'food',cuisine:'korean',drink:'matcha'}}));
-  assert.equal(r.status,200);const requests=calls.filter(c=>c.u.pathname==='/v2/insights');assert.equal(requests.length,2);
+  assert.equal(r.status,200);const requests=calls.filter(c=>isMainInsights(c));assert.equal(requests.length,2);
   const restaurant=requests.find(c=>c.u.searchParams.get('take')==='20');const cafe=requests.find(c=>c.u.searchParams.get('take')==='10');
   assert.equal(restaurant.u.searchParams.get('signal.interests.entities'),null);
   assert.equal(restaurant.u.searchParams.get('signal.interests.tags'),'urn:tag:genre:place:restaurant:korean');
@@ -96,9 +98,9 @@ test('Qloo server boundary', async t=>{
  });
  await t.test('local food exploration broadens cuisine; mixed exploration retains explicit taste signals',async()=>{
   calls=[];let r=await handleRequest(request({...rec,options:{category:'food',cuisine:'korean',foodApproach:'local',mode:'popular'}}));assert.equal(r.status,200);
-  let c=calls.find(c=>c.u.pathname==='/v2/insights');assert.equal(c.u.searchParams.get('filter.tags'),'urn:tag:category:place:restaurant');assert.equal(c.u.searchParams.get('signal.interests.entities'),null);assert.equal(c.u.searchParams.get('signal.interests.tags'),null);
+  let c=calls.find(c=>isMainInsights(c));assert.equal(c.u.searchParams.get('filter.tags'),'urn:tag:category:place:restaurant');assert.equal(c.u.searchParams.get('signal.interests.entities'),null);assert.equal(c.u.searchParams.get('signal.interests.tags'),null);
   calls=[];r=await handleRequest(request({...rec,options:{category:'food',cuisine:'korean',foodApproach:'both',mode:'popular'}}));assert.equal(r.status,200);
-  c=calls.find(c=>c.u.pathname==='/v2/insights');assert.equal(c.u.searchParams.get('filter.tags'),'urn:tag:category:place:restaurant');assert.equal(c.u.searchParams.get('signal.interests.tags'),'urn:tag:genre:place:restaurant:korean');assert.equal(c.u.searchParams.get('signal.interests.entities'),interest);
+  c=calls.find(c=>isMainInsights(c));assert.equal(c.u.searchParams.get('filter.tags'),'urn:tag:category:place:restaurant');assert.equal(c.u.searchParams.get('signal.interests.tags'),'urn:tag:genre:place:restaurant:korean');assert.equal(c.u.searchParams.get('signal.interests.entities'),interest);
  });
  await t.test('upstream auth/rate errors are safe and distinct',async()=>{
   upstreamStatus=401;let r=await handleRequest(request(rec));assert.equal(r.status,503);assert.ok(!(await r.text()).includes('credentials'));
@@ -133,7 +135,7 @@ test('Qloo server boundary', async t=>{
     calls=[];const r=await handleRequest(request({...rec,excludedNames:['BCD Tofu House','In N Out'],options:{foodApproach}}));assert.equal(r.status,200);
     const data=await r.json();assert.equal(data.places.length,5);assert.ok(data.places.every(p=>!['Original Favorite','Other Burger','북창동순두부','인앤아웃 버거'].includes(p.name) && !p.name.startsWith('In-N-Out') && !p.name.startsWith('BCD Tofu')));
     assert.ok(data.places.some(p=>p.name==='BCD-inspired independent cafe'));
-    assert.ok(calls.filter(c=>c.u.pathname==='/v2/insights').every(c=>c.u.searchParams.get('filter.exclude.entities')===interest));
+    assert.ok(calls.filter(c=>isMainInsights(c)).every(c=>c.u.searchParams.get('filter.exclude.entities')===interest));
    }
    assert.equal((await handleRequest(request({...rec,excludedNames:'BCD'}))).status,400);
    assert.equal((await handleRequest(request({...rec,excludedNames:Array.from({length:11},(_,i)=>'Favorite '+i)}))).status,400);
@@ -146,7 +148,7 @@ test('Qloo server boundary', async t=>{
   let r=await handleRequest(request({action:'guest_status'},h));assert.equal(r.status,200);assert.equal((await r.json()).guestRemaining,10);
   r=await handleRequest(request({action:'search',query:'Test',type:'place'},h));assert.equal(r.status,200);assert.equal(guestUsage.get(id),0);
   for(let i=1;i<=10;i++){r=await handleRequest(request({...rec,interests:[]},h));assert.equal(r.status,200);assert.equal((await r.json()).guestRemaining,10-i);}
-  calls=[];r=await handleRequest(request(rec,h));assert.equal(r.status,403);assert.equal((await r.json()).error,'guest_limit_reached');assert.ok(!calls.some(c=>c.u.pathname==='/v2/insights'));
+  calls=[];r=await handleRequest(request(rec,h));assert.equal(r.status,403);assert.equal((await r.json()).error,'guest_limit_reached');assert.ok(!calls.some(c=>isMainInsights(c)));
   r=await handleRequest(request({action:'guest_status'},h));assert.equal((await r.json()).guestRemaining,0);
   assert.equal((await handleRequest(request(rec,{...h,'X-Guest-Taste-Id':'invalid'}))).status,401);
   assert.equal((await handleRequest(request(rec,{Authorization:'Bearer test-anon'}))).status,401);
@@ -170,13 +172,23 @@ test('Qloo server boundary', async t=>{
   const pho={...old[0],name:'Verified Pho Fixture',tags:[{id:'urn:tag:genre:place:restaurant:vietnamese'},{id:'urn:tag:menu_highlight:qloo:pho'}],properties:{primary_genre:{id:'urn:tag:genre:place:restaurant:vietnamese'}}};
   fixtures=[pho,{...pho,entity_id:'42345678-1234-4234-8234-123456789abc',name:'In-N-Out Fixture',tags:[{id:'urn:tag:genre:place:restaurant:american'}],properties:{primary_genre:{id:'urn:tag:genre:place:restaurant:american'}}}];
   try{calls=[];const r=await handleRequest(request({...rec,options:{cuisine:'vietnamese',foodQuery:'pho',drink:'matcha',foodApproach:'local'}}));assert.equal(r.status,200);const data=await r.json();assert.deepEqual(data.places.map(p=>p.name),['Verified Pho Fixture']);
-    const insights=calls.filter(c=>c.u.pathname==='/v2/insights');assert.ok(insights.some(c=>/:pho/.test(c.u.searchParams.get('filter.tags'))));for(const c of insights){assert.match(c.u.searchParams.get('filter.tags'),/:vietnamese/);assert.equal(c.u.searchParams.get('operator.filter.tags'),'intersection');assert.equal(c.u.searchParams.get('signal.interests.entities'),null);}
+    const insights=calls.filter(c=>isMainInsights(c));assert.ok(insights.some(c=>/:pho/.test(c.u.searchParams.get('filter.tags'))));for(const c of insights){assert.match(c.u.searchParams.get('filter.tags'),/:vietnamese/);assert.equal(c.u.searchParams.get('operator.filter.tags'),'intersection');assert.equal(c.u.searchParams.get('signal.interests.entities'),null);}
     assert.ok(calls.some(c=>c.u.pathname==='/v2/tags' && c.u.searchParams.get('filter.query')==='pho'));
-    calls=[];const missing=await handleRequest(request({...rec,options:{foodQuery:'unknown noodles'}}));assert.equal(missing.status,422);assert.equal((await missing.json()).error,'unsupported_preference');assert.ok(!calls.some(c=>c.u.pathname==='/v2/insights'));
+    calls=[];const missing=await handleRequest(request({...rec,options:{foodQuery:'unknown noodles'}}));assert.equal(missing.status,422);assert.equal((await missing.json()).error,'unsupported_preference');assert.ok(!calls.some(c=>isMainInsights(c)));
   }finally{fixtures=old;authUser=oldUser;}
  });
  await t.test('bounded requests reject excessive calls',async()=>{
   const statuses=[];for(let i=0;i<22;i++) statuses.push((await handleRequest(request(rec))).status);
   assert.ok(statuses.includes(429));
  });
+});
+
+test('food results ask Qloo for Michelin places within about an hour, without price/popularity limits',async()=>{
+  authOK=true;authUser='qa-michelin-side';upstreamStatus=200;calls=[];const r=await handleRequest(request({...rec,options:{category:'food',mode:'popular',priceMax:2,radius:5000}}));
+  assert.equal(r.status,200);
+  const side=calls.find(c=>c.u.pathname==='/v2/insights'&&c.u.searchParams.get('filter.external.exists')==='michelin');
+  assert.ok(side);assert.equal(side.u.searchParams.get('filter.location.radius'),'50000');
+  assert.equal(side.u.searchParams.get('filter.price_level.max'),null);assert.equal(side.u.searchParams.get('filter.popularity.min'),null);
+  calls=[];await handleRequest(request({...rec,options:{category:'shopping'}}));
+  assert.ok(!calls.some(c=>c.u.searchParams.get('filter.external.exists')==='michelin'));
 });
