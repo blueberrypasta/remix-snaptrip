@@ -10,6 +10,7 @@ type Props = {
   viewState: 'composer' | 'results';
   inputText: string;
   results: QlooPlace[];
+  michelinNearby?: QlooPlace[];
   error: string | null;
   isBusy: boolean;
   isRecording: boolean;
@@ -45,6 +46,12 @@ type Props = {
   const SparkleIcon = () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z" />
+    </svg>
+  );
+
+  const SearchIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
     </svg>
   );
 
@@ -85,6 +92,7 @@ export function TasteSheetView(props: Props) {
     viewState,
     inputText,
     results,
+    michelinNearby = [],
     error,
     isBusy,
     isRecording,voiceState,voiceSeconds,onVoiceStop,onVoiceSend,onVoiceCancel,history,stablePreferences,onReset,
@@ -172,13 +180,132 @@ export function TasteSheetView(props: Props) {
       type="button"
       aria-label={entryPillLabel}
       onClick={(e) => { e.stopPropagation(); onOpen(); }}
-      className="inline-flex items-center justify-center h-[44px] px-2.5 rounded-full bg-emerald-500/[0.08] border border-emerald-400/20 text-white font-semibold text-[13px] gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 transition-colors hover:bg-emerald-500/15 touch-manipulation select-none"
+      className="group w-full flex items-center gap-3 h-[60px] pl-2 pr-2 rounded-full bg-white/[0.06] border border-white/[0.12] text-left shadow-[0_10px_30px_-14px_rgba(0,0,0,0.8)] backdrop-blur-md hover:bg-white/[0.09] active:scale-[0.99] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 touch-manipulation select-none"
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
-      <SparkleIcon />
-      <span style={{fontFamily:'"Noto Serif KR", "AppleMyungjo", serif',fontWeight:500,letterSpacing:"0.03em"}}>{entryPillLabel}</span>
+      <span aria-hidden="true" className="w-11 h-11 shrink-0 rounded-full bg-[#33d5a4] text-[#0f1715] flex items-center justify-center shadow-[0_6px_18px_-6px_rgba(51,213,164,0.7)]">
+        <SearchIcon />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold text-white leading-tight truncate">{language === 'ko' ? '오늘 어디 갈까요?' : 'Where to today?'}</span>
+        <span className="block text-[12px] text-white/55 leading-tight mt-0.5 truncate">{language === 'ko' ? '맛집 · 쇼핑 · 명소 · 미쉐린까지 취향으로' : 'Food · shops · sights · Michelin, by your taste'}</span>
+      </span>
+      <span className="shrink-0 inline-flex items-center gap-1 h-9 px-3 rounded-full border border-emerald-400/25 text-emerald-300 text-[12px] font-semibold">
+        <SparkleIcon />{entryPillLabel}
+      </span>
     </button>
   );
+
+  const michelinLabel = (place: QlooPlace) => {
+    const m = place.michelin!;
+    const base = m.stars > 0
+      ? (language === 'ko' ? `미쉐린 ${m.stars}스타` : `MICHELIN ${m.stars} Star${m.stars > 1 ? 's' : ''}`)
+      : m.bib ? (language === 'ko' ? '빕 구르망' : 'Bib Gourmand')
+      : (language === 'ko' ? '미쉐린 가이드' : 'MICHELIN Guide');
+    return m.green ? `${base} · ${language === 'ko' ? '그린스타' : 'Green Star'}` : base;
+  };
+
+  const renderCard = (place: QlooPlace, index: number, variant: 'main' | 'nearby' = 'main') => {
+                  const dist = origin && Number.isFinite(place.latitude) && Number.isFinite(place.longitude)
+                    ? getDistance(origin.latitude, origin.longitude, place.latitude!, place.longitude!)
+                    : null;
+
+                  const isNearby = variant === 'nearby';
+                  const rankBadgeStyle = isNearby
+                    ? "bg-[#C8102E]/15 text-rose-200 border-[#C8102E]/30"
+                    : index === 0
+                      ? "bg-[#D9B26A]/15 text-[#D9B26A] border-[#D9B26A]/25"
+                      : "bg-white/[0.04] text-white/55 border-white/10";
+
+                  const cardBgClass = isNearby
+                    ? "bg-[#C8102E]/[0.06] border-[#C8102E]/20"
+                    : index === 0
+                      ? "bg-emerald-500/[0.08] border-emerald-400/20 shadow-[0_8px_24px_-12px_rgba(51,213,164,0.35)]"
+                      : "bg-white/[0.035] border-white/[0.07]";
+
+                  return (
+                    <details key={`${place.id}-${index}`} className={`group open:bg-white/[0.06] transition-colors rounded-[22px] border ${cardBgClass}`}>
+                      <summary className="list-none cursor-pointer p-4 flex items-start gap-3 [&::-webkit-details-marker]:hidden">
+                        
+                        <div className={`w-8 h-8 flex-shrink-0 rounded-full border flex items-center justify-center text-xs font-bold ${rankBadgeStyle}`}>
+                          {isNearby ? <span aria-hidden="true">✿</span> : index + 1}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          {!isNearby && index === 0 && <p className="text-[11px] font-semibold text-emerald-300 mb-0.5">{language === 'ko' ? '오늘의 추천' : 'Top pick'}</p>}
+                          <h3 className="text-[16px] font-semibold text-white leading-snug line-clamp-2 break-words">
+                            {place.name}
+                          </h3>
+
+                          
+                          {(() => {
+                            const meta = [
+                              dist !== null ? <span key="d">{formatDistance(dist)}</span> : null,
+                              Number.isInteger(place.priceLevel) && place.priceLevel! >= 1 && place.priceLevel! <= 4 ? <span key="p">{formatPrice(place.priceLevel)}</span> : null,
+                              typeof place.rating === 'number' && Number.isFinite(place.rating) ? <span key="r" className="text-[#D9B26A]">{formatRating(place.rating, place.ratingSource, place.reviewCount)}</span> : null,
+                            ].filter(Boolean) as React.ReactElement[];
+                            return meta.length ? (
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-[13px] text-white/70">
+                                {meta.map((m, i) => <React.Fragment key={i}>{i > 0 && <span className="text-white/20">·</span>}{m}</React.Fragment>)}
+                              </div>
+                            ) : null;
+                          })()}
+                          {place.michelin && (
+                            <span className={`inline-flex flex-wrap items-center gap-1 mt-2 rounded-full px-2.5 py-1 text-[12px] font-semibold ${isNearby ? 'border border-[#E4002B]/40 text-rose-200' : 'bg-[#C8102E] text-white shadow-[0_4px_14px_-6px_rgba(200,16,46,0.8)]'}`}>
+                              <span aria-hidden="true">✿</span>
+                              {isNearby && <span>{language === 'ko' ? '멀지만 미쉐린 ·' : 'Worth the drive ·'}</span>}
+                              {michelinLabel(place)}
+                              {place.michelin.year ? <span className="font-normal opacity-75"> · {place.michelin.year}</span> : null}
+                            </span>
+                          )}
+                          {typeof place.openNow==='boolean' && <p className={`text-[12px] mt-1 ${place.openNow?'text-emerald-300':'text-white/50'}`}>{language==='ko'?(place.openNow?'영업 중':'현재 영업 종료'):(place.openNow?'Open now':'Closed now')}</p>}
+                          {place.ratingSource==='google' && <p translate="no" className="text-[12px] text-white/60 whitespace-nowrap font-sans font-normal mt-1">Google Maps</p>}
+                        </div>
+
+                        <div className="self-center text-white/30 group-open:rotate-90 transition-transform duration-200">
+                           <ChevronRight />
+                        </div>
+                      </summary>
+
+                      
+                      <div className="px-4 pb-4 pt-0 space-y-3">
+                         {place.michelin && <a href={place.michelin.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center text-[13px] text-rose-200">{language==='ko'?'미쉐린 가이드에서 보기 ↗':'View on MICHELIN Guide ↗'}</a>}
+                         {place.address && (
+                           <p className="text-[14px] text-white/80 leading-relaxed">
+                             {place.address}
+                           </p>
+                         )}
+
+                         {place.description && (
+                           <p className="text-[13px] text-white/60 leading-relaxed">
+                             {place.description}
+                           </p>
+                         )}
+
+                         {place.descriptionUnavailable && <p className="text-[12px] text-white/45">{language==='ko'?'설명을 번역하지 못했어요. 지도에서 확인해주세요.':'Description translation unavailable. Check the map.'}</p>}
+                         <div className="rounded-xl border border-white/10 p-3">
+                           <p className="text-[12px] font-semibold text-white/75 mb-2">{language==='ko'?'정규 영업시간 · 현지 시간':'Regular opening hours · local time'}</p>
+                           {place.openingHoursText?.length ? <ul className="space-y-1 text-[12px] text-white/60">{place.openingHoursText.map((row,i)=><li key={i}>{row}</li>)}</ul> : formatOpeningHours(place.hours,language).length ? <dl className="grid grid-cols-[2rem_1fr] gap-x-3 gap-y-1 text-[12px] text-white/60">{formatOpeningHours(place.hours,language).map(row=><React.Fragment key={row.day}><dt>{row.day}</dt><dd>{row.value}</dd></React.Fragment>)}</dl> : <p className="text-[12px] text-white/50">{language==='ko'?'영업시간 미제공 · 지도에서 확인':'Hours unavailable · check the map'}</p>}
+                           <p className="text-[10px] text-white/35 mt-2">{place.ratingSource==='google'?'Google Maps':(language==='ko'?'Qloo 제공':'Source: Qloo')} · {language==='ko'?'방문 전 최신 시간 확인':'Check latest hours before visiting'}</p>
+                         </div>
+
+                         {place.rankingSource && <p className="text-[12px] text-white/50">{place.rankingSource==='qloo'?(language==='ko'?'Qloo 취향 순위 반영':'Ranked with Qloo taste affinity'):(language==='ko'?'요청 조건에 맞는 검색 결과':'Search results matching your request')}</p>}
+                         {place.googleAttributions?.map((a,i)=><a key={i} href={/^https:\/\//.test(a.uri)?a.uri:undefined} target="_blank" rel="noopener noreferrer" className="block text-[12px] text-white/60">{a.displayName}</a>)}
+                         {isValidGoogleMapUrl(place.url) && (
+                           <a
+                             href={place.url}
+                             target="_blank"
+                             rel="noopener noreferrer"
+                             className="inline-flex items-center gap-1.5 text-[13px] text-emerald-400 hover:text-emerald-300 bg-white/[0.07] hover:bg-white/[0.12] px-3 py-2 rounded-lg transition-colors min-h-[44px]"
+                           >
+                             <ExternalLinkIcon />
+                             <span>{language === 'ko' ? 'Google 리뷰 · 지도' : 'Google Reviews · Map'}</span>
+                           </a>
+                         )}
+                      </div>
+                    </details>
+                  );
+  };
 
   if (!isOpen) return PillButton;
 
@@ -202,7 +329,7 @@ export function TasteSheetView(props: Props) {
           role="dialog" data-taste-dialog
           aria-modal="true"
           aria-labelledby="taste-dialog-title"
-          className="pointer-events-auto w-full max-w-[480px] bg-[#111b19] border border-white/10 text-white shadow-lg flex flex-col overflow-hidden rounded-t-[28px] md:rounded-[28px] mx-0 md:mx-4 mb-0 md:mb-0"
+          className="pointer-events-auto w-full max-w-[480px] bg-[#111b19] border border-white/10 text-white shadow-[0_-20px_60px_-20px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden rounded-t-[28px] md:rounded-[28px] mx-0 md:mx-4 mb-0 md:mb-0"
           style={{
             maxHeight: 'min(90dvh, 100%)',
             paddingBottom: 'env(safe-area-inset-bottom)',
@@ -210,7 +337,8 @@ export function TasteSheetView(props: Props) {
           onClick={(e) => e.stopPropagation()}
         >
           
-          <header className="p-6 pb-4 shrink-0 relative">
+          <header className="px-6 pt-3 pb-4 shrink-0 relative">
+            <div aria-hidden="true" className="md:hidden mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
             <button
               onClick={onClose}
               aria-label={t('close')}
@@ -220,10 +348,10 @@ export function TasteSheetView(props: Props) {
             </button>
 
             <div className="pr-12">
-              <p className="text-[11px] uppercase tracking-wider text-emerald-400 font-bold mb-1">
+              <p className="text-[12px] text-emerald-300 font-semibold mb-1">
                 {language === 'ko' ? '취향으로 찾기' : 'YOUR TASTE'}
               </p>
-              <h2 id="taste-dialog-title" className="text-[22px] font-semibold leading-tight">
+              <h2 id="taste-dialog-title" className="text-[24px] font-bold tracking-[-0.01em] leading-tight">
                 {viewState === 'composer'
                   ? (language === 'ko' ? '어떤 곳이 끌리세요?' : 'What appeals to you?')
                   : (language === 'ko' ? `지금 가볼 곳 ${results.length}` : `Top ${results.length} Places Now`)
@@ -286,7 +414,7 @@ export function TasteSheetView(props: Props) {
                       ? '오늘은 어떤 곳에 가고 싶으세요?\n좋아하는 가게, 찾는 음식, 거리·가격을 알려주세요.'
                       : 'What are you in the mood for?\nAdd favorite places, a dish, distance or price range.'}
                     aria-label={language === 'ko' ? '취향 또는 추가 요청' : 'Taste or additional request'}
-                    className="w-full min-h-[156px] bg-white/[0.03] border border-white/[0.15] rounded-[20px] p-4 pb-14 text-[16px] leading-[1.65] text-white placeholder:text-white/50 focus:outline-none focus:border-emerald-400/50 focus:bg-white/[0.05] transition-all resize-none disabled:opacity-50"
+                    className="w-full min-h-[148px] bg-white/[0.03] border border-white/[0.12] rounded-[24px] p-4 pb-14 shadow-inner text-[16px] leading-[1.65] text-white placeholder:text-white/50 focus:outline-none focus:border-emerald-400/50 focus:bg-white/[0.05] transition-all resize-none disabled:opacity-50"
                     style={{ fontSize: '16px',backgroundColor:'rgba(255,255,255,0.03)',color:'inherit' }}
                   />
 
@@ -319,12 +447,22 @@ export function TasteSheetView(props: Props) {
 
                 
                 {voiceNotice && <p role="status" className="text-[12px] text-emerald-300">{language==='ko'?'말씀하신 내용을 정리했어요. 수정한 뒤 추천받기를 눌러주세요.':'Your voice is ready as text. Edit it and tap Recommend.'}</p>}
-                <details className="text-[12px] text-white/55">
-                  <summary className="cursor-pointer min-h-9 flex items-center">{language==='ko'?'이렇게 말하면 더 잘 찾아요 ›':'Examples for better matches ›'}</summary>
-                  <p className="mb-2">{language==='ko'?'짧게 “햄버거 먹고 싶어”라고 해도 괜찮아요. 좋아하는 가게·찾는 음식·거리·가격대를 더해보세요. 예시를 누르면 입력칸에 들어가요.':'“I want a burger” works too. Add favorite places, a dish, distance or price range. Tap an example to fill the input.'}</p>
-                  {(language==='ko'?['평소 맥도날드를 좋아해요. 그곳은 제외하고 5km 안에서 $$ 이하인 새로운 식당을 추천해줘.','아니, 오늘은 베트남 쌀국수로 바꿔줘. 거리와 가격 조건은 그대로.','구제옷을 파는 중고 의류 매장을 15km 안에서 찾아줘.']:['I usually like In-N-Out. Exclude it and recommend a new restaurant within 5 km, $$ or less.','Actually, switch to Vietnamese pho today. Keep the distance and price range.','Find secondhand clothing stores within 15 km.']).map(example=><button key={example} disabled={isBusy||isRecording} onClick={()=>onInput(example)} className="block w-full text-left rounded-xl border border-white/10 p-3 mb-2 text-white/70 leading-relaxed">{example}</button>)}
-                  <p>{language==='ko'?'메뉴·영업 여부는 방문 전 지도에서 확인해주세요.':'Verify menu availability and hours before visiting.'}</p>
-                </details>
+                {!inputText.trim() && voiceState==='idle' && (
+                  <div>
+                    <p className="text-[12px] text-white/50 mb-2">{language==='ko'?'이렇게 시작해보세요':'Try one of these'}</p>
+                    <div className="-mx-6 px-6 flex gap-2 overflow-x-auto no-scrollbar snap-x pb-1">
+                      {(language==='ko'
+                        ? [['🍜','쌀국수 먹고 싶어, 5km 안'],['✿','근처 미쉐린 빕 구르망'],['☕','말차 라떼 맛있는 카페'],['🍔','맥도날드 말고 새로운 버거집'],['👕','15km 안 빈티지 옷가게']]
+                        : [['🍜','Pho within 5 km'],['✿','Michelin Bib Gourmand nearby'],['☕','Cafe with great matcha latte'],['🍔','A new burger spot, not In-N-Out'],['👕','Vintage clothing within 15 km']]
+                      ).map(([icon,text])=> (
+                        <button key={text} type="button" onClick={()=>{onInput(text);textareaRef.current?.focus();}} className="snap-start shrink-0 inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full border border-white/[0.12] bg-white/[0.04] text-[13px] text-white/85 hover:bg-white/[0.08] active:scale-[0.97] transition-all">
+                          <span aria-hidden="true">{icon}</span>{text}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-white/40 mt-2">{language==='ko'?'메뉴·영업 여부는 방문 전 지도에서 확인해주세요.':'Verify menu availability and hours before visiting.'}</p>
+                  </div>
+                )}
                 {history.length>0 && <div className="flex items-start justify-between gap-3 text-[12px] text-white/45"><details className="flex-1"><summary className="cursor-pointer min-h-9 flex items-center">{language==='ko'?`이번 대화 ${history.length}개 · 최신 요청 우선`:`This conversation (${history.length}) · latest request wins`}</summary><ol className="space-y-2 pl-4 list-decimal">{history.map((entry,i)=><li key={i}>{entry}</li>)}</ol><p className="mt-2">{language==='ko'?'이 페이지에서만 기억해요.':'Kept only on this page.'}</p></details><button onClick={onReset} disabled={isBusy||isRecording} className="min-h-9 text-emerald-300 whitespace-nowrap">{language==='ko'?'새로 시작':'Start fresh'}</button></div>}
 
                 {guestRemaining !== null && guestRemaining >= 0 && !userId && (
@@ -341,105 +479,21 @@ export function TasteSheetView(props: Props) {
             ) : (
 
               <div className="space-y-3 pt-2 pb-4">
-                {results.map((place, index) => {
-                  const dist = origin && Number.isFinite(place.latitude) && Number.isFinite(place.longitude)
-                    ? getDistance(origin.latitude, origin.longitude, place.latitude!, place.longitude!)
-                    : null;
+                {results.map((place, index) => renderCard(place, index))}
 
-                  const rankBadgeStyle = index === 0
-                    ? "bg-[#D9B26A]/10 text-[#D9B26A] border-[#D9B26A]/20"
-                    : "bg-transparent text-white/50 border-white/10";
-
-                  const cardBgClass = index === 0
-                    ? "bg-emerald-500/10 border-emerald-500/25"
-                    : "bg-white/[0.04] border-white/[0.08]";
-
-                  return (
-                    <details key={`${place.id}-${index}`} className={`group open:bg-white/[0.06] transition-colors rounded-[18px] border ${cardBgClass}`}>
-                      <summary className="list-none cursor-pointer p-4 flex items-start gap-3 [&::-webkit-details-marker]:hidden">
-                        
-                        <div className={`w-8 h-8 flex-shrink-0 rounded-full border flex items-center justify-center text-xs font-bold ${rankBadgeStyle}`}>
-                          {index + 1}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-[16px] font-semibold text-white leading-snug line-clamp-2 break-words">
-                            {place.name}
-                          </h3>
-
-                          
-                          {(() => {
-                            const meta = [
-                              dist !== null ? <span key="d">{formatDistance(dist)}</span> : null,
-                              Number.isInteger(place.priceLevel) && place.priceLevel! >= 1 && place.priceLevel! <= 4 ? <span key="p">{formatPrice(place.priceLevel)}</span> : null,
-                              typeof place.rating === 'number' && Number.isFinite(place.rating) ? <span key="r" className="text-[#D9B26A]">{formatRating(place.rating, place.ratingSource, place.reviewCount)}</span> : null,
-                            ].filter(Boolean) as React.ReactElement[];
-                            return meta.length ? (
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-[13px] text-white/70">
-                                {meta.map((m, i) => <React.Fragment key={i}>{i > 0 && <span className="text-white/20">·</span>}{m}</React.Fragment>)}
-                              </div>
-                            ) : null;
-                          })()}
-                          {place.michelin && (
-                            <span className="inline-flex items-center gap-1 mt-2 rounded-full border border-rose-300/30 bg-rose-500/15 px-2.5 py-1 text-[12px] font-semibold text-rose-100">
-                              <span aria-hidden="true">✿</span>
-                              {place.michelin.stars > 0
-                                ? (language === 'ko' ? `미쉐린 ${place.michelin.stars}스타` : `MICHELIN ${place.michelin.stars} Star${place.michelin.stars > 1 ? 's' : ''}`)
-                                : place.michelin.bib
-                                  ? (language === 'ko' ? '미쉐린 빕 구르망' : 'MICHELIN Bib Gourmand')
-                                  : (language === 'ko' ? '미쉐린 가이드 선정' : 'MICHELIN Guide')}
-                              {place.michelin.green ? (language === 'ko' ? ' · 그린스타' : ' · Green Star') : ''}
-                              {place.michelin.year ? <span className="font-normal text-rose-100/70"> · {place.michelin.year}</span> : null}
-                            </span>
-                          )}
-                          {typeof place.openNow==='boolean' && <p className={`text-[12px] mt-1 ${place.openNow?'text-emerald-300':'text-white/50'}`}>{language==='ko'?(place.openNow?'영업 중':'현재 영업 종료'):(place.openNow?'Open now':'Closed now')}</p>}
-                          {place.ratingSource==='google' && <p translate="no" className="text-[12px] text-white/60 whitespace-nowrap font-sans font-normal mt-1">Google Maps</p>}
-                        </div>
-
-                        <div className="self-center text-white/30 group-open:rotate-90 transition-transform duration-200">
-                           <ChevronRight />
-                        </div>
-                      </summary>
-
-                      
-                      <div className="px-4 pb-4 pt-0 space-y-3">
-                         {place.michelin && <a href={place.michelin.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center text-[13px] text-rose-200">{language==='ko'?'미쉐린 가이드에서 보기 ↗':'View on MICHELIN Guide ↗'}</a>}
-                         {place.address && (
-                           <p className="text-[14px] text-white/80 leading-relaxed">
-                             {place.address}
-                           </p>
-                         )}
-
-                         {place.description && (
-                           <p className="text-[13px] text-white/60 leading-relaxed">
-                             {place.description}
-                           </p>
-                         )}
-
-                         {place.descriptionUnavailable && <p className="text-[12px] text-white/45">{language==='ko'?'설명을 번역하지 못했어요. 지도에서 확인해주세요.':'Description translation unavailable. Check the map.'}</p>}
-                         <div className="rounded-xl border border-white/10 p-3">
-                           <p className="text-[12px] font-semibold text-white/75 mb-2">{language==='ko'?'정규 영업시간 · 현지 시간':'Regular opening hours · local time'}</p>
-                           {place.openingHoursText?.length ? <ul className="space-y-1 text-[12px] text-white/60">{place.openingHoursText.map((row,i)=><li key={i}>{row}</li>)}</ul> : formatOpeningHours(place.hours,language).length ? <dl className="grid grid-cols-[2rem_1fr] gap-x-3 gap-y-1 text-[12px] text-white/60">{formatOpeningHours(place.hours,language).map(row=><React.Fragment key={row.day}><dt>{row.day}</dt><dd>{row.value}</dd></React.Fragment>)}</dl> : <p className="text-[12px] text-white/50">{language==='ko'?'영업시간 미제공 · 지도에서 확인':'Hours unavailable · check the map'}</p>}
-                           <p className="text-[10px] text-white/35 mt-2">{place.ratingSource==='google'?'Google Maps':(language==='ko'?'Qloo 제공':'Source: Qloo')} · {language==='ko'?'방문 전 최신 시간 확인':'Check latest hours before visiting'}</p>
-                         </div>
-
-                         {place.rankingSource && <p className="text-[12px] text-white/50">{place.rankingSource==='qloo'?(language==='ko'?'Qloo 취향 순위 반영':'Ranked with Qloo taste affinity'):(language==='ko'?'요청 조건에 맞는 검색 결과':'Search results matching your request')}</p>}
-                         {place.googleAttributions?.map((a,i)=><a key={i} href={/^https:\/\//.test(a.uri)?a.uri:undefined} target="_blank" rel="noopener noreferrer" className="block text-[12px] text-white/60">{a.displayName}</a>)}
-                         {isValidGoogleMapUrl(place.url) && (
-                           <a
-                             href={place.url}
-                             target="_blank"
-                             rel="noopener noreferrer"
-                             className="inline-flex items-center gap-1.5 text-[13px] text-emerald-400 hover:text-emerald-300 bg-white/[0.07] hover:bg-white/[0.12] px-3 py-2 rounded-lg transition-colors min-h-[44px]"
-                           >
-                             <ExternalLinkIcon />
-                             <span>{language === 'ko' ? 'Google 리뷰 · 지도' : 'Google Reviews · Map'}</span>
-                           </a>
-                         )}
+                {michelinNearby.length > 0 && (
+                  <section aria-labelledby="michelin-nearby-title" className="pt-4">
+                    <div className="flex items-end justify-between gap-3 mb-2.5">
+                      <div>
+                        <h3 id="michelin-nearby-title" className="text-[17px] font-bold text-white flex items-center gap-1.5"><span aria-hidden="true" className="text-[#E4002B]">✿</span>{language === 'ko' ? '멀지만 미쉐린' : 'Worth the drive: MICHELIN'}</h3>
+                        <p className="text-[12px] text-white/50 mt-0.5">{language === 'ko' ? '차로 약 1시간 안에 있는 미쉐린 가이드 식당' : 'MICHELIN Guide restaurants about an hour away or less'}</p>
                       </div>
-                    </details>
-                  );
-                })}
+                    </div>
+                    <div className="space-y-3">
+                      {michelinNearby.map((place, index) => renderCard(place, index, 'nearby'))}
+                    </div>
+                  </section>
+                )}
 
                 
                 {appliedSummary && (
@@ -462,13 +516,13 @@ export function TasteSheetView(props: Props) {
           </div>
 
           
-          {!(viewState==='composer' && voiceState!=='idle') && <footer className={`shrink-0 px-6 pb-6 pt-4 border-t border-white/[0.08] bg-[#111b19]/95 backdrop-blur-sm ${viewState === 'results' ? '' : ''}`}>
+          {!(viewState==='composer' && voiceState!=='idle') && <footer className={`shrink-0 px-5 pb-5 pt-3 border-t border-white/[0.06] bg-[#111b19]/95 backdrop-blur-sm ${viewState === 'results' ? '' : ''}`}>
              {viewState === 'composer' ? (
-               <div className="flex gap-3">
+               <div className="flex items-center gap-3">
                  
                  <button
                    onClick={onClose}
-                   className="flex-[1] h-[48px] rounded-[14px] border border-white/[0.15] text-white/80 font-medium text-[15px] hover:bg-white/5 transition-colors"
+                   className="shrink-0 h-[52px] px-3 text-white/70 font-semibold text-[15px] underline underline-offset-4 decoration-white/30 hover:text-white transition-colors"
                  >
                    {language === 'ko' ? '취소' : 'Cancel'}
                  </button>
@@ -477,7 +531,7 @@ export function TasteSheetView(props: Props) {
                  {guestRemaining === 0 && !userId ? (
                    <button
                      onClick={onLogin}
-                     className="flex-[2] h-[48px] rounded-[14px] bg-[#33d5a4] text-[#0f1715] font-semibold text-[15px] hover:brightness-110 transition-all"
+                     className="flex-1 h-[52px] rounded-full bg-[#33d5a4] text-[#0f1715] font-bold text-[16px] shadow-[0_10px_24px_-10px_rgba(51,213,164,0.8)] hover:brightness-110 active:scale-[0.98] transition-all"
                    >
                      {language === 'ko' ? '로그인하고 계속하기' : 'Log in to continue'}
                    </button>
@@ -485,7 +539,7 @@ export function TasteSheetView(props: Props) {
                    <button
                      onClick={onRecommend}
                      disabled={isBusy || isRecording || (guestRemaining !== null && guestRemaining <= 0 && !userId)}
-                     className="flex-[2] h-[48px] rounded-[14px] bg-[#33d5a4] text-[#0f1715] font-semibold text-[15px] hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                     className="flex-1 h-[52px] rounded-full bg-[#33d5a4] text-[#0f1715] font-bold text-[16px] shadow-[0_10px_24px_-10px_rgba(51,213,164,0.8)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-2"
                    >
                      {isBusy ? (
                        <>
@@ -496,7 +550,7 @@ export function TasteSheetView(props: Props) {
                          <span>{language === 'ko' ? '찾는 중…' : 'Finding…'}</span>
                        </>
                      ) : (
-                       <span>{language === 'ko' ? '추천받기' : 'Get Recommendations'}</span>
+                       <><SearchIcon /><span>{language === 'ko' ? '추천받기' : 'Get Recommendations'}</span></>
                      )}
                    </button>
                  )}
@@ -505,7 +559,7 @@ export function TasteSheetView(props: Props) {
 
                <button
                  onClick={onRefine}
-                 className="w-full h-[48px] rounded-[14px] bg-[#33d5a4] text-[#0f1715] font-semibold text-[15px] hover:brightness-110 transition-all"
+                 className="w-full h-[52px] rounded-full bg-[#33d5a4] text-[#0f1715] font-bold text-[16px] shadow-[0_10px_24px_-10px_rgba(51,213,164,0.8)] hover:brightness-110 active:scale-[0.98] transition-all"
                >
                  {language === 'ko' ? '조건을 더해서 다시 추천' : 'Refine & Re-recommend'}
                </button>
