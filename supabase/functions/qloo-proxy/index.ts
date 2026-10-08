@@ -802,6 +802,9 @@ function normalizeMichelinHit(hit: any): MichelinAward | null {
     } else {
       return null; // Reject plate without explicit green true per strict interpretation
     }
+  } else if (distSlug === 'selected-restaurants' || distSlug === 'selected' || distSlug === 'michelin-selected' || distSlug == null) {
+    stars = 0;
+    isValidClassification = true;
   } else {
     return null; // Unknown slug
   }
@@ -817,7 +820,9 @@ function normalizeMichelinHit(hit: any): MichelinAward | null {
 
 
   let sourceUrl = "";
-  if (typeof url === 'string' && url.startsWith('https://')) {
+  if (typeof url === 'string' && /^\/[a-z]{2}\/[A-Za-z0-9/_%.-]{3,300}$/.test(url)) {
+    sourceUrl = `https://guide.michelin.com${url}`;
+  } else if (typeof url === 'string' && url.startsWith('https://')) {
     try {
       const parsed = new URL(url);
       if (parsed.hostname === 'guide.michelin.com') {
@@ -903,12 +908,8 @@ async function fetchParseData(query: string): Promise<any[]> {
 
     clearTimeout(timeoutId);
     const hits = json.data.hits;
-    const nbPages = json.data.nbPages;
-    const nbHits = json.data.nbHits;
 
-    if (!Number.isInteger(nbPages)||!Number.isInteger(nbHits)||nbPages > 1 || nbHits > 100||hits.length>100) {
-      throw new Error('michelin_unavailable');
-    }
+    if (hits.length > 100) hits.length = 100;
 
     const normalizedAwards: any[] = [];
     for (const hit of hits) {
@@ -949,195 +950,99 @@ function setCacheEntry(key: string, data: any[]): void {
   michelinCache.set(key, { data, expiry: Date.now() + MICHELIN_CACHE_TTL_MS });
 }
 
-async function filterMichelinPlaces(raw: any[], filter: MichelinFilter): Promise<any[]> {
-  if (!raw || raw.length === 0) return [];
+const MAX_MICHELIN_LOOKUPS = 8;
 
-  const groups = new Map<string, { region: string; country: string; items: any[] }>();
-
-  for (const item of raw) {
-    if (!item || !item.properties) continue;
-
-    const geoCode = item.properties.geocode;
-    let region = '';
-    let country = '';
-
-    if (geoCode) {
-      region = String(geoCode.admin2_region || '').trim();
-      country = typeof geoCode.country_code==='string'?geoCode.country_code.trim():''; // Assuming top level or properties? Prompt says "plus country_code". Usually ISO.
-
-      if (!region) {
-        region = typeof geoCode.city==='string'?geoCode.city.trim():'';
-      }
-    }
-
-    if (region.length === 0 || region.length > 80) throw new Error('michelin_unavailable');
-    if (country.length === 0 || country.length > 80) throw new Error('michelin_unavailable');
-
-    const groupKey = JSON.stringify([country, region]);
-
-    if (!groups.has(groupKey)) {
-      groups.set(groupKey, { region, country, items: [] });
-    }
-    groups.get(groupKey)!.items.push(item);
-  }
-
-  const uniqueGroupsCount = groups.size;
-  if (uniqueGroupsCount > MAX_GROUPS_PER_REQUEST) {
-    throw new Error('michelin_unavailable');
-  }
-
-  if (uniqueGroupsCount === 0) return [];
-
-  const groupEntries = Array.from(groups.entries());
-  const resultsPerGroup = new Map<string, any[]>();
-
-  const processQueue = async () => {
-
-    let index = 0;
-
-    const worker = async () => {
-      while (index < groupEntries.length) {
-        const currentIndex = index++;
-        const [cacheKey, groupData] = groupEntries[currentIndex];
-
-        const cached = getCacheEntry(cacheKey);
-        if (cached) {
-          resultsPerGroup.set(cacheKey, cached);
-          continue;
-        }
-
-        if (inFlightRequests.has(cacheKey)) {
-           try {
-             const res = await inFlightRequests.get(cacheKey)!;
-             resultsPerGroup.set(cacheKey, res);
-           } catch (e) {
-             throw e; // Propagate error
-           }
-           continue;
-        }
-
-        const query = groupData.region;
-
-        const flightPromise = fetchParseData(query).then((data) => {
-          setCacheEntry(cacheKey, data);
-          inFlightRequests.delete(cacheKey);
-          return data;
-        }).catch((err) => {
-          inFlightRequests.delete(cacheKey);
-          throw err;
-        });
-
-        inFlightRequests.set(cacheKey, flightPromise);
-
-        try {
-          const data = await flightPromise;
-          resultsPerGroup.set(cacheKey, data);
-        } catch (e) {
-          throw e;
-        }
-      }
-    };
-
-    const workers = [];
-    for (let i = 0; i < Math.min(CONCURRENCY_LIMIT, groupEntries.length); i++) {
-      workers.push(worker());
-    }
-
-    await Promise.all(workers);
-  };
-
-  await processQueue();
-
-  const finalResults: any[] = [];
-  let hasAnyGreenMatch = false;
-  const requestedOnlyGreen = filter.awards.length === 1 && filter.awards[0] === 'green';
-
-  for (const groupData of groups.values()) {
-    const cacheKey = JSON.stringify([groupData.country, groupData.region]);
-    const normalizedAwards = resultsPerGroup.get(cacheKey) || [];
-
-    for (const rawItem of groupData.items) {
-      const externalIds = rawItem.external?.michelin;
-      if (!externalIds || !Array.isArray(externalIds) || externalIds.length === 0) {
-        continue;
-      }
-
-      const loc = rawItem.location;
-      if (!loc || !Number.isFinite(loc.lat)||!Number.isFinite(loc.lon)||typeof loc.lat !== 'number' || typeof loc.lon !== 'number') {
-        continue;
-      }
-      const pLat = loc.lat;
-      const pLon = loc.lon;
-
-      let matchedAward: MichelinAward | null = null;
-
-      for (const extIdObj of externalIds) {
-        const mIdStr = extIdObj.id;
-        if (typeof mIdStr !== 'string' && typeof mIdStr !== 'number') continue;
-
-        if(!/^\d{1,15}$/.test(String(mIdStr)))continue;
-        const targetNumericId = Number(mIdStr);
-        if (isNaN(targetNumericId)) continue;
-
-        for (const award of normalizedAwards) {
-
-          const awardId = (award as any)._id;
-          const awardLat = (award as any)._lat;
-          const awardLng = (award as any)._lng;
-
-          if (awardId === targetNumericId) {
-            const dist = michelinDistanceMeters(pLat, pLon, awardLat, awardLng);
-            if (dist <= DISTANCE_THRESHOLD_M) {
-              matchedAward = award;
-              break;
-            }
-          }
-        }
-        if (matchedAward) break;
-      }
-
-      if (!matchedAward) continue;
-
-      const { stars, bib, green } = matchedAward;
-
-      if (green) hasAnyGreenMatch = true;
-
-      let qualifies = false;
-
-
-      if (stars > filter.maxStars) {
-        qualifies = false;
-      } else {
-        const condBib = bib && filter.awards.includes('bib');
-        const condGreen = green && filter.awards.includes('green');
-        const condStar = stars >= 1 && filter.awards.includes('star');
-
-        if (condBib || condGreen || condStar) {
-          qualifies = true;
-        }
-      }
-
-      if (qualifies) {
-        const cleanAward: MichelinAward = {
-          stars: matchedAward.stars,
-          bib: matchedAward.bib,
-          green: matchedAward.green,
-          year: matchedAward.year,
-          sourceUrl: matchedAward.sourceUrl
-        };
-
-        (rawItem as any)._michelin = cleanAward;
-        finalResults.push(rawItem);
-      }
-    }
-  }
-
-  if (requestedOnlyGreen && !hasAnyGreenMatch) {
-    throw new Error('michelin_green_unavailable');
-  }
-
-  return raw.filter(p=>finalResults.includes(p));
+function michelinCandidate(item: any): { ids: number[]; lat: number; lon: number; name: string; country: string } | null {
+  const ext = item?.external?.michelin;
+  if (!Array.isArray(ext) || ext.length === 0) return null;
+  const ids = ext.map((e: any) => String(e?.id ?? '')).filter((s: string) => /^\d{1,15}$/.test(s)).map(Number);
+  const lat = item?.location?.lat, lon = item?.location?.lon;
+  const name = typeof item?.name === 'string' ? item.name.trim() : '';
+  if (!ids.length || !Number.isFinite(lat) || !Number.isFinite(lon) || !name || name.length > 120) return null;
+  const country = typeof item?.properties?.geocode?.country_code === 'string' ? item.properties.geocode.country_code.trim() : '';
+  return { ids, lat, lon, name, country };
 }
+
+async function lookupMichelinAward(item: any): Promise<MichelinAward | null> {
+  const c = michelinCandidate(item);
+  if (!c) return null;
+  const cacheKey = JSON.stringify(['name', c.country, c.name.toLowerCase()]);
+  let awards = getCacheEntry(cacheKey);
+  if (!awards) {
+    let flight = inFlightRequests.get(cacheKey);
+    if (!flight) {
+      flight = fetchParseData(c.name).finally(() => inFlightRequests.delete(cacheKey));
+      inFlightRequests.set(cacheKey, flight);
+    }
+    awards = await flight;
+    setCacheEntry(cacheKey, awards);
+  }
+  for (const award of awards) {
+    if (c.ids.includes(award._id) && michelinDistanceMeters(c.lat, c.lon, award._lat, award._lng) <= DISTANCE_THRESHOLD_M) {
+      return { stars: award.stars, bib: award.bib, green: award.green, year: award.year, sourceUrl: award.sourceUrl };
+    }
+  }
+  return null;
+}
+
+function michelinSelectionFallback(item: any): MichelinAward | undefined {
+  const c = michelinCandidate(item);
+  if (!c) return undefined;
+  return { stars: 0, bib: false, green: false, sourceUrl: `https://guide.michelin.com/en/restaurants?search=${encodeURIComponent(c.name)}` };
+}
+
+async function mapLimited<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) { const i = next++; out[i] = await fn(items[i]); }
+  }));
+  return out;
+}
+
+// Michelin filter: look each Qloo place up by name (Qloo already returned only places with a Michelin id).
+// A region-wide query overflowed the 100-hit cap in big cities and failed the whole request.
+async function filterMichelinPlaces(raw: any[], filter: MichelinFilter): Promise<any[]> {
+  const candidates = (raw || []).filter(item => michelinCandidate(item)).slice(0, MAX_MICHELIN_LOOKUPS);
+  if (!candidates.length) return [];
+  let failures = 0; let lastError: Error | null = null;
+  const awards = await mapLimited(candidates, CONCURRENCY_LIMIT, async item => {
+    try { return await lookupMichelinAward(item); }
+    catch (e) { failures++; lastError = e instanceof Error ? e : new Error('michelin_unavailable'); return null; }
+  });
+  if (failures === candidates.length && lastError) throw lastError;
+  const requestedOnlyGreen = filter.awards.length === 1 && filter.awards[0] === 'green';
+  let anyGreen = false;
+  const results: any[] = [];
+  candidates.forEach((item, i) => {
+    const a = awards[i];
+    if (!a) return;
+    if (a.green) anyGreen = true;
+    if (a.stars > filter.maxStars) return;
+    if ((a.bib && filter.awards.includes('bib')) || (a.green && filter.awards.includes('green')) || (a.stars >= 1 && filter.awards.includes('star'))) {
+      item._michelin = a;
+      results.push(item);
+    }
+  });
+  if (requestedOnlyGreen && !anyGreen) throw new Error('michelin_green_unavailable');
+  return results;
+}
+
+// Badge for ordinary restaurant results: best effort, never fails or slows the search much.
+async function annotateMichelin(items: any[]): Promise<void> {
+  const candidates = items.filter(item => !item._michelin && michelinCandidate(item)).slice(0, 5);
+  if (!candidates.length) return;
+  const budget = new Promise<null>(resolve => setTimeout(() => resolve(null), 4000));
+  await Promise.race([
+    mapLimited(candidates, CONCURRENCY_LIMIT, async item => {
+      try { item._michelin = (await lookupMichelinAward(item)) ?? michelinSelectionFallback(item); }
+      catch { item._michelin = michelinSelectionFallback(item); }
+    }),
+    budget,
+  ]);
+  for (const item of candidates) if (!item._michelin) item._michelin = michelinSelectionFallback(item);
+}
+
 
 async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {michelin?:MichelinFilter|null;category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string;foodApproach?: string;shoppingKind?: string;foodQuery?: string;searchQuery?:string;openNow?:boolean;language?:string} = {}, excludedNames: string[] = []): Promise<{ places: QlooPlaceResult[] } | Response> {
   // Optional explicit entities; generic tastes are represented by tags.
@@ -1285,6 +1190,7 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     }
     if(category==='food' && (filterCuisine!=='any' || dishTag))rawPlaces=rawPlaces.filter((p:any)=>matchesFoodConstraint(p,filterCuisine,dishTag) || (!dishTag && drink==='matcha' && Array.isArray(p.tags) && p.tags.some((t:any)=>t.id==='urn:tag:menu_highlight:qloo:matcha_latte')));
     if(michelin)rawPlaces=await filterMichelinPlaces(rawPlaces,michelin);
+    else if(category==='food')await annotateMichelin(rawPlaces.slice(0,6));
     const places: QlooPlaceResult[] = rawPlaces.map((p: any) => {
       if (typeof p.name !== 'string' || !p.name.trim() || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(p.entity_id || p.id || '')) return null;
       const name = p.name;
