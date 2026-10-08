@@ -2,8 +2,6 @@
 import { supabase } from './supabaseClient';
 import type { Language } from '../types';
 
-const PROMO_CODE = 'joshjoshjosh';
-const DAILY_FREE_CREDITS = 10;
 const GUEST_STORAGE_KEY = 'snaptrip_guest_profile';
 
 const SUPPORTED_LANGUAGES: Language[] = ['en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'it'];
@@ -67,74 +65,32 @@ export const usageService = {
       };
     }
 
-    // 2. 로그인 사용자 처리
+    // 2. 로그인 사용자: 크레딧 생성/일일 충전은 서버 함수가 처리 (클라이언트는 credits를 쓸 수 없음)
     const localKey = getLocalKey(userId);
-    const localDataRaw = localStorage.getItem(localKey);
-    const localData = parseStoredObject(localDataRaw);
+    const localData = parseStoredObject(localStorage.getItem(localKey));
 
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('credits, is_premium, last_reset_at, promo_used, language')
-        .eq('id', userId)
-        .maybeSingle();
-
+      const { data, error } = await supabase.rpc('refresh_my_credits', {
+        p_today: today,
+        p_language: localData?.language || systemLang,
+      });
       if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row) throw new Error('empty profile');
 
-      // 버그로 인해 10 크레딧 이상을 받은 유저들(단, 프로모 코드를 쓰지 않은 경우) 10으로 롤백
-      if (data && data.credits > 10 && !data.promo_used) {
-         data.credits = 10;
-         const { error: rollbackError } = await supabase.from('profiles').update({ credits: 10 }).eq('id', userId);
-         if (rollbackError) throw rollbackError;
-      }
-
-      if (!data) {
-        // 신규 로그인 유저 초기화 (기본 10)
-        const initial = { 
-          id: userId, 
-          credits: 10, 
-          last_reset_at: today, 
-          language: localData?.language || systemLang,
-          updated_at: new Date().toISOString()
-        };
-        const { error: insertError } = await supabase.from('profiles').upsert(initial);
-        if (insertError) throw insertError;
-        localStorage.setItem(localKey, JSON.stringify(initial));
-        return { credits: 10, isPremium: false, promoUsed: false, language: initial.language as Language };
-      }
-
-      // 날짜 기반 리필 로직
-      if (data.last_reset_at !== today) {
-        const newCredits = Math.max(data.credits, DAILY_FREE_CREDITS);
-        const updateData = { 
-          credits: newCredits, 
-          last_reset_at: today,
-          updated_at: new Date().toISOString() 
-        };
-        const { error: refillError } = await supabase.from('profiles').update(updateData).eq('id', userId);
-        if (refillError) throw refillError;
-        
-        const merged = { ...data, ...updateData };
-        localStorage.setItem(localKey, JSON.stringify(merged));
-        return { credits: newCredits, isPremium: data.is_premium, promoUsed: data.promo_used, language: (data.language || systemLang) as Language };
-      }
-      
-      // 로컬 최신화
-      localStorage.setItem(localKey, JSON.stringify({ ...data, id: userId }));
-      return { 
-        credits: data.credits, 
-        isPremium: data.is_premium, 
-        promoUsed: data.promo_used,
-        language: (data.language || localData?.language || systemLang) as Language
+      const result = {
+        credits: row.credits ?? 0,
+        isPremium: !!row.is_premium,
+        promoUsed: !!row.promo_used,
+        language: (row.language || localData?.language || systemLang) as Language,
       };
-
+      localStorage.setItem(localKey, JSON.stringify({ ...(localData || {}), id: userId, credits: result.credits, is_premium: result.isPremium, promo_used: result.promoUsed, language: result.language }));
+      return result;
     } catch (e) {
       console.warn("[SnapTrip] Profile Sync Fallback:", e);
       if (localData) {
-        console.warn("[SnapTrip] Using cached local credits:", localData.credits);
-        return { credits: localData.credits, isPremium: localData.is_premium, promoUsed: localData.promo_used, language: localData.language || systemLang };
+        return { credits: localData.credits ?? 0, isPremium: !!localData.is_premium, promoUsed: !!localData.promo_used, language: localData.language || systemLang };
       }
-      console.warn("[SnapTrip] No local cache — returning credits: 0 to avoid fake quota display");
       return { credits: 0, isPremium: false, promoUsed: false, language: systemLang };
     }
   },
@@ -160,18 +116,10 @@ export const usageService = {
 
   async applyPromoCode(userId: string | null, code: string): Promise<{success: boolean, message: string}> {
     if (!userId || userId === 'guest') return { success: false, message: 'loginFirst' };
-    const cleanCode = code.trim().toLowerCase();
-    if (cleanCode !== PROMO_CODE.toLowerCase()) return { success: false, message: 'invalidCode' };
-    const profile = await this.getUserCredits(userId);
-    if (profile.promoUsed) return { success: false, message: 'alreadyUsed' };
     try {
-      const newCredits = profile.credits + 100;
-      const { error } = await supabase.from('profiles').update({ credits: newCredits, promo_used: true, updated_at: new Date().toISOString() }).eq('id', userId);
+      const { data, error } = await supabase.rpc('redeem_promo_code', { p_code: code.trim() });
       if (error) throw error;
-      const localKey = getLocalKey(userId);
-      const currentLocal = parseStoredObject(localStorage.getItem(localKey)) || {};
-      localStorage.setItem(localKey, JSON.stringify({ ...currentLocal, credits: newCredits, promo_used: true }));
-      return { success: true, message: 'success' };
+      return { success: data === 'success', message: String(data) };
     } catch (e) { return { success: false, message: 'error' }; }
   },
 
@@ -192,10 +140,9 @@ export const usageService = {
       return newCredits;
     }
     try {
-      const profile = await this.getUserCredits(userId);
-      const newCredits = Math.max(0, profile.credits - 1);
-      const { error } = await supabase.from('profiles').update({ credits: newCredits, updated_at: new Date().toISOString() }).eq('id', userId);
+      const { data, error } = await supabase.rpc('consume_my_credit');
       if (error) throw error;
+      const newCredits = Math.max(0, Number(data));
       const localKey = getLocalKey(userId);
       const currentLocal = parseStoredObject(localStorage.getItem(localKey)) || {};
       localStorage.setItem(localKey, JSON.stringify({ ...currentLocal, credits: newCredits }));
