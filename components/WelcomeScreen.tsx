@@ -1,6 +1,6 @@
 
 import NearbyPlaceList from './NearbyPlaceList';
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslations } from '../translations';
 import type { Language, User, HistoryItem } from '../types';
 
@@ -29,17 +29,18 @@ interface WelcomeScreenProps {
   isMoreNearbyLoading?: boolean;
 }
 
+const HISTORY_PAGE_SIZE = 6;
+
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onUploadClick, onCameraClick, language, user, onLogin, recentHistory, onSelectHistory, credits, onReload, isSyncing = false,
   nearbyGems = [], nearbyAreaName = '', nearbyWeather = null, isNearbyLoading = false, locationStatus = 'idle', onRefreshLocation, onStartGuide,
   onShowMoreNearby, isMoreNearbyLoading = false, tasteRecommendations, weatherStatus='idle', onRetryWeather
 }) => {
   const t = useTranslations(language);
-  const [displayLimit, setDisplayLimit] = useState(10);
+  const [displayLimit, setDisplayLimit] = useState(HISTORY_PAGE_SIZE);
   const [isNearbyExpanded, setIsNearbyExpanded] = useState(false);
   const [tempUnit, setTempUnit] = useState<'C' | 'F'>('C');
   const [activeGuide, setActiveGuide] = useState<{landmarkName: string} | null>(null);
-  const observer = useRef<IntersectionObserver | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('snaptrip_active_guide');
@@ -52,17 +53,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       } catch (e) {}
     }
   }, []);
-
-  const lastElementRef = useCallback((node: HTMLDivElement | null) => {
-    if (isSyncing) return;
-    if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && recentHistory.length > displayLimit) {
-        setDisplayLimit(prev => prev + 10);
-      }
-    });
-    if (node) observer.current.observe(node);
-  }, [recentHistory.length, displayLimit, isSyncing]);
 
   const visibleHistory = recentHistory.slice(0, displayLimit);
 
@@ -240,10 +230,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
       <section className="flex flex-col gap-6 px-4 pt-4 flex-1">
         {visibleHistory.length > 0 ? (
-          visibleHistory.map((item, index) => (
-            <article key={item.id} ref={index === visibleHistory.length - 1 ? lastElementRef : null} onClick={() => (item.status === 'success' || item.status === 'processing') && onSelectHistory(item)} className="rounded-[1.75rem] bg-card-dark overflow-hidden border border-white/[0.06] shadow-[0_14px_34px_-20px_rgba(0,0,0,0.9)] cursor-pointer active:scale-[0.98] transition-all">
+          visibleHistory.map((item) => (
+            <article key={item.id} onClick={() => (item.status === 'success' || item.status === 'processing') && onSelectHistory(item)} className="rounded-[1.75rem] bg-card-dark overflow-hidden border border-white/[0.06] shadow-[0_14px_34px_-20px_rgba(0,0,0,0.9)] cursor-pointer active:scale-[0.98] transition-all">
                 <div className="relative h-48 sm:h-56">
-                    {item.imageData ? <img src={item.imageData} alt="" className={`w-full h-full object-cover ${item.status === 'processing' ? 'blur-sm opacity-50' : ''}`} /> : <span className="material-symbols-outlined text-slate-500">image_not_supported</span>}
+                    {item.imageData ? <img src={item.imageData} alt="" loading="lazy" decoding="async" className={`w-full h-full object-cover ${item.status === 'processing' ? 'blur-sm opacity-50' : ''}`} /> : <span className="material-symbols-outlined text-slate-500">image_not_supported</span>}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                     {item.status === 'processing' && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-black/40 backdrop-blur-[2px]">
@@ -261,6 +251,15 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           ))
         ) : (
           <div className="py-14 text-center flex flex-col items-center gap-4 text-slate-300"><span className="material-symbols-outlined text-5xl text-[#D9B26A]/70">travel_explore</span><div><p className="font-black text-sm text-white">{isSyncing ? t('loadingHistory') : t('noHistory')}</p>{!isSyncing && <p className="mt-1 text-xs text-slate-300">{t('historyEmptyGuide')}</p>}</div>{!isSyncing && <button onClick={onCameraClick} className="min-h-11 px-6 rounded-full bg-[#D9B26A] text-[#1B130A] text-xs font-black shadow-lg">{t('scanFirstLandmark')}</button>}</div>
+        )}
+        {recentHistory.length > displayLimit && (
+          <button
+            type="button"
+            onClick={() => setDisplayLimit(prev => prev + HISTORY_PAGE_SIZE)}
+            className="w-full h-12 rounded-full bg-white/5 border border-white/[0.08] text-[13px] font-semibold text-white/80 hover:bg-white/10 active:scale-[0.98] transition-all"
+          >
+            {t('showMoreHistory')} ({recentHistory.length - displayLimit})
+          </button>
         )}
       </section>
     </div>
