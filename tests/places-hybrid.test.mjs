@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 const {URL,Request,Response}=globalThis;
-const env={SUPABASE_URL:'https://example.supabase.co',SUPABASE_ANON_KEY:'anon',SUPABASE_SERVICE_ROLE_KEY:'service',QLOO_API_KEY:'qloo',GOOGLE_PLACES_API_KEY:'places'};
+const env={SUPABASE_URL:'https://example.supabase.co',SUPABASE_ANON_KEY:'anon',SUPABASE_SERVICE_ROLE_KEY:'service',QLOO_API_KEY:'qloo',GOOGLE_PLACES_API_KEY:'places',GOOGLE_PLACES_HYBRID:'1'};
 globalThis.Deno={env:{get:k=>env[k]},serve:()=>{}};
 const {handleRequest}=await import('../supabase/functions/qloo-proxy/index.ts');
 const seed='12345678-1234-4234-8234-123456789abc',a='22345678-1234-4234-8234-123456789abc',b='32345678-1234-4234-8234-123456789abc';

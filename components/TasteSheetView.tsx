@@ -156,7 +156,7 @@ export function TasteSheetView(props: Props) {
 
     let str = `★ ${rating.toFixed(1)} Google`;
     if (typeof reviews === 'number' && Number.isInteger(reviews) && reviews >= 0) {
-        str += language === 'ko' ? ` · 리뷰 ${reviews}개` : ` · ${reviews} reviews`;
+        str += language === 'ko' ? ` · 리뷰 ${reviews.toLocaleString('ko-KR')}개` : ` · ${reviews.toLocaleString('en-US')} reviews`;
     }
     return str;
   };
@@ -211,6 +211,8 @@ export function TasteSheetView(props: Props) {
 
                   const cardBgClass = isNearby
                     ? "bg-[#C8102E]/[0.06] border-[#C8102E]/20"
+                    : place.topReviewed
+                      ? "bg-[#D9B26A]/[0.07] border-[#D9B26A]/60 border-[1.5px]"
                     : index === 0
                       ? "bg-emerald-500/[0.08] border-emerald-400/20"
                       : "bg-white/[0.035] border-white/[0.07]";
@@ -224,7 +226,12 @@ export function TasteSheetView(props: Props) {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          {!isNearby && index === 0 && <p className="text-[11px] font-semibold text-emerald-300 mb-0.5">{language === 'ko' ? '오늘의 추천' : 'Top pick'}</p>}
+                          {!isNearby && (index === 0 || place.topReviewed) && (
+                            <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                              {index === 0 && <span className="text-[11px] font-semibold text-emerald-300">{language === 'ko' ? '오늘의 추천' : 'Top pick'}</span>}
+                              {place.topReviewed && <span className="inline-flex items-center rounded-full bg-[#D9B26A] text-[#1a1408] px-2 py-0.5 text-[11px] font-semibold">{language === 'ko' ? '구글 리뷰 최다' : 'Most Google reviews'}</span>}
+                            </div>
+                          )}
                           <h3 className="text-[16px] font-semibold text-white leading-snug line-clamp-2 break-words">
                             {place.name}
                           </h3>

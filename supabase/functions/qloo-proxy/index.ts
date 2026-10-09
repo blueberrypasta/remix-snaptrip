@@ -14,6 +14,7 @@ interface QlooEntity {
 }
 
 interface QlooPlaceResult {
+  topReviewed?: boolean;
   michelin?:MichelinAward;
   latitude?: number;
   longitude?: number;
@@ -1163,6 +1164,45 @@ async function findNearbyMichelin(qlooApiUrl: string, qlooApiKey: string, base: 
   return Promise.race([work, budget]);
 }
 
+// Google rating + review count for the cards the user sees. One Text Search (Enterprise SKU) per place;
+// the key has a small daily quota, so when it runs out (429) cards keep their Qloo rating.
+const GOOGLE_ENRICH_TTL_MS = 6 * 60 * 60 * 1000;
+const googleEnrichCache = new Map<string, { at: number; rating?: number; count?: number }>();
+const normName = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]/gu, '');
+async function googleRatingFor(apiKey: string, p: QlooPlaceResult): Promise<{ rating?: number; count?: number } | null> {
+  const hit = googleEnrichCache.get(p.id);
+  if (hit && Date.now() - hit.at < GOOGLE_ENRICH_TTL_MS) return hit;
+  const body: any = { textQuery: [p.name, p.address].filter(Boolean).join(' '), pageSize: 1 };
+  if (Number.isFinite(p.latitude) && Number.isFinite(p.longitude)) body.locationBias = { circle: { center: { latitude: p.latitude, longitude: p.longitude }, radius: 500 } };
+  try {
+    const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'places.displayName,places.rating,places.userRatingCount' },
+      body: JSON.stringify(body), signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return null;
+    const g = (await res.json() as any)?.places?.[0];
+    const a = normName(String(g?.displayName?.text || '')), b = normName(p.name);
+    const same = a && b && (a.includes(b.slice(0, 6)) || b.includes(a.slice(0, 6)));
+    const out = { at: Date.now(), rating: same && Number.isFinite(g.rating) && g.rating >= 0 && g.rating <= 5 ? Math.round(g.rating * 10) / 10 : undefined, count: same && Number.isInteger(g.userRatingCount) && g.userRatingCount >= 0 ? g.userRatingCount : undefined };
+    if (googleEnrichCache.size > BOUNDED_MAP_SIZE) googleEnrichCache.clear();
+    googleEnrichCache.set(p.id, out);
+    return out;
+  } catch { return null; }
+}
+async function enrichWithGoogle(places: QlooPlaceResult[], shown = 3): Promise<void> {
+  const apiKey = Deno.env.get('GOOGLE_PLACES_API_KEY');
+  if (!apiKey) return;
+  const top = places.slice(0, shown).filter(p => p.ratingSource !== 'google');
+  await Promise.all(top.map(async p => {
+    const g = await googleRatingFor(apiKey, p);
+    if (g?.rating === undefined) return;
+    p.rating = g.rating; p.ratingSource = 'google'; p.reviewCount = g.count;
+  }));
+  const counted = places.slice(0, shown).filter(p => p.ratingSource === 'google' && (p.reviewCount ?? 0) >= 20);
+  if (counted.length >= 2) counted.reduce((a, b) => ((b.reviewCount ?? 0) > (a.reviewCount ?? 0) ? b : a)).topReviewed = true;
+}
+
 async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {michelin?:MichelinFilter|null;category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string;foodApproach?: string;shoppingKind?: string;foodQuery?: string;searchQuery?:string;openNow?:boolean;language?:string;skipNearbyMichelin?:boolean} = {}, excludedNames: string[] = []): Promise<{ places: QlooPlaceResult[]; michelinNearby?: QlooPlaceResult[] } | Response> {
   // Optional explicit entities; generic tastes are represented by tags.
   if (interests.length > 3) {
@@ -1212,7 +1252,7 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
   }
   const michelin=options.michelin;
   if(michelin && (category!=='food'||!Array.isArray(michelin.awards)||!michelin.awards.length||michelin.awards.length>3||michelin.awards.some(a=>!['bib','green','star'].includes(a))||!Number.isInteger(michelin.maxStars)||michelin.maxStars<0||michelin.maxStars>3))return Response.json({error:'invalid_options'},{status:400});
-  if(!michelin && Deno.env.get('GOOGLE_PLACES_API_KEY'))return handlePlacesHybrid(Deno.env.get('GOOGLE_PLACES_API_KEY')!,qlooApiKey,qlooApiUrl,interests,location,options,excludedNames);
+  if(!michelin && Deno.env.get('GOOGLE_PLACES_HYBRID')==='1' && Deno.env.get('GOOGLE_PLACES_API_KEY'))return handlePlacesHybrid(Deno.env.get('GOOGLE_PLACES_API_KEY')!,qlooApiKey,qlooApiUrl,interests,location,options,excludedNames);
   let dishTag:string|undefined;
   if(category==='food' && foodQuery){
     try{dishTag=await resolveFoodTag(qlooApiKey,qlooApiUrl,foodQuery);}catch(error){const code=error instanceof Error&&['unsupported_preference','rate_limited'].includes(error.message)?error.message:'upstream_error';return Response.json({error:code},{status:code==='unsupported_preference'?422:code==='rate_limited'?429:502});}
@@ -1468,6 +1508,7 @@ export async function handleRequest(req: Request): Promise<Response> {
           if(guestId && guestReserved) {await guestTasteQuota(guestId,'refund');guestReserved=false;}
           return new Response(result.body, { status: result.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
+        await enrichWithGoogle(result.places);
         if(guestId && !result.places.length) {const used=await guestTasteQuota(guestId,'refund');guestRemaining=10-used;guestReserved=false;}
         guestReserved=false;
         return new Response(JSON.stringify({...result,...(guestId?{guestRemaining}:{})}), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
