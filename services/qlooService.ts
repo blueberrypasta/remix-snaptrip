@@ -31,6 +31,7 @@ export interface QlooPlace {
   rating?: number;
   ratingSource?: 'qloo' | 'google';
   reviewCount?: number;
+  topReviewed?: boolean;
   openNow?: boolean;
   openingHoursText?: string[];
   rankingSource?: 'google' | 'qloo';
