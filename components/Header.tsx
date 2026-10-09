@@ -108,7 +108,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const handleContactDev = () => {
-    window.location.href = 'mailto:blueberrypastaco@gmail.com?subject=[SlapTrip Support] Inquiry';
+    window.location.href = 'mailto:contact@slaptrip.com?subject=[SlapTrip Support] Inquiry';
   };
 
   const handleSupportDev = () => {
@@ -325,7 +325,7 @@ export const Header: React.FC<HeaderProps> = ({
                  <div className="my-4 h-px bg-white/10" />
                  <div className="grid grid-cols-2 gap-2">
                    <button onClick={() => { setOpenMenu(null); onToggleSidebar(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><span className="material-symbols-outlined block text-[20px]">bookmarks</span>{t('history')}</button>
-                   <a href="mailto:blueberrypastaco@gmail.com?subject=%5BSlapTrip%20Support%5D%20Inquiry" className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100 flex flex-col items-center justify-center"><span className="material-symbols-outlined block text-[20px]">mail</span>{t('contactDev')}</a>
+                   <a href="mailto:contact@slaptrip.com?subject=%5BSlapTrip%20Support%5D%20Inquiry" className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100 flex flex-col items-center justify-center"><span className="material-symbols-outlined block text-[20px]">mail</span>{t('contactDev')}</a>
                    <button onClick={() => { setOpenMenu(null); onShowAbout(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><span className="material-symbols-outlined block text-[20px]">info</span>{t('aboutSnapTrip')}</button>
                    <button onClick={() => { setOpenMenu(null); if (user) onLogout(); else onLogin(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><span className="material-symbols-outlined block text-[20px]">account_circle</span>{user ? t('logout') : t('login')}</button>
                  </div>
