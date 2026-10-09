@@ -43,12 +43,6 @@ type Props = {
   viewport?: { height: number; top: number } | null;
 };
 
-  const SparkleIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z" />
-    </svg>
-  );
-
   const SearchIcon = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
@@ -180,18 +174,16 @@ export function TasteSheetView(props: Props) {
       type="button"
       aria-label={entryPillLabel}
       onClick={(e) => { e.stopPropagation(); onOpen(); }}
-      className="group w-full flex items-center gap-3 h-[60px] pl-2 pr-2 rounded-full bg-white/[0.06] border border-white/[0.12] text-left shadow-[0_10px_30px_-14px_rgba(0,0,0,0.8)] backdrop-blur-md hover:bg-white/[0.09] active:scale-[0.99] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 touch-manipulation select-none"
+      className="w-full flex items-center gap-3 h-[56px] pl-5 pr-2 rounded-full bg-white/[0.07] border border-white/[0.10] text-left hover:bg-white/[0.10] active:scale-[0.99] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 touch-manipulation select-none"
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
-      <span aria-hidden="true" className="w-11 h-11 shrink-0 rounded-full bg-[#33d5a4] text-[#0f1715] flex items-center justify-center shadow-[0_6px_18px_-6px_rgba(51,213,164,0.7)]">
-        <SearchIcon />
-      </span>
+      <span className="text-white/70 shrink-0"><SearchIcon /></span>
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] font-semibold text-white leading-tight truncate">{language === 'ko' ? '오늘 어디 갈까요?' : 'Where to today?'}</span>
-        <span className="block text-[12px] text-white/55 leading-tight mt-0.5 truncate">{language === 'ko' ? '맛집 · 쇼핑 · 명소 · 미쉐린까지 취향으로' : 'Food · shops · sights · Michelin, by your taste'}</span>
+        <span className="block text-[12px] text-white/50 leading-tight mt-0.5 truncate">{language === 'ko' ? '맛집 · 쇼핑 · 명소 · 미쉐린' : 'Food · shops · sights · Michelin'}</span>
       </span>
-      <span className="shrink-0 inline-flex items-center gap-1 h-9 px-3 rounded-full border border-emerald-400/25 text-emerald-300 text-[12px] font-semibold">
-        <SparkleIcon />{entryPillLabel}
+      <span aria-hidden="true" className="shrink-0 w-10 h-10 rounded-full bg-[#33d5a4] text-[#0b1311] flex items-center justify-center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
       </span>
     </button>
   );
@@ -220,7 +212,7 @@ export function TasteSheetView(props: Props) {
                   const cardBgClass = isNearby
                     ? "bg-[#C8102E]/[0.06] border-[#C8102E]/20"
                     : index === 0
-                      ? "bg-emerald-500/[0.08] border-emerald-400/20 shadow-[0_8px_24px_-12px_rgba(51,213,164,0.35)]"
+                      ? "bg-emerald-500/[0.08] border-emerald-400/20"
                       : "bg-white/[0.035] border-white/[0.07]";
 
                   return (
@@ -376,12 +368,12 @@ export function TasteSheetView(props: Props) {
 
                 
                 {error && (
-                  <div role="alert" className="bg-rose-900/30 border border-rose-500/30 text-rose-200 p-3 rounded-xl text-sm flex justify-between items-start gap-2">
+                  <div role="alert" className="bg-rose-500/10 text-rose-200 pl-4 pr-1 py-1 rounded-2xl text-[14px] flex justify-between items-center gap-2">
                     <span className="leading-snug">{error}</span>
                     <button
                       onClick={onDismissError}
                       aria-label={language==='ko'?'오류 닫기':'Dismiss error'}
-                      className="w-[44px] h-[44px] -mr-2 -mt-2 flex-shrink-0 flex items-center justify-center text-rose-300 hover:text-white opacity-70 hover:opacity-100"
+                      className="w-[44px] h-[44px] flex-shrink-0 flex items-center justify-center text-rose-300 hover:text-white opacity-70 hover:opacity-100"
                     >
                       <CloseIcon />
                     </button>
@@ -414,7 +406,7 @@ export function TasteSheetView(props: Props) {
                       ? '오늘은 어떤 곳에 가고 싶으세요?\n좋아하는 가게, 찾는 음식, 거리·가격을 알려주세요.'
                       : 'What are you in the mood for?\nAdd favorite places, a dish, distance or price range.'}
                     aria-label={language === 'ko' ? '취향 또는 추가 요청' : 'Taste or additional request'}
-                    className="w-full min-h-[148px] bg-white/[0.03] border border-white/[0.12] rounded-[24px] p-4 pb-14 shadow-inner text-[16px] leading-[1.65] text-white placeholder:text-white/50 focus:outline-none focus:border-emerald-400/50 focus:bg-white/[0.05] transition-all resize-none disabled:opacity-50"
+                    className="w-full min-h-[148px] bg-white/[0.03] border border-white/[0.12] rounded-[20px] p-4 pb-14 text-[16px] leading-[1.65] text-white placeholder:text-white/50 focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-white/30 focus:bg-white/[0.05] transition-all resize-none disabled:opacity-50"
                     style={{ fontSize: '16px',backgroundColor:'rgba(255,255,255,0.03)',color:'inherit' }}
                   />
 
@@ -452,11 +444,11 @@ export function TasteSheetView(props: Props) {
                     <p className="text-[12px] text-white/50 mb-2">{language==='ko'?'이렇게 시작해보세요':'Try one of these'}</p>
                     <div className="-mx-6 px-6 flex gap-2 overflow-x-auto no-scrollbar snap-x pb-1">
                       {(language==='ko'
-                        ? [['🍜','쌀국수 먹고 싶어, 5km 안'],['✿','근처 미쉐린 빕 구르망'],['☕','말차 라떼 맛있는 카페'],['🍔','맥도날드 말고 새로운 버거집'],['👕','15km 안 빈티지 옷가게']]
-                        : [['🍜','Pho within 5 km'],['✿','Michelin Bib Gourmand nearby'],['☕','Cafe with great matcha latte'],['🍔','A new burger spot, not In-N-Out'],['👕','Vintage clothing within 15 km']]
+                        ? [['','쌀국수 먹고 싶어, 5km 안'],['','근처 미쉐린 빕 구르망'],['','말차 라떼 맛있는 카페'],['','맥도날드 말고 새로운 버거집'],['','15km 안 빈티지 옷가게']]
+                        : [['','Pho within 5 km'],['','Michelin Bib Gourmand nearby'],['','Cafe with great matcha latte'],['','A new burger spot, not In-N-Out'],['','Vintage clothing within 15 km']]
                       ).map(([icon,text])=> (
                         <button key={text} type="button" onClick={()=>{onInput(text);textareaRef.current?.focus();}} className="snap-start shrink-0 inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full border border-white/[0.12] bg-white/[0.04] text-[13px] text-white/85 hover:bg-white/[0.08] active:scale-[0.97] transition-all">
-                          <span aria-hidden="true">{icon}</span>{text}
+                          {icon && <span aria-hidden="true">{icon}</span>}{text}
                         </button>
                       ))}
                     </div>
@@ -522,7 +514,7 @@ export function TasteSheetView(props: Props) {
                  
                  <button
                    onClick={onClose}
-                   className="shrink-0 h-[52px] px-3 text-white/70 font-semibold text-[15px] underline underline-offset-4 decoration-white/30 hover:text-white transition-colors"
+                   className="shrink-0 h-[50px] px-4 text-white/60 font-medium text-[15px] hover:text-white transition-colors"
                  >
                    {language === 'ko' ? '취소' : 'Cancel'}
                  </button>
@@ -531,7 +523,7 @@ export function TasteSheetView(props: Props) {
                  {guestRemaining === 0 && !userId ? (
                    <button
                      onClick={onLogin}
-                     className="flex-1 h-[52px] rounded-full bg-[#33d5a4] text-[#0f1715] font-bold text-[16px] shadow-[0_10px_24px_-10px_rgba(51,213,164,0.8)] hover:brightness-110 active:scale-[0.98] transition-all"
+                     className="flex-1 h-[50px] rounded-full bg-[#33d5a4] text-[#0b1311] font-semibold text-[16px] tracking-[-0.02em] hover:brightness-110 active:scale-[0.98] transition-all"
                    >
                      {language === 'ko' ? '로그인하고 계속하기' : 'Log in to continue'}
                    </button>
@@ -539,7 +531,7 @@ export function TasteSheetView(props: Props) {
                    <button
                      onClick={onRecommend}
                      disabled={isBusy || isRecording || (guestRemaining !== null && guestRemaining <= 0 && !userId)}
-                     className="flex-1 h-[52px] rounded-full bg-[#33d5a4] text-[#0f1715] font-bold text-[16px] shadow-[0_10px_24px_-10px_rgba(51,213,164,0.8)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                     className="flex-1 h-[50px] rounded-full bg-[#33d5a4] text-[#0b1311] font-semibold text-[16px] tracking-[-0.02em] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                    >
                      {isBusy ? (
                        <>
@@ -550,7 +542,7 @@ export function TasteSheetView(props: Props) {
                          <span>{language === 'ko' ? '찾는 중…' : 'Finding…'}</span>
                        </>
                      ) : (
-                       <><SearchIcon /><span>{language === 'ko' ? '추천받기' : 'Get Recommendations'}</span></>
+                       <span>{language === 'ko' ? '추천받기' : 'Get Recommendations'}</span>
                      )}
                    </button>
                  )}
@@ -559,7 +551,7 @@ export function TasteSheetView(props: Props) {
 
                <button
                  onClick={onRefine}
-                 className="w-full h-[52px] rounded-full bg-[#33d5a4] text-[#0f1715] font-bold text-[16px] shadow-[0_10px_24px_-10px_rgba(51,213,164,0.8)] hover:brightness-110 active:scale-[0.98] transition-all"
+                 className="w-full h-[50px] rounded-full bg-[#33d5a4] text-[#0b1311] font-semibold text-[16px] tracking-[-0.02em] hover:brightness-110 active:scale-[0.98] transition-all"
                >
                  {language === 'ko' ? '조건을 더해서 다시 추천' : 'Refine & Re-recommend'}
                </button>
