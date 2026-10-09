@@ -15,7 +15,7 @@ export default {
         'text-secondary-dark': '#AEB8C2',
       },
       fontFamily: {
-        display: ['Plus Jakarta Sans', 'Noto Sans', 'sans-serif'],
+        display: ['Pretendard Variable', 'Pretendard', 'Plus Jakarta Sans', 'Noto Sans', 'sans-serif'],
         serif: ['Playfair Display', 'serif'],
       },
       screens: { xs: '400px' },

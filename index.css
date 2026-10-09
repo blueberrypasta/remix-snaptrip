@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 html, body, #root { margin: 0; padding: 0; background: #0D151D; }
-body { font-family: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif; }
+body { font-family: 'Pretendard Variable', Pretendard, 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif; letter-spacing: -0.01em; }
 
 button:focus-visible, a:focus-visible, input:focus-visible {
   outline: 2px solid #D9B26A;

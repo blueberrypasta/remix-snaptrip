@@ -142,6 +142,14 @@ async function verifyUserSession(authHeader: string | null): Promise<{ userId: s
   }
 }
 
+// Qloo answers short bursts with 429; one quick retry turns most of those into a normal result.
+async function qlooFetch(url: string, init: { headers?: Record<string, string>; method?: string; signal?: AbortSignal }): Promise<Response> {
+  const res = await fetch(url, init);
+  if (res.status !== 429 || init.signal?.aborted) return res;
+  await new Promise(r => setTimeout(r, 800));
+  return fetch(url, init);
+}
+
 async function handleSearch(qlooApiKey: string, qlooApiUrl: string, query: string, type: string): Promise<QlooEntity[] | Response> {
   const trimmedQuery = query.trim();
   if (trimmedQuery.length < 2 || trimmedQuery.length > 100) {
@@ -162,7 +170,7 @@ async function handleSearch(qlooApiKey: string, qlooApiUrl: string, query: strin
   try {
     const signal = AbortSignal.timeout(12000);
 
-    const res = await fetch(`${qlooApiUrl}/search?${searchParams.toString()}`, {
+    const res = await qlooFetch(`${qlooApiUrl}/search?${searchParams.toString()}`, {
       method: 'GET',
       headers: {
         'X-Api-Key': qlooApiKey,
@@ -335,7 +343,7 @@ export async function resolveFoodTag(
   const timeout=setTimeout(()=>controller.abort(),5000);
   let tags:TagResult[];
   try {
-    const response=await fetch(`${apiUrl}/v2/tags?${params}`,{headers:{'X-Api-Key':apiKey},signal:controller.signal});
+    const response=await qlooFetch(`${apiUrl}/v2/tags?${params}`,{headers:{'X-Api-Key':apiKey},signal:controller.signal});
     if(!response.ok)throw new Error(response.status===429?'rate_limited':'upstream_error');
     const data:unknown=await response.json();
     const raw=data && typeof data==='object' ? (data as TagsResponse).results?.tags : null;
@@ -1131,7 +1139,7 @@ async function findNearbyMichelin(qlooApiUrl: string, qlooApiKey: string, base: 
     params.delete('filter.popularity.min');
     params.delete('filter.popularity.max');
     params.delete('filter.price_level.max');
-    const res = await fetch(`${qlooApiUrl}/v2/insights?${params}`, { headers: { 'X-Api-Key': qlooApiKey }, signal: AbortSignal.timeout(6000) });
+    const res = await qlooFetch(`${qlooApiUrl}/v2/insights?${params}`, { headers: { 'X-Api-Key': qlooApiKey }, signal: AbortSignal.timeout(6000) });
     if (!res.ok) return [];
     const data = await res.json() as any;
     const raw = (Array.isArray(data.results?.entities) ? data.results.entities : []).filter((p: any) => !isFavoritePlace(p, excludedIds, excludedKeys));
@@ -1250,10 +1258,7 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     const discoveries = (mode === 'balanced' || (category === 'food' && drink === 'matcha' && !dishTag)) ? fetch(`${qlooApiUrl}/v2/insights?${discoverParams}`, {
       headers:{'X-Api-Key':qlooApiKey}, signal,
     }).then(async r => r.ok ? (await r.json()).results?.entities ?? [] : []).catch(() => []) : null;
-    // "멀지만 미쉐린": a Michelin restaurant within roughly an hour's drive, shown beside normal food results.
-    const nearbyMichelin = category === 'food' && !michelin && !options.skipNearbyMichelin
-      ? findNearbyMichelin(qlooApiUrl, qlooApiKey, params, excludedIds, excludedKeys) : null;
-    const res = await fetch(`${qlooApiUrl}/v2/insights?${params.toString()}`, {
+    const res = await qlooFetch(`${qlooApiUrl}/v2/insights?${params.toString()}`, {
       method: 'GET',
       headers: {
         'X-Api-Key': qlooApiKey,
@@ -1274,6 +1279,10 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
 
     const data = await res.json() as any;
     if (data.success === false) return Response.json({error: 'upstream_error'}, {status:502});
+    // "멀지만 미쉐린": Michelin restaurants within roughly an hour's drive, shown beside normal food results.
+    // Started after the main query so we don't fire three Qloo calls at once (Qloo 429s bursts).
+    const nearbyMichelin = category === 'food' && !michelin && !options.skipNearbyMichelin
+      ? findNearbyMichelin(qlooApiUrl, qlooApiKey, params, excludedIds, excludedKeys) : null;
     let rawPlaces = Array.isArray(data.results?.entities) ? data.results.entities : [];
     rawPlaces = rawPlaces.filter((p: any) => !isFavoritePlace(p, excludedIds, excludedKeys));
     if (discoveries) {
