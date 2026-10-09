@@ -189,6 +189,12 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
         if (currentGen !== generationSeq.current) return;
       }
 
+      // Michelin restaurants are sparse: widen to the largest radius before giving up.
+      if (!recommendedPlaces.length && mergedOptions.michelin && mergedOptions.radius < 30000) {
+        recommendedPlaces = await fetchPlaces({...mergedOptions,radius:30000,language});
+        if (currentGen !== generationSeq.current) return;
+      }
+
       if (!recommendedPlaces || recommendedPlaces.length === 0) {
          throw new Error('empty_results'); // Or specific empty msg
       }
