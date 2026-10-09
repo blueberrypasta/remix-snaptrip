@@ -131,7 +131,9 @@ export async function searchQloo(query: string, type: string): Promise<QlooInter
   return data.entities.filter((e: any) => e && e.id && e.name);
 }
 
-export async function recommendQloo(interests: string[], location: LocationData, options?: QlooOptions, excludedNames: string[] = []): Promise<QlooPlace[]> {
+const isValidPlace=(p: any): p is QlooPlace => p && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.url === 'string' && p.url.startsWith('https://www.google.com/maps/search/?api=1&query=');
+
+export async function recommendQlooDetailed(interests: string[], location: LocationData, options?: QlooOptions, excludedNames: string[] = []): Promise<{ places: QlooPlace[]; michelinNearby: QlooPlace[] }> {
   const headers = await tasteRequestHeaders();
 
   const payload = {
@@ -155,7 +157,10 @@ export async function recommendQloo(interests: string[], location: LocationData,
     throw new Error('invalid_response_shape');
   }
 
-  return data.places.filter((p: any) =>
-    p && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.url === 'string' && p.url.startsWith('https://www.google.com/maps/search/?api=1&query=')
-  );
+  const michelinNearby = Array.isArray(data.michelinNearby) ? data.michelinNearby.filter((p: any) => isValidPlace(p) && p.michelin) : [];
+  return { places: data.places.filter(isValidPlace), michelinNearby };
+}
+
+export async function recommendQloo(interests: string[], location: LocationData, options?: QlooOptions, excludedNames: string[] = []): Promise<QlooPlace[]> {
+  return (await recommendQlooDetailed(interests, location, options, excludedNames)).places;
 }

@@ -154,8 +154,12 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
 
 
+      {tasteRecommendations && (
+        <section className="px-4 mt-3 mb-3" onClick={e=>e.stopPropagation()}>{tasteRecommendations}</section>
+      )}
+
       <section className="px-4 mt-1">
-        <div className={`bg-[#111b19]/80 rounded-[1.125rem] border border-white/[0.08] overflow-hidden transition-all duration-300 `}>
+        <div className={`bg-[#111b19]/80 rounded-[1.5rem] shadow-[0_10px_30px_-18px_rgba(0,0,0,0.9)] border border-white/[0.08] overflow-hidden transition-all duration-300 `}>
             <div className="px-3 py-2.5 sm:px-4 flex flex-col gap-0">
                 <div className="flex items-center justify-between gap-2">
                     <button type="button" aria-expanded={isNearbyExpanded} aria-controls="nearby-popular-list" onClick={() => setIsNearbyExpanded(!isNearbyExpanded)} className="min-h-11 min-w-0 flex items-center gap-1.5 text-left text-[14px] font-semibold text-white focus-visible:outline-emerald-300 rounded-lg">
@@ -177,7 +181,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                           {language==='ko'?(weatherStatus==='loading'?'날씨 확인 중…':weatherStatus==='error'?'날씨 재시도':'날씨 · 위치 필요'):(weatherStatus==='loading'?'Weather…':weatherStatus==='error'?'Retry weather':'Weather · location')}
                         </button>
                     )}
-                    <div className="shrink-0" onClick={e=>e.stopPropagation()}>{tasteRecommendations}</div>
                 </div>
                 {nearbyWeather && <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" className="self-start text-[9px] leading-3 text-white/40 hover:text-white/70">Weather: Open-Meteo</a>}
             </div>
@@ -199,7 +202,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                               <button
                                 onClick={(e) => { e.stopPropagation(); onShowMoreNearby?.(); }}
                                 disabled={isMoreNearbyLoading}
-                                className="mt-2 w-full h-12 rounded-xl bg-white/5 border border-white/5 text-[11px] font-black text-emerald-400 uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-white/10 active:scale-[0.98] transition-all disabled:opacity-50"
+                                className="mt-2 w-full h-12 rounded-full bg-white/5 border border-white/[0.08] text-[13px] font-semibold text-emerald-300 flex items-center justify-center gap-2 hover:bg-white/10 active:scale-[0.98] transition-all disabled:opacity-50"
                               >
                                 {isMoreNearbyLoading ? (
                                   <div className="w-4 h-4 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin"></div>
@@ -231,14 +234,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       </section>
 
       <div className="px-6 pt-10 pb-2 flex justify-between items-center">
-        <h3 className="text-xl font-black text-white flex items-center gap-2"><span className="material-symbols-outlined text-primary">history</span>{t('recentActivity')}</h3>
+        <h3 className="text-[19px] font-bold tracking-[-0.01em] text-white flex items-center gap-2"><span className="material-symbols-outlined text-primary text-[20px]">history</span>{t('recentActivity')}</h3>
         {isSyncing && <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 tracking-widest uppercase"><span className="material-symbols-outlined text-sm animate-spin">sync</span>{t('syncing')}</div>}
       </div>
 
       <section className="flex flex-col gap-6 px-4 pt-4 flex-1">
         {visibleHistory.length > 0 ? (
           visibleHistory.map((item, index) => (
-            <article key={item.id} ref={index === visibleHistory.length - 1 ? lastElementRef : null} onClick={() => (item.status === 'success' || item.status === 'processing') && onSelectHistory(item)} className="rounded-[2rem] bg-card-dark overflow-hidden border border-white/5 shadow-sm cursor-pointer active:scale-[0.98] transition-all">
+            <article key={item.id} ref={index === visibleHistory.length - 1 ? lastElementRef : null} onClick={() => (item.status === 'success' || item.status === 'processing') && onSelectHistory(item)} className="rounded-[1.75rem] bg-card-dark overflow-hidden border border-white/[0.06] shadow-[0_14px_34px_-20px_rgba(0,0,0,0.9)] cursor-pointer active:scale-[0.98] transition-all">
                 <div className="relative h-48 sm:h-56">
                     {item.imageData ? <img src={item.imageData} alt="" className={`w-full h-full object-cover ${item.status === 'processing' ? 'blur-sm opacity-50' : ''}`} /> : <span className="material-symbols-outlined text-slate-500">image_not_supported</span>}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
@@ -248,11 +251,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                             <span className="text-xs font-black text-white">{Math.round(item.progress || 0)}%</span>
                         </div>
                     )}
-                    <div className="absolute bottom-4 left-4 right-4"><h4 className="text-lg font-black text-white truncate">{item.title || (item.status === 'processing' ? t('exploring') : '')}</h4></div>
+                    <div className="absolute bottom-4 left-4 right-4"><h4 className="text-lg font-bold text-white truncate">{item.title || (item.status === 'processing' ? t('exploring') : '')}</h4></div>
                 </div>
                 <div className="p-4 flex justify-between items-center text-[10px] font-bold text-slate-400">
                     <div className="flex items-center gap-1.5"><span className="material-symbols-outlined text-[14px] text-primary/60">schedule</span><span>{new Date(item.timestamp).toLocaleDateString()}</span></div>
-                    <span className="text-primary uppercase tracking-widest font-black">{item.status === 'processing' ? t('processing') : t('viewResult')}</span>
+                    <span className="text-primary font-semibold">{item.status === 'processing' ? t('processing') : t('viewResult')}</span>
                 </div>
             </article>
           ))
