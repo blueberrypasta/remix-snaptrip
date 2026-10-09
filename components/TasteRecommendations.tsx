@@ -203,7 +203,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
       if(currentGen!==generationSeq.current)return;
       setOrigin(loc);
       setResults(localized);
-      setMichelinNearby(nearbyMichelin.slice(0,3));
+      setMichelinNearby(nearbyMichelin.slice(0,1));
       setViewState('results');
       prevContextRef.current = {
         summary: finalSummary,
