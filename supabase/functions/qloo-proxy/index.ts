@@ -1131,8 +1131,7 @@ function toPlaceResult(p: any): QlooPlaceResult | null {
 const NEARBY_MICHELIN_RADIUS = 50000; // ~1 hour by car in a metro area (straight-line estimate).
 // Best effort, bounded by its own time budget so normal results never wait long for it.
 async function findNearbyMichelin(qlooApiUrl: string, qlooApiKey: string, base: URLSearchParams, excludedIds: Set<string>, excludedKeys: string[]): Promise<QlooPlaceResult[]> {
-  const work = (async () => {
-    const params = new URLSearchParams(base);
+  const lookup = async (params: URLSearchParams) => {
     params.set('filter.external.exists', 'michelin');
     params.set('filter.location.radius', String(NEARBY_MICHELIN_RADIUS));
     params.set('take', '12');
@@ -1147,8 +1146,20 @@ async function findNearbyMichelin(qlooApiUrl: string, qlooApiKey: string, base: 
     // Stars first, then Bib Gourmand, then Green Star.
     found.sort((a, b) => (b._michelin.stars - a._michelin.stars) || (Number(b._michelin.bib) - Number(a._michelin.bib)));
     return found.map(toPlaceResult).filter(Boolean) as QlooPlaceResult[];
+  };
+  const work = (async () => {
+    const params = new URLSearchParams(base);
+    const tags = (params.get('filter.tags') || '').split(',').filter(Boolean);
+    const strict = params.get('operator.filter.tags') === 'intersection' && tags.length > 1;
+    const places = await lookup(params);
+    // A pasta or pho search rarely has a Michelin match of that exact cuisine; show any nearby Michelin restaurant instead.
+    if (places.length || !strict) return places;
+    const relaxed = new URLSearchParams(base);
+    relaxed.set('filter.tags', tags[0]);
+    relaxed.delete('operator.filter.tags');
+    return lookup(relaxed);
   })().catch(() => [] as QlooPlaceResult[]);
-  const budget = new Promise<QlooPlaceResult[]>(resolve => setTimeout(() => resolve([]), 7000));
+  const budget = new Promise<QlooPlaceResult[]>(resolve => setTimeout(() => resolve([]), 9000));
   return Promise.race([work, budget]);
 }
 
