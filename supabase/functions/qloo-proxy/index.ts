@@ -950,7 +950,38 @@ function setCacheEntry(key: string, data: any[]): void {
   michelinCache.set(key, { data, expiry: Date.now() + MICHELIN_CACHE_TTL_MS });
 }
 
-const MAX_MICHELIN_LOOKUPS = 8;
+const MAX_MICHELIN_LOOKUPS = 10;
+const SHARED_MICHELIN_TTL_MS = 7 * 24 * 3600 * 1000; // Michelin awards change about once a year.
+let parseBackoffUntil = 0;
+
+// Edge function instances don't share memory, so successful lookups (including "no award")
+// are also kept in Postgres (public.michelin_lookup_cache, service role only).
+function sharedCacheConfig(): { url: string; key: string } | null {
+  const url = Deno.env.get('SUPABASE_URL'); const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  return url && key ? { url, key } : null;
+}
+async function readSharedMichelinCache(key: string): Promise<any[] | null> {
+  const cfg = sharedCacheConfig(); if (!cfg) return null;
+  try {
+    const r = await fetch(`${cfg.url}/rest/v1/michelin_lookup_cache?select=data&key=eq.${encodeURIComponent(key)}&expires_at=gt.${encodeURIComponent(new Date().toISOString())}`, {
+      headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` }, signal: AbortSignal.timeout(2500),
+    });
+    if (!r.ok) return null;
+    const rows = await r.json();
+    return Array.isArray(rows) && rows.length && Array.isArray(rows[0]?.data) ? rows[0].data : null;
+  } catch { return null; }
+}
+async function writeSharedMichelinCache(key: string, data: any[]): Promise<void> {
+  const cfg = sharedCacheConfig(); if (!cfg || key.length > 300) return;
+  try {
+    await fetch(`${cfg.url}/rest/v1/michelin_lookup_cache?on_conflict=key`, {
+      method: 'POST',
+      headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ key, data, expires_at: new Date(Date.now() + SHARED_MICHELIN_TTL_MS).toISOString() }),
+      signal: AbortSignal.timeout(2500),
+    });
+  } catch { /* cache is best effort */ }
+}
 
 function michelinCandidate(item: any): { ids: number[]; lat: number; lon: number; name: string; country: string } | null {
   const ext = item?.external?.michelin;
@@ -971,7 +1002,20 @@ async function lookupMichelinAward(item: any): Promise<MichelinAward | null> {
   if (!awards) {
     let flight = inFlightRequests.get(cacheKey);
     if (!flight) {
-      flight = fetchParseData(c.name).finally(() => inFlightRequests.delete(cacheKey));
+      flight = (async () => {
+        const shared = await readSharedMichelinCache(cacheKey);
+        if (shared) return shared;
+        // parse.bot rate-limits bursts; after a 429 stop calling it from this instance for a minute.
+        if (Date.now() < parseBackoffUntil) throw new Error('rate_limited');
+        try {
+          const fresh = await fetchParseData(c.name);
+          void writeSharedMichelinCache(cacheKey, fresh);
+          return fresh;
+        } catch (e) {
+          if (e instanceof Error && e.message === 'rate_limited') parseBackoffUntil = Date.now() + 60_000;
+          throw e;
+        }
+      })().finally(() => inFlightRequests.delete(cacheKey));
       inFlightRequests.set(cacheKey, flight);
     }
     awards = await flight;
