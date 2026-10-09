@@ -107,11 +107,11 @@ export const translations: Translations = {
   cafe: { en: 'Cafe', ko: '카페', ja: 'カフェ', zh: '咖啡馆', es: 'Café', fr: 'Café', de: 'Café', it: 'Caffè' },
   restaurant: { en: 'Restaurant', ko: '식당', ja: 'レストラン', zh: '餐厅', es: 'Restaurante', fr: 'Restaurant', de: 'Restaurant', it: 'Ristorante' },
   loginBenefitMsg: { 
-    en: 'Login to sync your history and get more daily credits!', 
-    ko: '로그인하면 내 활동이 저장되고 매일 더 많은 크레딧을 받을 수 있어요!',
-    ja: 'ログインして履歴を同期し、毎日のクレジットを増やしましょう！',
-    zh: '登录以同步历史记录并获得更多每日积分！',
-    es: '¡Inicia sesión para sincronizar tu historial y obtener más créditos diarios!',
+    en: 'Log in to save and sync your history across devices.', 
+    ko: '로그인하면 내 기록이 저장되고 다른 기기에서도 볼 수 있어요.',
+    ja: 'ログインすると履歴が保存され、他の端末でも見られます。',
+    zh: '登录即可保存并同步你的历史记录。',
+    es: 'Inicia sesión para guardar y sincronizar tu historial.',
     fr: 'Connectez-vous pour synchroniser votre historique !',
     de: 'Melden Sie sich an, um Ihren Verlauf zu synchronisieren!',
     it: 'Accedi per sincronizzare la tua cronologia!'

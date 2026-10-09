@@ -3,6 +3,8 @@ import { supabase } from './supabaseClient';
 import type { Language } from '../types';
 
 const GUEST_STORAGE_KEY = 'snaptrip_guest_profile';
+// Guests get the same 10 photo scans a day as signed-in users.
+const GUEST_DAILY_CREDITS = 10;
 
 const SUPPORTED_LANGUAGES: Language[] = ['en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'it'];
 
@@ -46,14 +48,16 @@ export const usageService = {
       
       // 데이터가 아예 없으면 초기값 생성 (시스템 언어 반영)
       if (!guestData) {
-        guestData = { credits: 1, last_reset_at: today, language: systemLang };
+        guestData = { credits: GUEST_DAILY_CREDITS, last_reset_at: today, language: systemLang, daily_limit: GUEST_DAILY_CREDITS };
         localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(guestData));
       }
       
       // 날짜가 바뀌었으면 보충
-      if (guestData.last_reset_at !== today) {
-        guestData.credits = Math.max(guestData.credits, 1);
+      // 날짜가 바뀌었거나 예전 1회 한도로 저장된 게스트면 10회로 보충
+      if (guestData.last_reset_at !== today || guestData.daily_limit !== GUEST_DAILY_CREDITS) {
+        guestData.credits = Math.max(Number(guestData.credits) || 0, GUEST_DAILY_CREDITS);
         guestData.last_reset_at = today;
+        guestData.daily_limit = GUEST_DAILY_CREDITS;
         localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(guestData));
       }
       
@@ -97,7 +101,7 @@ export const usageService = {
 
   async updateUserLanguage(userId: string, language: Language): Promise<void> {
     const guestDataRaw = localStorage.getItem(GUEST_STORAGE_KEY);
-    const guestData = parseStoredObject(guestDataRaw) || { credits: 1, last_reset_at: getTodayString() };
+    const guestData = parseStoredObject(guestDataRaw) || { credits: GUEST_DAILY_CREDITS, last_reset_at: getTodayString(), daily_limit: GUEST_DAILY_CREDITS };
     guestData.language = language;
     localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(guestData));
 
@@ -133,7 +137,7 @@ export const usageService = {
 
     if (!userId || userId === 'guest') {
       const guestDataRaw = localStorage.getItem(GUEST_STORAGE_KEY);
-      const guestData = parseStoredObject(guestDataRaw) || { credits: 1, last_reset_at: getTodayString() };
+      const guestData = parseStoredObject(guestDataRaw) || { credits: GUEST_DAILY_CREDITS, last_reset_at: getTodayString(), daily_limit: GUEST_DAILY_CREDITS };
       const newCredits = Math.max(0, guestData.credits - 1);
       guestData.credits = newCredits;
       localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(guestData));

@@ -65,7 +65,7 @@ export const TasteRecommendations: React.FC<Props> = ({ language, location, onRe
     const code=err instanceof Error?err.message:'unavailable';
     if(code==='guest_limit_reached')setGuestRemaining(0);
     const messages:Record<string,[string,string]>={
-      guest_limit_reached:['무료 10회를 모두 사용했어요. 로그인하고 계속하세요.','Your 10 free recommendations are used. Log in to continue.'],
+      guest_limit_reached:['오늘 무료 10회를 모두 썼어요. 내일 다시 쓰거나 로그인하세요.','You\'ve used today\'s 10 free recommendations. Come back tomorrow or log in.'],
       login_required:['로그인이 만료됐어요. 다시 로그인해주세요.','Please log in again.'],
       rate_limited:['요청이 많아요. 잠시 후 다시 시도해주세요.','Please wait a minute and try again.'],
       timeout:['응답이 늦어지고 있어요. 다시 시도해주세요.','The request timed out. Try again.'],
