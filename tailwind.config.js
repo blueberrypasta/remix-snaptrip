@@ -19,6 +19,8 @@ export default {
         serif: ['Playfair Display', 'serif'],
       },
       screens: { xs: '400px' },
+      transitionTimingFunction: { DEFAULT: 'cubic-bezier(0.22, 1, 0.36, 1)', 'smooth-out': 'cubic-bezier(0.22, 1, 0.36, 1)' },
+      transitionDuration: { DEFAULT: '250ms' },
     },
   },
   plugins: [forms, containerQueries],
