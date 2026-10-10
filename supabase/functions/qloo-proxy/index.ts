@@ -1203,6 +1203,37 @@ async function enrichWithGoogle(places: QlooPlaceResult[], shown = 3): Promise<v
   if (counted.length >= 2) counted.reduce((a, b) => ((b.reviewCount ?? 0) > (a.reviewCount ?? 0) ? b : a)).topReviewed = true;
 }
 
+function distanceMeters(lat1:number,lon1:number,lat2:number,lon2:number):number{
+  const r=Math.PI/180,dLat=(lat2-lat1)*r,dLon=(lon2-lon1)*r;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*r)*Math.cos(lat2*r)*Math.sin(dLon/2)**2;
+  return 12742000*Math.asin(Math.sqrt(a));
+}
+
+/**
+ * Qloo has no tag for many dishes (e.g. gamjatang), and even tagged dishes are sparse on places.
+ * Restaurants are often named after their signature dish, so look the dish up by name near the user.
+ * Only places whose name contains the dish (spaces ignored) are kept, nearest first.
+ */
+export async function searchDishByName(apiKey:string,apiUrl:string,foodQuery:string,lat:number,lon:number,radius:number):Promise<any[]>{
+  const key=normalizeName(foodQuery);
+  if(key.length<3)return [];
+  // Dish-named places are rare, so search at least 30 km: a real gamjatang place 20 minutes away beats a BBQ place next door.
+  const maxMeters=Math.max(radius,30000);
+  // Qloo /search wants filter.location as "lat,lon" and filter.radius in miles.
+  const params=new URLSearchParams({query:foodQuery,types:'urn:entity:place',take:'30','filter.location':`${lat},${lon}`,'filter.radius':String(Math.ceil(maxMeters/1609))});
+  try{
+    const res=await qlooFetch(`${apiUrl}/search?${params}`,{headers:{'X-Api-Key':apiKey},signal:AbortSignal.timeout(6000)});
+    if(!res.ok)return [];
+    const data=await res.json() as any;
+    const raw=Array.isArray(data.results?.entities)?data.results.entities:Array.isArray(data.results)?data.results:[];
+    return raw.filter((p:any)=>typeof p?.name==='string' && normalizeName(p.name).includes(key)
+      && Number.isFinite(p.location?.lat) && Number.isFinite(p.location?.lon)
+      && distanceMeters(lat,lon,p.location.lat,p.location.lon)<=maxMeters)
+      .sort((a:any,b:any)=>distanceMeters(lat,lon,a.location.lat,a.location.lon)-distanceMeters(lat,lon,b.location.lat,b.location.lon))
+      .map((p:any)=>({...p,entity_id:p.entity_id||p.id}));
+  }catch{return [];}
+}
+
 async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests: string[], location: { latitude: number; longitude: number }, options: {michelin?:MichelinFilter|null;category?: string;mode?: string;cuisine?: string;priceMax?: number;radius?: number;drink?: string;foodApproach?: string;shoppingKind?: string;foodQuery?: string;searchQuery?:string;openNow?:boolean;language?:string;skipNearbyMichelin?:boolean} = {}, excludedNames: string[] = []): Promise<{ places: QlooPlaceResult[]; michelinNearby?: QlooPlaceResult[] } | Response> {
   // Optional explicit entities; generic tastes are represented by tags.
   if (interests.length > 3) {
@@ -1255,7 +1286,24 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
   if(!michelin && Deno.env.get('GOOGLE_PLACES_HYBRID')==='1' && Deno.env.get('GOOGLE_PLACES_API_KEY'))return handlePlacesHybrid(Deno.env.get('GOOGLE_PLACES_API_KEY')!,qlooApiKey,qlooApiUrl,interests,location,options,excludedNames);
   let dishTag:string|undefined;
   if(category==='food' && foodQuery){
-    try{dishTag=await resolveFoodTag(qlooApiKey,qlooApiUrl,foodQuery);}catch(error){const code=error instanceof Error&&['unsupported_preference','rate_limited'].includes(error.message)?error.message:'upstream_error';return Response.json({error:code},{status:code==='unsupported_preference'?422:code==='rate_limited'?429:502});}
+    try{dishTag=await resolveFoodTag(qlooApiKey,qlooApiUrl,foodQuery);}catch(error){const code=error instanceof Error&&['unsupported_preference','rate_limited'].includes(error.message)?error.message:'upstream_error';
+      if(code!=='unsupported_preference'||michelin)return Response.json({error:code},{status:code==='unsupported_preference'?422:code==='rate_limited'?429:502});
+      // No Qloo tag for this dish: find places named after it, then top up with the same cuisine.
+      const named=(await searchDishByName(qlooApiKey,qlooApiUrl,foodQuery,latitude,longitude,radius)).filter((p:any)=>!isFavoritePlace(p,excludedIds,excludedKeys));
+      if(!named.length)return Response.json({error:code},{status:422});
+      await annotateMichelin(named.slice(0,5));
+      const places=named.map(toPlaceResult).filter(Boolean).slice(0,5) as QlooPlaceResult[];
+      if(places.length<5 && cuisine!=='any'){
+        const broader=await handleRecommend(qlooApiKey,qlooApiUrl,interests,location,{...options,foodQuery:'',foodApproach:'familiar',drink:'any'},excludedNames);
+        if(!(broader instanceof Response)){
+          for(const p of broader.places){if(places.length>=5)break;if(!places.some(x=>x.id===p.id))places.push(p);}
+          const ids=new Set(places.map(p=>p.id));
+          const nearby=(broader.michelinNearby||[]).filter(p=>!ids.has(p.id));
+          if(nearby.length)return {places,michelinNearby:nearby};
+        }
+      }
+      return {places};
+    }
   }
   const filterLocationStr = `POINT(${Math.round(longitude * 100) / 100} ${Math.round(latitude * 100) / 100})`;
   const interestsStr = interests.join(',');
@@ -1357,7 +1405,15 @@ async function handleRecommend(qlooApiKey: string, qlooApiUrl: string, interests
     const places: QlooPlaceResult[] = rawPlaces.map(toPlaceResult).filter(Boolean).slice(0, 5) as QlooPlaceResult[];
 
     // Exact dish tags are sparse in Qloo (e.g. "pasta" matched 0-1 Italian places in Irvine).
-    // Top up with same-cuisine places so a common dish never returns an empty or single result.
+    // First look for places named after the dish, then top up with same-cuisine places.
+    if (dishTag && places.length < 3 && !michelin) {
+      for (const p of await searchDishByName(qlooApiKey, qlooApiUrl, foodQuery, latitude, longitude, radius)) {
+        if (places.length >= 5) break;
+        if (isFavoritePlace(p, excludedIds, excludedKeys)) continue;
+        const r = toPlaceResult(p);
+        if (r && !places.some(x => x.id === r.id)) places.push(r);
+      }
+    }
     if (dishTag && places.length < 3 && !michelin && cuisine !== 'any') {
       const broader = await handleRecommend(qlooApiKey, qlooApiUrl, interests, location, { ...options, foodQuery: '', foodApproach: 'familiar', drink: 'any', skipNearbyMichelin: true }, excludedNames);
       if (!(broader instanceof Response)) {
