@@ -38,6 +38,15 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
   const t = useTranslations(language);
   const panelRef = React.useRef<HTMLDivElement>(null);
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
+  // Stay mounted for the close animation (--duration-medium, 350ms) after isOpen turns false.
+  const [mounted, setMounted] = React.useState(isOpen);
+  const closing = mounted && !isOpen;
+  React.useEffect(() => {
+    if (isOpen) { setMounted(true); return; }
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const timer = setTimeout(() => setMounted(false), reduce ? 0 : 350);
+    return () => clearTimeout(timer);
+  }, [isOpen]);
 
   // 날짜 및 시간 포맷팅 함수
   const formatDateTime = (timestamp: number) => {
@@ -108,15 +117,15 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
   }, [isOpen, onClose]);
 
   // SSR Guard
-  if (typeof document === 'undefined' || !isOpen) return null;
+  if (typeof document === 'undefined' || !mounted) return null;
 
   return createPortal(
     <>
       {/* Backdrop */}
       <div
         aria-hidden="true"
-        className={`fixed inset-0 bg-background-dark/80 backdrop-blur-md z-[200] transition-opacity duration-300 ${
-          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        className={`fixed inset-0 bg-background-dark/80 backdrop-blur-md z-[200] t-backdrop ${
+          closing ? 'is-closing pointer-events-none' : ''
         }`}
         onClick={onClose}
       />
@@ -129,8 +138,8 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label={t('history')}
-        className={`fixed inset-y-0 right-0 w-full max-w-sm h-[100dvh] bg-[#0B0F14] shadow-[0_0_80px_rgba(0,0,0,0.5)] z-[201] flex flex-col transform transition-transform duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)] border-l border-white/5 ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed inset-y-0 right-0 w-full max-w-sm h-[100dvh] bg-[#0B0F14] shadow-[0_0_80px_rgba(0,0,0,0.5)] z-[201] flex flex-col t-panel border-l border-white/5 ${
+          closing ? 'is-closing' : ''
         }`}
       >
         {/* Header */}
