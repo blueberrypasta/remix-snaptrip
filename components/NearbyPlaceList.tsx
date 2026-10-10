@@ -145,7 +145,8 @@ export default function NearbyPlaceList({ places, language, onStartGuide }: Near
           <details
             key={`${place.name}-${index}`}
             open={isOpen}
-            className="group relative bg-white/[0.03] border border-white/[0.06] rounded-[18px] overflow-hidden transition-all duration-300 hover:bg-white/[0.05]"
+            style={{ '--i': index % 6 } as React.CSSProperties}
+            className="t-stagger-item group relative bg-white/[0.03] border border-white/[0.06] rounded-[18px] overflow-hidden transition-colors hover:bg-white/[0.05]"
           >
 
             <summary

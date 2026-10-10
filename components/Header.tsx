@@ -139,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({
               {openMenu === 'language' && (
                 <>
                 <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setOpenMenu(null)}></div>
-                <div className="fixed top-[70px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 mt-3 w-auto sm:w-64 bg-slate-900/95 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/10 p-4 z-50 animate-fade-in-up">
+                <div className="fixed top-[70px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 mt-3 w-auto sm:w-64 bg-slate-900/95 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/10 p-4 z-50 t-dropdown">
                   <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-3 px-2">{t('selectLanguage')}</p>
                   <div className="grid grid-cols-2 gap-2">
                     {LANGUAGES.map((lang) => (
@@ -180,7 +180,7 @@ export const Header: React.FC<HeaderProps> = ({
               {openMenu === 'promo' && (
                 <>
                 <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setOpenMenu(null)}></div>
-                <div className="fixed top-[70px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 mt-3 w-auto sm:w-64 bg-slate-900 rounded-2xl shadow-2xl border border-white/10 p-4 z-50 animate-fade-in-up">
+                <div className="fixed top-[70px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 mt-3 w-auto sm:w-64 bg-slate-900 rounded-2xl shadow-2xl border border-white/10 p-4 z-50 t-dropdown">
                   <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-3 px-1">{t('promoCodeLabel')}</p>
                   
                   {!user ? (
@@ -229,7 +229,7 @@ export const Header: React.FC<HeaderProps> = ({
               {openMenu === 'settings' && (
                 <>
                 <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setOpenMenu(null)}></div>
-                <div className="fixed top-[70px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 mt-3 w-auto sm:w-72 bg-slate-900 rounded-2xl shadow-2xl border border-white/10 p-2 flex flex-col gap-1 z-50 animate-fade-in-up">
+                <div className="fixed top-[70px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 mt-3 w-auto sm:w-72 bg-slate-900 rounded-2xl shadow-2xl border border-white/10 p-2 flex flex-col gap-1 z-50 t-dropdown">
                    <button 
                      onClick={() => { setOpenMenu(null); onShowAbout(); }}
                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-white/10 text-primary transition-colors group"
@@ -292,7 +292,7 @@ export const Header: React.FC<HeaderProps> = ({
              )}
 
              {openMenu === 'profile' && user && (
-               <div className="fixed top-[70px] right-4 left-auto sm:absolute sm:top-full sm:left-auto sm:translate-x-0 sm:right-0 mt-3 w-48 bg-slate-900/95 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/10 p-2 flex flex-col gap-1 z-[110] animate-fade-in-up">
+               <div className="fixed top-[70px] right-4 left-auto sm:absolute sm:top-full sm:left-auto sm:translate-x-0 sm:right-0 mt-3 w-48 bg-slate-900/95 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/10 p-2 flex flex-col gap-1 z-[110] t-dropdown">
                  <div className="px-3 py-3 border-b border-white/5 mb-1 text-center">
                    <p className="text-sm text-white font-bold truncate">{user.name}</p>
                    <p className="text-[10px] text-slate-400 truncate">{user.email || 'User'}</p>

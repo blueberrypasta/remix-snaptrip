@@ -218,7 +218,7 @@ export function TasteSheetView(props: Props) {
                       : "bg-white/[0.035] border-white/[0.07]";
 
                   return (
-                    <details key={`${place.id}-${index}`} className={`group open:bg-white/[0.06] transition-colors rounded-[22px] border ${cardBgClass}`}>
+                    <details key={`${place.id}-${index}`} style={{ '--i': index } as React.CSSProperties} className={`group open:bg-white/[0.06] transition-colors rounded-[22px] border t-stagger-item ${cardBgClass}`}>
                       <summary className="list-none cursor-pointer p-4 flex items-start gap-3 [&::-webkit-details-marker]:hidden">
                         
                         <div className={`w-8 h-8 flex-shrink-0 rounded-full border flex items-center justify-center text-xs font-bold ${rankBadgeStyle}`}>
@@ -312,7 +312,7 @@ export function TasteSheetView(props: Props) {
     <>
       
       <div
-        className="fixed inset-0 bg-black/[0.55] z-[100]"
+        className="fixed inset-0 bg-black/[0.55] z-[100] t-backdrop"
         onClick={(e) => { e.stopPropagation(); onClose(); }}
         style={viewport ? { top: viewport.top, height: viewport.height, bottom: 'auto' } : undefined}
       />
@@ -328,7 +328,7 @@ export function TasteSheetView(props: Props) {
           role="dialog" data-taste-dialog
           aria-modal="true"
           aria-labelledby="taste-dialog-title"
-          className="pointer-events-auto w-full max-w-[480px] bg-[#111b19] border border-white/10 text-white shadow-[0_-20px_60px_-20px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden rounded-t-[28px] md:rounded-[28px] mx-0 md:mx-4 mb-0 md:mb-0"
+          className="t-sheet pointer-events-auto w-full max-w-[480px] bg-[#111b19] border border-white/10 text-white shadow-[0_-20px_60px_-20px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden rounded-t-[28px] md:rounded-[28px] mx-0 md:mx-4 mb-0 md:mb-0"
           style={{
             maxHeight: 'min(90dvh, 100%)',
             paddingBottom: 'env(safe-area-inset-bottom)',

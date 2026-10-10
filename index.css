@@ -112,6 +112,83 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   50%     { opacity: 1; transform: scale(1.4); }
 }
 
+/* ---------- Motion (transitions.dev tokens + recipes) ---------- */
+:root {
+  --duration-stagger: 40ms;
+  --duration-micro: 80ms;
+  --duration-quick: 150ms;
+  --duration-fast: 250ms;
+  --duration-medium: 350ms;
+  --duration-slow: 400ms;
+  --duration-very-slow: 500ms;
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: ease-in-out;
+  --distance-base: 8px;
+  --distance-medium: 12px;
+  --scale-large: 0.96;
+  --scale-medium: 0.97;
+  --blur-small: 2px;
+  --blur-medium: 3px;
+}
+
+/* Texts reveal: blurred rise for sections and lists */
+@keyframes t-rise {
+  from { opacity: 0; translate: 0 var(--distance-medium); filter: blur(var(--blur-medium)); }
+  to   { opacity: 1; translate: 0 0; filter: none; }
+}
+@keyframes t-fade { from { opacity: 0; } to { opacity: 1; } }
+.animate-fade-in-up { animation: t-rise var(--duration-slow) var(--ease-smooth-out) backwards; }
+.animate-fade-in { animation: t-fade var(--duration-fast) var(--ease-in-out) backwards; }
+
+/* Staggered items: set style --i to the item index within its batch */
+.t-stagger-item {
+  animation: t-rise var(--duration-slow) var(--ease-smooth-out) backwards;
+  animation-delay: calc(var(--i, 0) * var(--duration-stagger));
+}
+
+/* Page enter between screens */
+/* Opacity only: a transform or filter here would re-anchor the screens' fixed bars mid-animation. */
+@keyframes t-page-in { from { opacity: 0; } to { opacity: 1; } }
+.t-screen { animation: t-page-in var(--duration-medium) var(--ease-smooth-out) backwards; }
+
+/* Menu dropdown: grows from its trigger (top right) */
+@keyframes t-dropdown-in {
+  from { opacity: 0; scale: var(--scale-medium); }
+  to   { opacity: 1; scale: 1; }
+}
+.t-dropdown { transform-origin: top right; animation: t-dropdown-in var(--duration-fast) var(--ease-smooth-out) backwards; }
+
+/* Modal open */
+@keyframes t-modal-in {
+  from { opacity: 0; scale: var(--scale-large); }
+  to   { opacity: 1; scale: 1; }
+}
+.t-modal { animation: t-modal-in var(--duration-fast) var(--ease-smooth-out) backwards; }
+.t-backdrop { animation: t-fade var(--duration-fast) var(--ease-in-out) both; }
+
+/* Panel reveal (history sidebar) */
+@keyframes t-panel-in { from { translate: 100% 0; } to { translate: 0 0; } }
+@keyframes t-panel-out { from { translate: 0 0; } to { translate: 100% 0; } }
+@keyframes t-fade-out { from { opacity: 1; } to { opacity: 0; } }
+.t-panel { animation: t-panel-in var(--duration-slow) var(--ease-smooth-out) backwards; }
+.t-panel.is-closing { animation: t-panel-out var(--duration-medium) var(--ease-smooth-out) both; }
+.t-backdrop.is-closing { animation: t-fade-out var(--duration-medium) var(--ease-in-out) both; }
+
+/* Bottom sheet: slides up on phones, opens like a modal on wide screens */
+@keyframes t-sheet-in { from { translate: 0 100%; } to { translate: 0 0; } }
+.t-sheet { animation: t-sheet-in var(--duration-slow) var(--ease-smooth-out) backwards; }
+@media (min-width: 768px) { .t-sheet { animation: t-modal-in var(--duration-fast) var(--ease-smooth-out) backwards; } }
+
+/* Skeleton reveal: images fade in from a soft blur once loaded */
+.t-img { opacity: 0; filter: blur(var(--blur-small)); transition: opacity var(--duration-slow) var(--ease-in-out), filter var(--duration-slow) var(--ease-in-out); }
+.t-img.is-loaded { opacity: 1; filter: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up, .animate-fade-in, .t-stagger-item, .t-screen, .t-dropdown, .t-modal, .t-backdrop, .t-panel, .t-sheet { animation: none !important; }
+  .t-img { transition: none; }
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}
+
 /* nice scrollbars off in the device */
 ::-webkit-scrollbar { width: 0; height: 0; }
 

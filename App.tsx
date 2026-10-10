@@ -462,7 +462,7 @@ const App: React.FC = () => {
       <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" onChange={handleFileInputChange} className="hidden" />
       
       <main className="flex-1 relative">
-        <div className="flex flex-col flex-1">
+        <div key={appState} className="flex flex-col flex-1 t-screen">
           {appState === 'welcome' && (
             <WelcomeScreen 
               onUploadClick={() => fileInputRef.current?.click()} 

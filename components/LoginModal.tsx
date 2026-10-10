@@ -51,8 +51,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, languag
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-md" onClick={onClose}></div>
-      <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden animate-fade-in-up border border-white/5">
+      <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-md t-backdrop" onClick={onClose}></div>
+      <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden t-modal border border-white/5">
         <div className="p-8 text-center">
           <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
             👋
