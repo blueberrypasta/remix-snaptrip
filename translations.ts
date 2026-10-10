@@ -54,6 +54,7 @@ export const translations: Translations = {
   processing: { en: 'Processing', ko: '처리 중', ja: '処理中', zh: '处理中', es: 'Procesando', fr: 'Traitement', de: 'Verarbeitung', it: 'In elaborazione' },
   failed: { en: 'Analysis Failed', ko: '분석 실패', ja: '分析失敗', zh: '分析失败', es: 'Error de análisis', fr: 'Échec de l\'analyse', de: 'Analyse fehlgeschlagen', it: 'Analisi fallita' },
   success: { en: 'Completed', ko: '완료됨', ja: '完了', zh: '已完成', es: 'Completado', fr: 'Terminé', de: 'Abgeschlossen', it: 'Completato' },
+  showMoreHistory: { en: 'Show more', ko: '더보기', ja: 'もっと見る', zh: '查看更多', es: 'Ver más', fr: 'Voir plus', de: 'Mehr anzeigen', it: 'Mostra altro' },
   recentActivity: { en: 'Recent Explorations', ko: '최근 탐색 기록', ja: '最近の探索', zh: '最近探索', es: 'Exploraciones recientes', fr: 'Explorations récentes', de: 'Kürzliche Erkundungen', it: 'Esplorazioni recenti' },
   generatingStory: { en: 'Consulting expert guides...', ko: '가이드 데이터를 분석하는 중...', ja: '専門ガイドに相談中...', zh: '咨询专家指南...', es: 'Consultando guías expertos...', fr: 'Consultation des guides...', de: 'Expertenrat einholen...', it: 'Consultazione guide esperte...' },
   findingFacts: { en: 'Searching for hidden secrets...', ko: '숨겨진 비밀을 찾는 중...', ja: '隠された秘密を検索中...', zh: '搜索隐藏的秘密...', es: 'Buscando secretos ocultos...', fr: 'Recherche de secrets...', de: 'Suche nach Geheimnissen...', it: 'Ricerca segreti nascosti...' },
