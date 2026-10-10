@@ -230,10 +230,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
       <section className="flex flex-col gap-6 px-4 pt-4 flex-1">
         {visibleHistory.length > 0 ? (
-          visibleHistory.map((item) => (
-            <article key={item.id} onClick={() => (item.status === 'success' || item.status === 'processing') && onSelectHistory(item)} className="rounded-[1.75rem] bg-card-dark overflow-hidden border border-white/[0.06] shadow-[0_14px_34px_-20px_rgba(0,0,0,0.9)] cursor-pointer active:scale-[0.98] transition-all">
+          visibleHistory.map((item, index) => (
+            <article key={item.id} style={{ '--i': index % HISTORY_PAGE_SIZE } as React.CSSProperties} onClick={() => (item.status === 'success' || item.status === 'processing') && onSelectHistory(item)} className="rounded-[1.75rem] bg-card-dark overflow-hidden border border-white/[0.06] shadow-[0_14px_34px_-20px_rgba(0,0,0,0.9)] cursor-pointer active:scale-[0.98] transition-transform t-stagger-item">
                 <div className="relative h-48 sm:h-56">
-                    {item.imageData ? <img src={item.imageData} alt="" loading="lazy" decoding="async" className={`w-full h-full object-cover ${item.status === 'processing' ? 'blur-sm opacity-50' : ''}`} /> : <span className="material-symbols-outlined text-slate-500">image_not_supported</span>}
+                    {item.imageData ? <img src={item.imageData} alt="" loading="lazy" decoding="async" onLoad={e => e.currentTarget.classList.add('is-loaded')} ref={el => { if (el?.complete) el.classList.add('is-loaded'); }} className={`w-full h-full object-cover ${item.status === 'processing' ? 'blur-sm opacity-50' : 't-img'}`} /> : <span className="material-symbols-outlined text-slate-500">image_not_supported</span>}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                     {item.status === 'processing' && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-black/40 backdrop-blur-[2px]">
