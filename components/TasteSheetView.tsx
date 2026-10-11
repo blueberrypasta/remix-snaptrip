@@ -111,6 +111,69 @@ export function TasteSheetView(props: Props) {
     viewport,
   } = props;
 
+  // Morph: the search pill grows into the sheet and the sheet folds back into the pill.
+  const pillRef = React.useRef<HTMLButtonElement>(null);
+  const backdropRef = React.useRef<HTMLDivElement>(null);
+  const animsRef = React.useRef<Animation[]>([]);
+  const [mounted, setMounted] = React.useState(isOpen);
+  const [closing, setClosing] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) { setMounted(true); setClosing(false); }
+    else if (mounted) setClosing(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  React.useLayoutEffect(() => {
+    if (!mounted) return;
+    const dlg = dialogRef.current;
+    const pill = pillRef.current;
+    animsRef.current.forEach(a => a.cancel());
+    animsRef.current = [];
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (!dlg || typeof dlg.animate !== 'function' || reduce) {
+      if (closing) { setMounted(false); setClosing(false); }
+      return;
+    }
+    const EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
+    const duration = closing ? 340 : 480;
+    const p = pill?.getBoundingClientRect();
+    const d = dlg.getBoundingClientRect();
+    const cs = getComputedStyle(dlg);
+    const endRadius = `${cs.borderTopLeftRadius} ${cs.borderTopRightRadius} ${cs.borderBottomRightRadius} ${cs.borderBottomLeftRadius}`;
+    let shape: globalThis.Keyframe[];
+    if (p && p.width > 0 && p.height > 0 && d.width > 0 && d.height > 0) {
+      const sx = p.width / d.width, sy = p.height / d.height;
+      const r = p.height / 2;
+      shape = [
+        { transform: `translate(${p.left - d.left}px, ${p.top - d.top}px) scale(${sx}, ${sy})`, borderRadius: `${r / sx}px / ${r / sy}px` },
+        { transform: 'none', borderRadius: endRadius },
+      ];
+    } else {
+      shape = [{ transform: 'translateY(100%)' }, { transform: 'none' }];
+    }
+    const contentIn: globalThis.Keyframe[] = [{ opacity: 0 }, { opacity: 0, offset: 0.3 }, { opacity: 1 }];
+    const contentOut: globalThis.Keyframe[] = [{ opacity: 1 }, { opacity: 0, offset: 0.35 }, { opacity: 0 }];
+    const shellIn: globalThis.Keyframe[] = [{ opacity: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 1 }];
+    const shellOut: globalThis.Keyframe[] = [{ opacity: 1 }, { opacity: 1, offset: 0.82 }, { opacity: 0 }];
+    const opts: globalThis.KeyframeAnimationOptions = { duration, easing: EASE, fill: 'both', direction: closing ? 'reverse' : 'normal' };
+    const anims: Animation[] = [dlg.animate(shape, opts)];
+    anims.push(dlg.animate(closing ? shellOut : shellIn, { duration, easing: 'linear', fill: 'both' }));
+    Array.from(dlg.children).forEach(child => {
+      anims.push((child as HTMLElement).animate(closing ? contentOut : contentIn, { duration, easing: 'linear', fill: 'both' }));
+    });
+    if (closing && backdropRef.current) {
+      anims.push(backdropRef.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration, easing: EASE, fill: 'both' }));
+    }
+    animsRef.current = anims;
+    if (closing) {
+      anims[0].finished.then(() => { setMounted(false); setClosing(false); }).catch(() => {});
+    } else {
+      anims[0].finished.then(() => { anims.forEach(a => a.cancel()); }).catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, closing]);
+
   const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number | null => {
 
     const R = 6371e3; // meters
@@ -170,12 +233,13 @@ export function TasteSheetView(props: Props) {
 
   const PillButton = (
     <button
+      ref={pillRef}
       data-taste-entry
       type="button"
       aria-label={entryPillLabel}
       onClick={(e) => { e.stopPropagation(); onOpen(); }}
       className="w-full flex items-center gap-3 h-[56px] pl-5 pr-2 rounded-full bg-white/[0.07] border border-white/[0.10] text-left hover:bg-white/[0.10] active:scale-[0.99] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 touch-manipulation select-none"
-      style={{ WebkitTapHighlightColor: 'transparent' }}
+      style={{ WebkitTapHighlightColor: 'transparent', opacity: mounted ? 0 : undefined }}
     >
       <span className="text-white/70 shrink-0"><SearchIcon /></span>
       <span className="min-w-0 flex-1">
@@ -306,13 +370,14 @@ export function TasteSheetView(props: Props) {
                   );
   };
 
-  if (!isOpen) return PillButton;
+  if (!mounted) return PillButton;
 
   const modalContent = (
     <>
       
       <div
-        className="fixed inset-0 bg-black/[0.55] z-[100] t-backdrop"
+        ref={backdropRef}
+        className={`fixed inset-0 bg-black/[0.55] z-[100] t-backdrop ${closing ? 'pointer-events-none' : ''}`}
         onClick={(e) => { e.stopPropagation(); onClose(); }}
         style={viewport ? { top: viewport.top, height: viewport.height, bottom: 'auto' } : undefined}
       />
@@ -328,8 +393,9 @@ export function TasteSheetView(props: Props) {
           role="dialog" data-taste-dialog
           aria-modal="true"
           aria-labelledby="taste-dialog-title"
-          className="t-sheet pointer-events-auto w-full max-w-[480px] bg-[#111b19] border border-white/10 text-white shadow-[0_-20px_60px_-20px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden rounded-t-[28px] md:rounded-[28px] mx-0 md:mx-4 mb-0 md:mb-0"
+          className={`${closing ? 'pointer-events-none' : 'pointer-events-auto'} w-full max-w-[480px] bg-[#111b19] border border-white/10 text-white shadow-[0_-20px_60px_-20px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden rounded-t-[28px] md:rounded-[28px] mx-0 md:mx-4 mb-0 md:mb-0`}
           style={{
+            transformOrigin: '0 0',
             maxHeight: 'min(90dvh, 100%)',
             paddingBottom: 'env(safe-area-inset-bottom)',
           }}
