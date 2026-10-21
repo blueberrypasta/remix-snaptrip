@@ -1,3 +1,4 @@
+import { handleMenuAction } from './menu.ts';
 // Minimal Deno declarations for tsc compatibility
 declare const Deno: {
   env: {
@@ -1480,9 +1481,6 @@ export async function handleRequest(req: Request): Promise<Response> {
     }
 
     const qlooApiKey = Deno.env.get('QLOO_API_KEY');
-    if (!qlooApiKey) {
-      return new Response(JSON.stringify({ error: 'not_configured' }), { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
 
     let qlooApiUrl = Deno.env.get('QLOO_API_URL');
     const allowedUrls = ['https://api.qloo.com', 'https://staging.api.qloo.com', 'https://hackathon.api.qloo.com'];
@@ -1541,6 +1539,26 @@ export async function handleRequest(req: Request): Promise<Response> {
         if(action==='guest_status') return Response.json({guestRemaining},{headers:corsHeaders});
         if(guestRemaining===0) return Response.json({error:'guest_limit_reached',guestRemaining:0},{status:403,headers:corsHeaders});
       }
+
+      if (action === 'menu_search' || action === 'menu_reviews') {
+        if (action === 'menu_reviews' && guestId) {
+          const used = await guestTasteQuota(guestId, 'consume');
+          if (used === -1) return Response.json({error:'guest_limit_reached',guestRemaining:0},{status:403,headers:corsHeaders});
+          guestReserved = true; guestRemaining = 10 - used;
+        }
+        const response = await handleMenuAction(payload);
+        const data = await response.json();
+        if (guestId && guestReserved && (!response.ok || !data.reviews?.length)) {
+          const used = await guestTasteQuota(guestId, 'refund');
+          guestRemaining = 10 - used;
+        }
+        guestReserved = false;
+        return Response.json({...data, ...(guestId ? {guestRemaining} : {})}, {status:response.status, headers:{...corsHeaders,'Cache-Control':'no-store'}});
+      }
+
+    if (!qlooApiKey) {
+      return new Response(JSON.stringify({ error: 'not_configured' }), { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
       if (action === 'search') {
         if (typeof payload.query !== 'string' || typeof payload.type !== 'string') return Response.json({error:'bad_request'}, {status:400,headers:corsHeaders});
