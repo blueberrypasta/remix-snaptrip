@@ -6,6 +6,7 @@ import type { Language, User, HistoryItem } from '../types';
 
 interface WelcomeScreenProps {
   tasteRecommendations?: React.ReactNode;
+  onMenuClick: () => void;
   onUploadClick: () => void;
   onCameraClick: () => void;
   language: Language;
@@ -32,7 +33,7 @@ interface WelcomeScreenProps {
 const HISTORY_PAGE_SIZE = 6;
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
-  onUploadClick, onCameraClick, language, user, onLogin, recentHistory, onSelectHistory, credits, onReload, isSyncing = false,
+  onMenuClick, onUploadClick, onCameraClick, language, user, onLogin, recentHistory, onSelectHistory, credits, onReload, isSyncing = false,
   nearbyGems = [], nearbyAreaName = '', nearbyWeather = null, isNearbyLoading = false, locationStatus = 'idle', onRefreshLocation, onStartGuide,
   onShowMoreNearby, isMoreNearbyLoading = false, tasteRecommendations, weatherStatus='idle', onRetryWeather
 }) => {
@@ -118,6 +119,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 )}
               </button>
             </div>
+            <button type="button" onClick={onMenuClick} disabled={isSyncing}
+              className="min-h-11 w-full rounded-full border border-[#D9B26A]/40 bg-black/30 px-5 py-3 text-sm font-bold text-[#F4EFE6] disabled:opacity-50">
+              {language === 'ko' ? '메뉴판 찍고 추천 메뉴 찾기' : 'Find dishes from a menu photo'}
+            </button>
           </div>
         </div>
       </section>

@@ -40,3 +40,31 @@ entity search, and a real recommendation response before considering it active.
 `node --experimental-strip-types --test tests/qloo-proxy.test.mjs` checks the
 server boundary with mocked upstream responses; it does not prove Qloo access.
 Per-user rate limiting is per warm worker, not a global billing cap.
+
+### Menu photo recommendations
+
+The home menu-photo button opens an independent, memory-only flow: OCR the menu,
+correct item names/prices, select the exact restaurant branch, then see up to three
+dishes supported by literal quotes in the returned Google review sample. Landmark
+scans and saved history keep their existing behavior. English and Korean are
+supported, with English fallback for other interface languages.
+
+The existing `gemini-proxy` performs OCR and review classification. Deploy the
+updated `qloo-proxy` **including `menu.ts`**, with server-only
+`GOOGLE_PLACES_API_KEY` enabled for Places API (New). Menu actions do not require a
+Qloo key. Text Search and Place Details use field masks and existing rate limits;
+guest review requests use the guest taste quota (empty/error responses refund it).
+A successful readable menu photo uses one existing photo-scan credit. Empty OCR
+results do not deduct photo credits. No new database schema is required.
+
+Place Details returns a limited relevance-sorted review sample (up to five), so
+results never assert whole-review bestseller rankings or dish star ratings.
+Quotes must exist verbatim, name the menu item/faithful OCR alias, and come from
+positive classifications in reviews rated at least four. Conservative negative
+feedback filtering may omit mixed reviews. Keep Google Maps and author attribution
+visible. API keys, raw images, and review bodies must not enter logs/history.
+
+Validation: `npm run build`, `npm run lint`, and
+`node --experimental-strip-types --test tests/*.test.mjs` (Node 22+). Test real
+menu OCR and one exact branch with live providers before production activation;
+mocked tests alone do not establish live key access or review availability.

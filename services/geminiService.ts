@@ -7,7 +7,7 @@ import { supabase } from './supabaseClient';
 const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL || 'https://cshxkzgpuurursnhejnw.supabase.co'}/functions/v1/gemini-proxy`;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'missing-supabase-anon-key';
 
-const callGeminiProxy = async (model: string, contents: unknown, generationConfig?: unknown, tools?: unknown) => {
+export const callGeminiProxy = async (model: string, contents: unknown, generationConfig?: unknown, tools?: unknown, signal?: AbortSignal) => {
     const body: Record<string, unknown> = { model, contents };
     if (generationConfig) body.generationConfig = generationConfig;
     if (tools) body.tools = tools;
@@ -20,6 +20,7 @@ const callGeminiProxy = async (model: string, contents: unknown, generationConfi
             'apikey': SUPABASE_ANON_KEY,
         },
         body: JSON.stringify(body),
+        signal,
     });
 
     if (!response.ok) {
@@ -31,7 +32,7 @@ const callGeminiProxy = async (model: string, contents: unknown, generationConfi
 };
 
 // Extract text from Gemini REST API response
-const extractText = (data: any): string => {
+export const extractText = (data: any): string => {
     return data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || '').join('') || '';
 };
 

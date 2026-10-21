@@ -1,7 +1,7 @@
 
 export type Language = 'en' | 'ko' | 'ja' | 'zh' | 'es' | 'fr' | 'de' | 'it';
 
-export type AppState = 'welcome' | 'result' | 'guide' | 'about' | 'error';
+export type AppState = 'welcome' | 'result' | 'guide' | 'about' | 'menu' | 'error';
 
 export type AnalysisStatus = 'processing' | 'success' | 'failed';
 

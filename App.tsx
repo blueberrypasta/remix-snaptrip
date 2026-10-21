@@ -1,6 +1,7 @@
 import { fetchCurrentWeather } from './services/weatherService';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { TasteRecommendations } from './components/TasteRecommendations';
+import { MenuScanner } from './components/MenuScanner';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ResultScreen } from './components/ResultScreen';
 import { GuideScreen } from './components/GuideScreen';
@@ -463,8 +464,19 @@ const App: React.FC = () => {
       
       <main className="flex-1 relative">
         <div key={appState} className="flex flex-col flex-1 t-screen">
+          {appState === 'menu' && (
+            <MenuScanner language={language} onBack={() => setAppState('welcome')}
+              canScan={async () => {
+                const allowed = await usageService.canAnalyze(user?.id || 'guest');
+                if (!allowed) { if (!user) setLoginModalOpen(true); else setIsQuotaExceeded(true); }
+                return allowed;
+              }}
+              onScanComplete={async () => { setCredits(await usageService.deductCredit(user?.id || 'guest')); }}
+            />
+          )}
           {appState === 'welcome' && (
             <WelcomeScreen 
+              onMenuClick={() => { setAppState('menu'); window.scrollTo(0, 0); }}
               onUploadClick={() => fileInputRef.current?.click()} 
               onCameraClick={() => cameraInputRef.current?.click()} 
               language={language} user={user} onLogin={() => setLoginModalOpen(true)} 
