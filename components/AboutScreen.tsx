@@ -3,6 +3,7 @@ import React from 'react';
 import { useTranslations } from '../translations';
 import type { Language } from '../types';
 import { SnapTripLogo } from './SnapTripLogo';
+import { Icon } from './Icon';
 
 interface AboutScreenProps {
   language: Language;
@@ -20,7 +21,7 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ language, onBack }) =>
     <div className="flex-1 flex flex-col bg-background-dark animate-fade-in overflow-y-auto no-scrollbar pb-20">
       <nav className="sticky top-0 z-50 p-6 flex items-center bg-background-dark/80 backdrop-blur-xl border-b border-white/5">
         <button onClick={onBack} className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all font-bold text-sm active:scale-95 border border-white/10">
-          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+          <Icon name="arrow_back" className="text-[18px]" />
           {t('back')}
         </button>
         <h2 className="flex-1 text-center text-sm font-black text-white/50 uppercase tracking-[0.3em] mr-20">
@@ -43,7 +44,7 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ language, onBack }) =>
         {/* Story */}
         <section className="flex flex-col gap-4 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-primary">auto_awesome</span>
+            <Icon name="auto_awesome" className="text-primary" />
             <h4 className="text-lg font-black text-white">{t('aboutOriginTitle')}</h4>
           </div>
           <p className="text-slate-400 text-base leading-[1.8] font-medium break-keep">
@@ -54,7 +55,7 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ language, onBack }) =>
         {/* Tip */}
         <section className="p-6 rounded-[2rem] bg-indigo-500/10 border border-indigo-500/20 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
           <div className="flex items-center gap-3 mb-4">
-            <span className="material-symbols-outlined text-indigo-400">tips_and_updates</span>
+            <Icon name="tips_and_updates" className="text-indigo-400" />
             <h4 className="text-lg font-black text-white">{t('aboutTipTitle')}</h4>
           </div>
           <p className="text-slate-300 text-sm leading-[1.7] font-medium break-keep">
@@ -65,7 +66,7 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ language, onBack }) =>
         {/* Credits */}
         <section className="flex flex-col gap-4 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-emerald-400">diamond</span>
+            <Icon name="diamond" className="text-emerald-400" />
             <h4 className="text-lg font-black text-white">{t('aboutCreditsTitle')}</h4>
           </div>
           <p className="text-slate-400 text-base leading-[1.8] font-medium break-keep">
@@ -86,7 +87,7 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ language, onBack }) =>
             onClick={handleSupportDev}
             className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-amber-500/20 active:scale-95 flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined">favorite</span>
+            <Icon name="favorite" />
             {t('supportDev')}
           </button>
         </section>

@@ -2,8 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from '../translations';
 import type { HistoryItem, Language } from '../types';
-
-declare const html2canvas: any;
+import { Icon } from './Icon';
 
 interface ResultScreenProps {
   result: HistoryItem;
@@ -25,14 +24,21 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
   const generateBlob = async (): Promise<Blob | null> => {
     if (!resultRef.current) return null;
     try {
-        const canvas = await html2canvas(resultRef.current, { 
-            useCORS: true, scale: 2, backgroundColor: '#101922', logging: false,
-            width: resultRef.current.offsetWidth, height: resultRef.current.offsetHeight
-        });
-        return new Promise((resolve) => canvas.toBlob((blob: Blob | null) => resolve(blob), 'image/png', 1.0));
-    } catch (e) { return null; }
+      const html2canvasModule = await import('html2canvas');
+      const html2canvas = (html2canvasModule as any).default || html2canvasModule;
+      const canvas = await html2canvas(resultRef.current, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: '#101922',
+        logging: false,
+        width: resultRef.current.offsetWidth,
+        height: resultRef.current.offsetHeight
+      });
+      return new Promise((resolve) => canvas.toBlob((blob: Blob | null) => resolve(blob), 'image/png', 1.0));
+    } catch (e) {
+      return null;
+    }
   };
-
   // iOS Safari only allows navigator.share() during a fresh tap. Rendering the card with
   // html2canvas takes long enough that the tap "expires", so the first share silently failed.
   // Keep the rendered file, and if the browser refuses, the next tap shares it instantly.
@@ -136,16 +142,16 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
   return (
     <div className={`w-full max-w-xl mx-auto animate-fade-in pb-48 px-0 relative ${isStreaming ? 'min-h-[130dvh]' : ''}`}>
       {/* Top Bar — Cinematic Glass */}
-      <nav className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-xl z-50 flex items-center justify-between px-5 py-4 pt-[env(safe-area-inset-top,20px)] pointer-events-none">
+      <nav data-html2canvas-ignore="true" className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-xl z-50 flex items-center justify-between px-5 py-4 pt-[env(safe-area-inset-top,20px)] pointer-events-none">
         <button 
           onClick={onReset} 
           className="pointer-events-auto flex items-center justify-center w-10 h-10 bg-black/40 backdrop-blur-xl rounded-full text-white border border-white/10 active:scale-95 transition-all shadow-xl"
         >
-          <span className="material-symbols-outlined text-[18px]">arrow_back_ios_new</span>
+          <Icon name="arrow_back_ios_new" className="text-[18px]" />
         </button>
         
         <div className="pointer-events-auto flex items-center gap-2.5 px-4 py-2 bg-black/40 backdrop-blur-xl rounded-full border border-white/10 shadow-xl">
-           <span className="material-symbols-outlined text-[#D9B26A] text-[16px] animate-pulse">spark</span>
+           <Icon name="spark" className="text-[#D9B26A] text-[16px] animate-pulse" />
            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D9B26A]">Docent</span>
         </div>
 
@@ -158,7 +164,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             {isProcessing ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
             ) : (
-                <span className="material-symbols-outlined text-[20px]">ios_share</span>
+                <Icon name="ios_share" className="text-[20px]" />
             )}
           </button>
           
@@ -166,14 +172,15 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             onClick={() => onDelete(result.id)}
             className="w-10 h-10 bg-black/40 backdrop-blur-xl rounded-full text-[#F4EFE6]/60 border border-white/10 active:scale-95 transition-all shadow-xl flex items-center justify-center"
           >
-            <span className="material-symbols-outlined text-[20px]">delete</span>
+            <Icon name="delete" className="text-[20px]" />
           </button>
         </div>
       </nav>
 
+      <div ref={resultRef} className="w-full flex flex-col">
       {/* Hero Header Area */}
       <div className="relative w-full h-[520px] sm:h-[540px] overflow-hidden">
-        {result.imageData ? <img src={result.imageData} alt={cleanTitle} className="w-full h-full object-cover" crossOrigin="anonymous" /> : <div className="w-full h-full grid place-items-center bg-slate-800 text-slate-400"><span className="material-symbols-outlined text-4xl">image_not_supported</span></div>}
+        {result.imageData ? <img src={result.imageData} alt={cleanTitle} className="w-full h-full object-cover" crossOrigin="anonymous" /> : <div className="w-full h-full grid place-items-center bg-slate-800 text-slate-400"><Icon name="image_not_supported" className="text-4xl" /></div>}
         <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/40 to-[#0B0F14]"></div>
         
         {isStreaming && (
@@ -185,7 +192,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
         <div className="absolute bottom-9 left-6 right-6 sm:left-8 sm:right-8 animate-fade-in-up">
            <div className="inline-flex items-center gap-2 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-[#D9B26A]/30 mb-4">
-              <span className="material-symbols-outlined text-[#D9B26A] text-[12px]">location_on</span>
+              <Icon name="location_on" className="text-[#D9B26A] text-[12px]" />
               <span className="text-[10px] font-black uppercase tracking-widest text-[#F4EFE6]/70 font-sans">
                 {result.locationData ? `${result.locationData.latitude.toFixed(4)}°, ${result.locationData.longitude.toFixed(4)}°` : 'Discovery'}
               </span>
@@ -198,12 +205,12 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
       {/* Metadata Strip */}
       <div className="flex items-center gap-6 px-8 py-6 border-b border-white/5 font-sans">
         <div className="flex items-center gap-2 text-[11px] font-bold text-[#F4EFE6]/40 uppercase tracking-widest">
-           <span className="material-symbols-outlined text-[14px]">schedule</span>
+           <Icon name="schedule" className="text-[14px]" />
            3 {t('minutesRead')}
         </div>
         <div className="w-px h-3 bg-white/10" />
         <div className="flex items-center gap-2 text-[11px] font-bold text-[#F4EFE6]/40 uppercase tracking-widest">
-           <span className="material-symbols-outlined text-[14px]">history_edu</span>
+           <Icon name="history_edu" className="text-[14px]" />
            {t('docentNote')}
         </div>
       </div>
@@ -213,7 +220,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
           {!isStreaming && (isLowConfidence || isProbable) && (
             <section className={`rounded-[1.8rem] p-6 border ${isLowConfidence ? 'bg-amber-400/10 border-amber-300/30' : 'bg-[#5EC9C2]/10 border-[#5EC9C2]/25'}`}>
               <div className="flex items-start gap-4">
-                <span className={`material-symbols-outlined text-3xl ${isLowConfidence ? 'text-amber-300' : 'text-[#5EC9C2]'}`}>{isLowConfidence ? 'document_scanner' : 'fact_check'}</span>
+                <Icon name={isLowConfidence ? 'document_scanner' : 'fact_check'} className={` text-3xl ${isLowConfidence ? 'text-amber-300' : 'text-[#5EC9C2]'}`} />
                 <div className="min-w-0 flex-1">
                   <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F4EFE6]/55 mb-2">{isLowConfidence ? t('needsCloserLook') : t('likelyMatch')}</div>
                   <p className="text-base text-[#F4EFE6] leading-relaxed">{isLowConfidence ? (result.retakeReason || t('retakeTextHelp')) : cleanFact}</p>
@@ -253,7 +260,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
           {!isStreaming && !isLowConfidence && result.hiddenStory && (
             <section className="rounded-[1.8rem] p-6 border border-[#D9B26A]/30 bg-gradient-to-br from-[#D9B26A]/15 to-[#5EC9C2]/10 shadow-[0_18px_50px_-35px_rgba(217,178,106,0.8)]">
               <div className="flex items-start gap-4">
-                <span className="material-symbols-outlined text-3xl text-[#D9B26A]">auto_awesome</span>
+                <Icon name="auto_awesome" className="text-3xl text-[#D9B26A]" />
                 <div className="min-w-0">
                   <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D9B26A] mb-3">{t('hiddenStory')}</div>
                   <p className="text-lg font-serif text-[#F4EFE6] leading-[1.65]">{clean(result.hiddenStory)}</p>
@@ -265,7 +272,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
           {!isStreaming && !isLowConfidence && result.depictedFigures && result.depictedFigures.length > 0 && (
             <section className="rounded-[1.8rem] p-6 border border-[#5EC9C2]/30 bg-[#5EC9C2]/10">
               <div className="flex items-center gap-3 mb-5">
-                <span className="material-symbols-outlined text-3xl text-[#5EC9C2]">sculpture</span>
+                <Icon name="sculpture" className="text-3xl text-[#5EC9C2]" />
                 <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#5EC9C2]">{t('depictedFigures')}</div>
               </div>
               <div className="flex flex-col gap-5">
@@ -291,7 +298,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
               {visitCards.map((card, index) => (
                 <div key={card.label} className={`${index === 0 && visitCards.length % 2 === 1 ? 'sm:col-span-2' : ''} p-6 rounded-[1.8rem] bg-white/5 border border-white/10`}>
-                  <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-[#D9B26A] mb-3"><span className="material-symbols-outlined text-[16px]">{card.icon}</span>{card.label}</div>
+                  <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-[#D9B26A] mb-3"><Icon name={card.icon} className="text-[16px]" />{card.label}</div>
                   <div className="text-xl font-serif text-[#F4EFE6] leading-snug">{card.value}</div>
                 </div>
               ))}
@@ -303,7 +310,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
           {!isStreaming && result.sources && result.sources.length > 0 && (
             <div className="mt-8 pt-8 border-t border-white/5">
               <h5 className="text-[10px] font-black text-[#F4EFE6]/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-[16px]">verified</span>
+                <Icon name="verified" className="text-[16px]" />
                 {t('verifiedSources')}
               </h5>
               <div className="flex flex-col gap-2">
@@ -316,28 +323,29 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                     className="flex justify-between items-center px-5 py-4 bg-white/5 border border-white/5 rounded-2xl text-[13px] text-[#F4EFE6]/70 hover:text-[#D9B26A] hover:bg-white/10 transition-all font-medium"
                   >
                     <span className="truncate pr-4">{source.title}</span>
-                    <span className="material-symbols-outlined text-[18px] opacity-40">open_in_new</span>
+                    <Icon name="open_in_new" className="text-[18px] opacity-40" />
                   </a>
                 ))}
               </div>
             </div>
           )}
       </div>
+      </div>
 
       {/* Primary Action Button */}
-      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-xl px-8 z-40">
+      <div data-html2canvas-ignore="true" className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-xl px-8 z-40">
         <button 
           onClick={onNewPhoto} 
           className="w-full h-16 rounded-full bg-gradient-to-b from-[#E6C079] to-[#C99A4F] text-[#1B130A] font-black text-base shadow-[0_10px_30px_-10px_rgba(217,178,106,0.6),0_0_50px_-10px_rgba(217,178,106,0.4)] active:scale-95 transition-all flex items-center justify-center gap-3 ring-1 ring-white/30 ring-inset"
         >
-          <span className="material-symbols-outlined text-[24px]">photo_camera</span>
+          <Icon name="photo_camera" className="text-[24px]" />
           {isLowConfidence ? t('retakeText') : t('captureNewStory')}
         </button>
       </div>
 
       {notification && (
         <div className="fixed top-32 left-1/2 transform -translate-x-1/2 bg-[#F4EFE6] text-[#0B0F14] px-6 py-3 rounded-full shadow-2xl z-[60] text-xs font-black flex items-center gap-2 animate-fade-in-up">
-          <span className="material-symbols-outlined text-[#5EC9C2] text-sm">check_circle</span>
+          <Icon name="check_circle" className="text-[#5EC9C2] text-sm" />
           {notification}
         </div>
       )}

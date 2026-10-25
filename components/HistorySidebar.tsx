@@ -2,6 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations } from '../translations';
 import type { HistoryItem, Language, User } from '../types';
+import { Icon } from './Icon';
 
 interface HistorySidebarProps {
   history: HistoryItem[];
@@ -145,7 +146,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
         {/* Header */}
         <header className="shrink-0 px-4 py-4 sm:p-8 pt-[max(1rem,env(safe-area-inset-top))] border-b border-white/5 flex justify-between items-center bg-black/20 backdrop-blur-md">
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-[#D9B26A] text-[28px]">bookmarks</span>
+            <Icon name="bookmarks" className="text-[#D9B26A] text-[28px]" />
             <h2 className="text-xl font-serif italic text-[#F4EFE6] tracking-tight">
               {t('history')}
             </h2>
@@ -158,9 +159,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                 aria-label={t('syncing')}
                 className="w-11 h-11 rounded-full hover:bg-white/5 flex items-center justify-center text-[#F4EFE6]/70 transition-colors"
               >
-                <span className={`material-symbols-outlined text-[20px] ${isSyncing ? 'animate-spin text-[#D9B26A]' : ''}`}>
-                  sync
-                </span>
+                <Icon name="sync" className={` text-[20px] ${isSyncing ? 'animate-spin text-[#D9B26A]' : ''}`} />
               </button>
             )}
             <button
@@ -169,7 +168,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
               onClick={onClose}
               className="w-11 h-11 rounded-full hover:bg-white/5 flex items-center justify-center text-[#F4EFE6]/70 transition-colors"
             >
-              <span className="material-symbols-outlined text-[24px]">close</span>
+              <Icon name="close" className="text-[24px]" />
             </button>
           </div>
         </header>
@@ -178,7 +177,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
         <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 no-scrollbar">
           {history.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-[#F4EFE6]/20 gap-5">
-              <span className="material-symbols-outlined text-6xl opacity-20">folder_off</span>
+              <Icon name="folder_off" className="text-6xl opacity-20" />
               <p className="text-[10px] font-black uppercase tracking-[0.3em]">{t('noHistory')}</p>
             </div>
           ) : (
@@ -199,9 +198,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                         <img src={item.imageData} alt="Thumb" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <span className="material-symbols-outlined text-slate-500 text-lg sm:text-xl">
-                            image_not_supported
-                          </span>
+                          <Icon name="image_not_supported" className="text-slate-500 text-lg sm:text-xl" />
                         </div>
                       )}
                       {item.status === 'processing' && (
@@ -216,14 +213,12 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                         {item.title || (item.status === 'processing' ? t('analyzing') : 'Discovery')}
                       </h4>
                       <p className="text-[10px] font-bold text-[#F4EFE6]/40 uppercase tracking-widest flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[12px] sm:text-[14px]">schedule</span>
+                        <Icon name="schedule" className="text-[12px] sm:text-[14px]" />
                         <span className="truncate">{formatDateTime(item.timestamp)}</span>
                       </p>
                     </div>
 
-                    <span className="material-symbols-outlined text-white/20 group-hover:text-[#D9B26A]/60 transition-colors flex-shrink-0 ml-1">
-                      chevron_right
-                    </span>
+                    <Icon name="chevron_right" className="text-white/20 group-hover:text-[#D9B26A]/60 transition-colors flex-shrink-0 ml-1" />
                   </button>
                 </li>
               ))}
@@ -238,7 +233,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
               onClick={onClearHistory}
               className="w-full h-12 sm:h-14 rounded-full border border-red-500/20 text-red-500/60 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] hover:bg-red-500/5 transition-all flex items-center justify-center gap-2 sm:gap-3 active:scale-95"
             >
-              <span className="material-symbols-outlined text-[18px] sm:text-[20px]">delete_sweep</span>
+              <Icon name="delete_sweep" className="text-[18px] sm:text-[20px]" />
               {t('clearHistory')}
             </button>
           </footer>

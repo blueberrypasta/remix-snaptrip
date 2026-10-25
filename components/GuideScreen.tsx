@@ -4,6 +4,7 @@ import { useTranslations } from '../translations';
 import { fetchGuidePointList, streamGuideDetail } from '../services/geminiService';
 import { fetchPointImage, clearImageCache } from '../services/imageService';
 import type { Language, GuidePoint } from '../types';
+import { Icon } from './Icon';
 
 interface GuideScreenProps {
   landmarkName: string;
@@ -162,11 +163,11 @@ export const GuideScreen: React.FC<GuideScreenProps> = ({ landmarkName, language
   if (errorStatus === 429) {
     return (
       <div className="fixed inset-0 bg-background-dark flex flex-col items-center justify-center text-center p-10 z-[100]">
-        <span className="material-symbols-outlined text-6xl text-red-500 mb-4">hourglass_empty</span>
+        <Icon name="hourglass_empty" className="text-6xl text-red-500 mb-4" />
         <h3 className="text-xl font-black text-white mb-2">API 서버 접속량이 많습니다.<br/>(Server Busy)</h3>
         <p className="text-sm text-white/70 mb-8">잠시 후 다시 시도해주시거나,<br/>API 키를 직접 설정해주세요.</p>
         <button onClick={onBack} className="px-6 py-3 bg-white/10 rounded-2xl text-white font-bold inline-flex items-center gap-2 active:bg-white/20 transition-all">
-          <span className="material-symbols-outlined">arrow_back</span>
+          <Icon name="arrow_back" />
           뒤로가기
         </button>
       </div>
@@ -178,7 +179,7 @@ export const GuideScreen: React.FC<GuideScreenProps> = ({ landmarkName, language
       {/* Top Bar */}
       <nav className="z-50 pt-[env(safe-area-inset-top,20px)] pb-4 flex items-center justify-between px-6 bg-gradient-to-b from-black/80 to-transparent">
         <button onClick={onBack} className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white active:scale-90 transition-all">
-          <span className="material-symbols-outlined">close</span>
+          <Icon name="close" />
         </button>
         
         <div className="flex flex-col items-center flex-1">
@@ -192,10 +193,10 @@ export const GuideScreen: React.FC<GuideScreenProps> = ({ landmarkName, language
 
         <div className="flex gap-2">
             <button onClick={() => scrollToStep(currentStep - 1)} disabled={currentStep === 0} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${currentStep === 0 ? 'bg-white/5 text-white/10' : 'bg-white/10 text-white active:scale-90'}`}>
-                <span className="material-symbols-outlined">chevron_left</span>
+                <Icon name="chevron_left" />
             </button>
             <button onClick={() => scrollToStep(currentStep + 1)} disabled={currentStep === points.length - 1} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${currentStep === points.length - 1 ? 'bg-white/5 text-white/10' : 'bg-primary text-white active:scale-90'}`}>
-                <span className="material-symbols-outlined">chevron_right</span>
+                <Icon name="chevron_right" />
             </button>
         </div>
       </nav>
@@ -232,7 +233,7 @@ export const GuideScreen: React.FC<GuideScreenProps> = ({ landmarkName, language
                       />
                     ) : (
                       <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-800/50">
-                        <span className="material-symbols-outlined text-slate-600 text-5xl mb-2">photo_off</span>
+                        <Icon name="photo_off" className="text-slate-600 text-5xl mb-2" />
                         <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{language === 'ko' ? '사진 정보 없음' : 'No Image Available'}</p>
                       </div>
                     )

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslations } from '../translations';
 import { supabase } from '../services/supabaseClient';
 import type { Language } from '../types';
+import { Icon } from './Icon';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -65,7 +66,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, languag
           {isInAppBrowser && (
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-[11px] rounded-2xl mb-6 font-bold leading-normal text-left border border-blue-100 dark:border-blue-900/30">
               <div className="flex gap-2 mb-1">
-                <span className="material-symbols-outlined text-sm flex-shrink-0">info</span>
+                <Icon name="info" className="text-sm flex-shrink-0" />
                 <span className="font-black uppercase tracking-widest text-[10px]">{t('mobileBrowserTip')}</span>
               </div>
               <p className="opacity-90">{t('inAppBrowserTip')}</p>
@@ -75,7 +76,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, languag
           {error && (
             <div className="p-5 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 text-[11px] rounded-2xl mb-6 font-bold leading-normal text-left border border-red-100 dark:border-red-900/30">
               <div className="flex gap-2 mb-2">
-                <span className="material-symbols-outlined text-sm flex-shrink-0">report</span>
+                <Icon name="report" className="text-sm flex-shrink-0" />
                 <span className="font-black uppercase tracking-widest text-[10px]">{t('loginIssue')}</span>
               </div>
               <p className="opacity-90 font-medium">{error}</p>

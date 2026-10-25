@@ -7,7 +7,7 @@ import { supabase } from './supabaseClient';
 const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL || 'https://cshxkzgpuurursnhejnw.supabase.co'}/functions/v1/gemini-proxy`;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'missing-supabase-anon-key';
 
-const callGeminiProxy = async (model: string, contents: unknown, generationConfig?: unknown, tools?: unknown) => {
+const callGeminiProxy = async (model: string, contents: unknown, generationConfig?: unknown, tools?: unknown, signal?: AbortSignal) => {
     const body: Record<string, unknown> = { model, contents };
     if (generationConfig) body.generationConfig = generationConfig;
     if (tools) body.tools = tools;
@@ -20,11 +20,14 @@ const callGeminiProxy = async (model: string, contents: unknown, generationConfi
             'apikey': SUPABASE_ANON_KEY,
         },
         body: JSON.stringify(body),
+        signal,
     });
 
     if (!response.ok) {
         const err = await response.json().catch(() => ({ error: response.statusText }));
-        throw new Error(err.error || `Proxy error ${response.status}`);
+        const error = new Error(err.error || `Proxy error ${response.status}`) as Error & { status: number };
+        error.status = response.status;
+        throw error;
     }
 
     return response.json();
@@ -126,7 +129,8 @@ export const analyzeImageStream = async (
     language: Language,
     onChunk: (partialData: Partial<AnalysisResultData>) => void,
     location?: LocationData | null,
-    locationSource: LocationSource = 'none'
+    locationSource: LocationSource = 'none',
+    signal?: AbortSignal
 ): Promise<AnalysisResultData> => {
     try {
         let locationContext = "";
@@ -167,7 +171,8 @@ Return JSON only with this shape: {"title":"", "fact":"", "story":"", "hiddenSto
             'gemini-3.1-flash-lite',
             contents,
             { systemInstruction: { parts: [{ text: systemInstruction }] }, temperature: 0.2 },
-            [{ googleSearch: {} }]
+            [{ googleSearch: {} }],
+            signal
         );
 
         const fullText = extractText(data);
