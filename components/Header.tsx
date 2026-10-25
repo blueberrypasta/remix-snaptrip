@@ -4,6 +4,7 @@ import type { Language, User } from '../types';
 import { useTranslations, translations } from '../translations';
 import { SnapTripLogo } from './SnapTripLogo';
 import { usageService } from '../services/usageService';
+import { Icon } from './Icon';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -133,7 +134,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className={`w-11 h-11 flex items-center justify-center rounded-full transition-all ${openMenu === 'language' ? 'bg-primary text-[#1B130A] shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
                 aria-label={t('selectLanguage')}
               >
-                <span className="material-symbols-outlined text-[24px]">language</span>
+                <Icon name="language" className="text-[24px]" />
               </button>
               
               {openMenu === 'language' && (
@@ -156,7 +157,7 @@ export const Header: React.FC<HeaderProps> = ({
                          </span>
                          {language === lang.code && (
                            <div className="absolute top-2 right-2">
-                             <span className="material-symbols-outlined text-[14px] text-white">check_circle</span>
+                             <Icon name="check_circle" className="text-[14px] text-white" />
                            </div>
                          )}
                       </button>
@@ -173,7 +174,7 @@ export const Header: React.FC<HeaderProps> = ({
                 aria-label={`${t('credits')}: ${(credits || 0)}`}
                 className="min-h-11 flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 rounded-full border border-primary/20 mr-1 hover:bg-primary/20 transition-all active:scale-95"
               >
-                  <span className="material-symbols-outlined text-[16px] text-primary">{'diamond'}</span>
+                  <Icon name={'diamond'} className="text-[16px] text-primary" />
                   <span className="text-[13px] font-black text-white">{(credits || 0)}</span>
               </button>
               
@@ -224,7 +225,7 @@ export const Header: React.FC<HeaderProps> = ({
                 aria-label={t('settings')}
                 className={`w-11 h-11 flex items-center justify-center rounded-full transition-all ${openMenu === 'settings' ? 'bg-primary text-[#1B130A] shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
               >
-                <span className="material-symbols-outlined text-[24px]">settings</span>
+                <Icon name="settings" className="text-[24px]" />
               </button>
               {openMenu === 'settings' && (
                 <>
@@ -235,7 +236,7 @@ export const Header: React.FC<HeaderProps> = ({
                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-white/10 text-primary transition-colors group"
                    >
                      <span className="text-[11px] font-black uppercase tracking-widest">{t('aboutSnapTrip')}</span>
-                     <span className="material-symbols-outlined text-[18px] group-hover:scale-110 transition-transform">info</span>
+                     <Icon name="info" className="text-[18px] group-hover:scale-110 transition-transform" />
                    </button>
                    
                    <div className="h-px bg-white/5 my-1 mx-2"></div>
@@ -245,7 +246,7 @@ export const Header: React.FC<HeaderProps> = ({
                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-white/10 text-slate-300 transition-colors group"
                    >
                      <span className="text-[11px] font-black uppercase tracking-widest">{t('contactDev')}</span>
-                     <span className="material-symbols-outlined text-[18px] group-hover:scale-110 transition-transform">mail</span>
+                     <Icon name="mail" className="text-[18px] group-hover:scale-110 transition-transform" />
                    </button>
 
                    <button 
@@ -253,7 +254,7 @@ export const Header: React.FC<HeaderProps> = ({
                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-amber-500/10 text-amber-400 transition-colors group"
                    >
                      <span className="text-[11px] font-black uppercase tracking-widest">{t('supportDev')}</span>
-                     <span className="material-symbols-outlined text-[18px] group-hover:scale-110 transition-transform">coffee</span>
+                     <Icon name="coffee" className="text-[18px] group-hover:scale-110 transition-transform" />
                    </button>
 
                    <div className="h-px bg-white/5 my-1 mx-2"></div>
@@ -264,7 +265,7 @@ export const Header: React.FC<HeaderProps> = ({
                        className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-red-500/10 text-red-400 transition-colors group"
                      >
                        <span className="text-[11px] font-black uppercase tracking-widest">{t('logout')}</span>
-                       <span className="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">logout</span>
+                       <Icon name="logout" className="text-[20px] group-hover:translate-x-1 transition-transform" />
                      </button>
                    ) : (
                      <button 
@@ -272,7 +273,7 @@ export const Header: React.FC<HeaderProps> = ({
                        className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-primary/10 text-primary transition-colors group"
                      >
                        <span className="text-[11px] font-black uppercase tracking-widest">{t('login')}</span>
-                       <span className="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">login</span>
+                       <Icon name="login" className="text-[20px] group-hover:translate-x-1 transition-transform" />
                      </button>
                    )}
                 </div>
@@ -287,7 +288,7 @@ export const Header: React.FC<HeaderProps> = ({
                </button>
              ) : (
                <button aria-label={t('login')} onClick={onLogin} className="w-11 h-11 flex items-center justify-center text-slate-300 hover:text-white transition-all active:scale-95">
-                 <span className="material-symbols-outlined text-[24px]">account_circle</span>
+                 <Icon name="account_circle" className="text-[24px]" />
                </button>
              )}
 
@@ -302,19 +303,19 @@ export const Header: React.FC<HeaderProps> = ({
                    className="w-full flex items-center justify-between p-3 rounded-full hover:bg-red-500/10 text-red-400 transition-colors group"
                  >
                    <span className="text-[11px] font-black uppercase tracking-widest pl-2">{t('logout')}</span>
-                   <span className="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">logout</span>
+                   <Icon name="logout" className="text-[20px] group-hover:translate-x-1 transition-transform" />
                  </button>
                </div>
              )}
            </div>
            
            <button aria-label={t('history')} onClick={onToggleSidebar} className="w-11 h-11 hidden sm:flex items-center justify-center rounded-full hover:bg-white/5 text-slate-300 shrink-0">
-              <span className="material-symbols-outlined text-[22px]">bookmarks</span>
+              <Icon name="bookmarks" className="text-[22px]" />
            </button>
 
            <div className="relative sm:hidden" ref={mobileMenuRef}>
              <button aria-label={t('menu')} aria-expanded={openMenu === 'mobile'} onClick={() => setOpenMenu(openMenu === 'mobile' ? null : 'mobile')} className="w-11 h-11 flex items-center justify-center rounded-full text-slate-200 hover:bg-white/10">
-               <span aria-hidden="true" className="material-symbols-outlined">more_horiz</span>
+               <Icon name="more_horiz" aria-hidden="true" />
              </button>
              {openMenu === 'mobile' && (
                <div className="fixed top-[70px] left-4 right-4 z-[120] rounded-3xl border border-white/10 bg-slate-900/95 backdrop-blur-xl p-4 shadow-2xl animate-fade-in-up">
@@ -324,10 +325,10 @@ export const Header: React.FC<HeaderProps> = ({
                  </div>
                  <div className="my-4 h-px bg-white/10" />
                  <div className="grid grid-cols-2 gap-2">
-                   <button onClick={() => { setOpenMenu(null); onToggleSidebar(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><span className="material-symbols-outlined block text-[20px]">bookmarks</span>{t('history')}</button>
-                   <a href="mailto:contact@slaptrip.com?subject=%5BSlapTrip%20Support%5D%20Inquiry" className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100 flex flex-col items-center justify-center"><span className="material-symbols-outlined block text-[20px]">mail</span>{t('contactDev')}</a>
-                   <button onClick={() => { setOpenMenu(null); onShowAbout(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><span className="material-symbols-outlined block text-[20px]">info</span>{t('aboutSnapTrip')}</button>
-                   <button onClick={() => { setOpenMenu(null); if (user) onLogout(); else onLogin(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><span className="material-symbols-outlined block text-[20px]">account_circle</span>{user ? t('logout') : t('login')}</button>
+                   <button onClick={() => { setOpenMenu(null); onToggleSidebar(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><Icon name="bookmarks" className="block text-[20px]" />{t('history')}</button>
+                   <a href="mailto:contact@slaptrip.com?subject=%5BSlapTrip%20Support%5D%20Inquiry" className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100 flex flex-col items-center justify-center"><Icon name="mail" className="block text-[20px]" />{t('contactDev')}</a>
+                   <button onClick={() => { setOpenMenu(null); onShowAbout(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><Icon name="info" className="block text-[20px]" />{t('aboutSnapTrip')}</button>
+                   <button onClick={() => { setOpenMenu(null); if (user) onLogout(); else onLogin(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><Icon name="account_circle" className="block text-[20px]" />{user ? t('logout') : t('login')}</button>
                  </div>
 
                </div>

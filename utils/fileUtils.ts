@@ -1,37 +1,58 @@
 
 import { LocationData } from '../types';
 
-export const extractExifLocation = (file: File): Promise<LocationData | null> => {
-  return new Promise((resolve) => {
-    if (typeof window.EXIF === 'undefined') {
-      resolve(null);
-      return;
+export const extractExifLocation = async (file: File): Promise<LocationData | null> => {
+  try {
+    const exifModule = await import('exif-js');
+    const EXIF = (exifModule as any).default || exifModule;
+
+    if (!EXIF || typeof EXIF.getData !== 'function') {
+      return null;
     }
 
-    window.EXIF.getData(file, function(this: any) {
-      const lat = window.EXIF.getTag(this, "GPSLatitude");
-      const latRef = window.EXIF.getTag(this, "GPSLatitudeRef");
-      const lon = window.EXIF.getTag(this, "GPSLongitude");
-      const lonRef = window.EXIF.getTag(this, "GPSLongitudeRef");
+    return await new Promise<LocationData | null>((resolve) => {
+      // A malformed EXIF block must not leave a selected photo stuck forever.
+      const timeout = setTimeout(() => finish(null), 3000);
+      const finish = (location: LocationData | null) => {
+        clearTimeout(timeout);
+        resolve(location);
+      };
+      try {
+        EXIF.getData(file, function(this: any) {
+          try {
+            const lat = EXIF.getTag(this, 'GPSLatitude');
+            const latRef = EXIF.getTag(this, 'GPSLatitudeRef');
+            const lon = EXIF.getTag(this, 'GPSLongitude');
+            const lonRef = EXIF.getTag(this, 'GPSLongitudeRef');
 
-      if (lat && lon && latRef && lonRef) {
-        const convertToDecimal = (gpsArr: number[], ref: string) => {
-          const deg = gpsArr[0] + gpsArr[1] / 60 + gpsArr[2] / 3600;
-          return (ref === 'S' || ref === 'W') ? deg * -1 : deg;
-        };
+            if (lat && lon && latRef && lonRef) {
+              const convertToDecimal = (gpsArr: number[], ref: string) => {
+                const deg = gpsArr[0] + gpsArr[1] / 60 + gpsArr[2] / 3600;
+                return (ref === 'S' || ref === 'W') ? deg * -1 : deg;
+              };
 
-        resolve({
-          latitude: convertToDecimal(lat, latRef),
-          longitude: convertToDecimal(lon, lonRef)
+              const latitude = convertToDecimal(lat, latRef);
+              const longitude = convertToDecimal(lon, lonRef);
+              finish(Number.isFinite(latitude) && Math.abs(latitude) <= 90 &&
+                Number.isFinite(longitude) && Math.abs(longitude) <= 180 ? { latitude, longitude } : null);
+            } else {
+              finish(null);
+            }
+          } catch {
+            finish(null);
+          }
         });
-      } else {
-        resolve(null);
+      } catch {
+        finish(null);
       }
     });
-  });
+  } catch {
+    return null;
+  }
 };
-
 export const fileToBase64 = async (file: File): Promise<{ base64: string; mimeType: string; location: LocationData | null }> => {
+  if (!file.type.startsWith('image/') || file.size === 0) throw new Error('invalid_image');
+  if (file.size > 20 * 1024 * 1024) throw new Error('image_too_large');
   const location = await extractExifLocation(file);
 
   return new Promise((resolve, reject) => {

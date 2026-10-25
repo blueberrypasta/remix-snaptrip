@@ -1,13 +1,14 @@
 import { fetchCurrentWeather } from './services/weatherService';
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { TasteRecommendations } from './components/TasteRecommendations';
+import React, { useState, useRef, useEffect, useCallback, Suspense, lazy } from 'react';
+import { TasteEntry } from './components/TasteEntry';
 import { WelcomeScreen } from './components/WelcomeScreen';
-import { ResultScreen } from './components/ResultScreen';
-import { GuideScreen } from './components/GuideScreen';
-import { AboutScreen } from './components/AboutScreen';
-import { HistorySidebar } from './components/HistorySidebar';
 import { Header } from './components/Header';
-import { LoginModal } from './components/LoginModal';
+
+const ResultScreen = lazy(() => import('./components/ResultScreen').then(m => ({ default: m.ResultScreen })));
+const GuideScreen = lazy(() => import('./components/GuideScreen').then(m => ({ default: m.GuideScreen })));
+const AboutScreen = lazy(() => import('./components/AboutScreen').then(m => ({ default: m.AboutScreen })));
+const HistorySidebar = lazy(() => import('./components/HistorySidebar').then(m => ({ default: m.HistorySidebar })));
+const LoginModal = lazy(() => import('./components/LoginModal').then(m => ({ default: m.LoginModal })));
 import { analyzeImageStream, fetchNearbyPlaces, fetchMoreNearbyPlaces } from './services/geminiService';
 import { usageService } from './services/usageService';
 import { historyService } from './services/historyService';
@@ -16,6 +17,7 @@ import { supabase } from './services/supabaseClient';
 import { fileToBase64 } from './utils/fileUtils';
 import type { AppState, HistoryItem, Language, User, LocationData, LocationSource } from './types';
 import { useTranslations } from './translations';
+import { Icon } from './components/Icon';
 
 const NEARBY_LIMIT = 20;
 
@@ -43,9 +45,18 @@ const App: React.FC = () => {
   const [isNearbyLoading, setIsNearbyLoading] = useState(false);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'ready' | 'denied' | 'unavailable' | 'error' | 'empty'>('idle');
   const [isMoreNearbyLoading, setIsMoreNearbyLoading] = useState(false);
+  const [retryFile, setRetryFile] = useState<File | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [activeAnalysisRequestId, setActiveAnalysisRequestId] = useState<string | null>(null);
 
   const t = useTranslations(language);
+  const isSyncingRef = useRef(isSyncing);
+  useEffect(() => { isSyncingRef.current = isSyncing; }, [isSyncing]);
   const isSyncingInProgress = useRef(false);
+  const isAnalyzingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const currentRequestIdRef = useRef<string | null>(null);
+  const pendingFileRef = useRef<File | null>(null);
   const hasUserSelectedLanguage = useRef(false);
   const nearbyLanguageRef = useRef(language);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -214,44 +225,72 @@ const App: React.FC = () => {
     });
   }, [cachedLocation]);
 
+  const handleCancelAnalysis = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    const canceledReqId = currentRequestIdRef.current;
+    currentRequestIdRef.current = null;
+    isAnalyzingRef.current = false;
+    setActiveAnalysisRequestId(null);
+    if (canceledReqId) {
+      setHistory(prev => prev.filter(item => item.id !== canceledReqId));
+    }
+    setAppState('welcome');
+    setCurrentResultId(null);
+  }, []);
+
   const handleStartAnalysis = async (file: File) => {
-    // 0. 초기 동기화가 진행 중이라면 잠시 대기 (최대 2초)
-    if (isSyncing) {
-        let waitCount = 0;
-        while (isSyncing && waitCount < 10) {
-            await new Promise(r => setTimeout(r, 200));
-            waitCount++;
-        }
-    }
+    if (isAnalyzingRef.current) return;
+    isAnalyzingRef.current = true;
+    pendingFileRef.current = file;
+    setRetryFile(file);
+    setAnalysisError(null);
 
-    const activeUserId = user?.id || 'guest';
-    
-    // 1. 크레딧 권한 체크 (비동기 서비스 직접 호출하여 가장 최신 데이터 확인)
-    const canAnalyze = await usageService.canAnalyze(activeUserId);
-    if (!canAnalyze) {
-      if (!user) {
-        setLoginModalOpen(true);
-      } else {
-        setIsQuotaExceeded(true);
-      }
-      return;
-    }
+    const requestId = `temp_${crypto.randomUUID()}`;
+    currentRequestIdRef.current = requestId;
+    setActiveAnalysisRequestId(requestId);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
-    setIsQuotaExceeded(false);
     try {
-      const { base64, mimeType, location: exifLocation } = await fileToBase64(file);
-      
-      let finalLocation = exifLocation;
-      let locationSource: LocationSource = 'exif';
-      
-      if (!finalLocation) {
-        finalLocation = await getCurrentCoords();
-        locationSource = finalLocation ? 'device' : 'none';
+      if (isSyncingRef.current) {
+        let waitCount = 0;
+        while (isSyncingRef.current && waitCount < 10) {
+          if (controller.signal.aborted) return;
+          await new Promise(r => setTimeout(r, 200));
+          waitCount++;
+        }
+        if (isSyncingRef.current) {
+          throw new Error('Sync timeout');
+        }
       }
 
-      const tempId = `temp_${Date.now()}`;
+      if (controller.signal.aborted || currentRequestIdRef.current !== requestId) return;
+
+      const activeUserId = user?.id || 'guest';
+      const canAnalyze = await usageService.canAnalyze(activeUserId);
+      if (controller.signal.aborted || currentRequestIdRef.current !== requestId) return;
+      if (!canAnalyze) {
+        if (!user) {
+          setLoginModalOpen(true);
+        } else {
+          setIsQuotaExceeded(true);
+        }
+        return;
+      }
+
+      setIsQuotaExceeded(false);
+
+      const { base64, mimeType, location: exifLocation } = await fileToBase64(file);
+      if (controller.signal.aborted || currentRequestIdRef.current !== requestId) return;
+
+      const finalLocation = exifLocation || cachedLocation || null;
+      const locationSource: LocationSource = exifLocation ? 'exif' : (cachedLocation ? 'device' : 'none');
+
       const newItem: HistoryItem = { 
-        id: tempId, 
+        id: requestId,
         status: 'processing', 
         imageData: `data:${mimeType};base64,${base64}`, 
         timestamp: Date.now(), 
@@ -261,51 +300,71 @@ const App: React.FC = () => {
       };
       
       setHistory(prev => [newItem, ...prev]);
-      setCurrentResultId(tempId);
+      setCurrentResultId(requestId);
       setAppState('result'); 
       
       try {
         const result = await analyzeImageStream(base64, mimeType, language, (partial) => {
-          setHistory(prev => prev.map(item => item.id === tempId ? { ...item, ...partial, progress: Math.max(item.progress || 0, 95) } : item));
-        }, finalLocation, locationSource);
+          if (currentRequestIdRef.current !== requestId || controller.signal.aborted) return;
+          setHistory(prev => prev.map(item => item.id === requestId ? { ...item, ...partial, progress: Math.max(item.progress || 0, 95) } : item));
+        }, finalLocation, locationSource, controller.signal);
         
+        if (controller.signal.aborted || currentRequestIdRef.current !== requestId) return;
+
+        setActiveAnalysisRequestId(null);
         const finalItem: HistoryItem = { ...newItem, ...result, status: 'success', progress: 100 };
-        
-        setHistory(prev => prev.map(item => item.id === tempId ? finalItem : item));
+        setHistory(prev => prev.map(item => item.id === requestId ? finalItem : item));
         
         const newCredits = await usageService.deductCredit(activeUserId);
         setCredits(newCredits);
+        pendingFileRef.current = null;
+        setRetryFile(null);
         
         if (user) {
           const dbId = await historyService.saveResult(user.id, finalItem);
-          if (dbId) {
+          if (dbId && currentRequestIdRef.current === requestId && !controller.signal.aborted) {
             try {
               await localPhotoService.save(user.id, dbId, finalItem.imageData);
             } catch (photoError) {
               console.warn('[SlapTrip] Photo could not be saved on this device:', photoError);
             }
-            setHistory(prev => prev.map(item => item.id === tempId ? { ...item, id: dbId, isAutoSaved: true } : item));
-            setCurrentResultId(prevId => prevId === tempId ? dbId : prevId);
+            setHistory(prev => prev.map(item => item.id === requestId ? { ...item, id: dbId, isAutoSaved: true } : item));
+            setCurrentResultId(prevId => prevId === requestId ? dbId : prevId);
           }
         }
       } catch (e: any) { 
-        console.error("[SnapTrip] Analysis Error:", e);
-        if (e?.message?.includes('429') || e?.status === 429) {
-          setIsApiRateLimited(true);
+        if (controller.signal.aborted || currentRequestIdRef.current !== requestId) return;
+        console.warn("[SlapTrip] Analysis failed");
+        if (e?.message?.includes('429') || e?.status === 429 || e?.message === 'rate_limited') {
+          setAnalysisError(language === 'ko' ? '요청이 많아요. 잠시 후 같은 사진으로 다시 시도해 주세요.' : 'Too many requests. Wait a moment, then retry the same photo.');
         } else if (e?.message?.includes('quota')) {
           setIsQuotaExceeded(true);
+        } else {
+          setAnalysisError(language === 'ko' ? '사진 분석 중 오류가 발생했습니다.' : 'An error occurred during analysis.');
         }
-        // 에러 시 튕겨나가는 대신 히스토리에서만 제거하고 알림 표시
-        setHistory(prev => prev.filter(item => item.id !== tempId)); 
+        setHistory(prev => prev.filter(item => item.id !== requestId));
         setAppState('welcome');
         setCurrentResultId(null);
       }
-    } catch (e) {
-      console.error("[SnapTrip] File Processing Error:", e);
+    } catch (e: any) {
+      if (controller.signal.aborted || currentRequestIdRef.current !== requestId) return;
+      console.warn("[SlapTrip] Image processing failed");
+      if (e?.message === 'Sync timeout') {
+        setAnalysisError(language === 'ko' ? '동기화가 지연되고 있어요. 잠시 후 다시 시도해 주세요.' : 'Sync is taking longer. Please retry shortly.');
+      } else if (e?.message === 'image_too_large') {
+        setAnalysisError(language === 'ko' ? '20MB 이하 사진을 선택해 주세요.' : 'Please choose a photo smaller than 20 MB.');
+      } else {
+        setAnalysisError(language === 'ko' ? '사진을 읽지 못했어요. JPG 또는 PNG 사진을 선택해 주세요.' : 'Could not read this photo. Please choose a JPG or PNG image.');
+      }
       setAppState('welcome');
+    } finally {
+      if (currentRequestIdRef.current === requestId) {
+        isAnalyzingRef.current = false;
+        abortControllerRef.current = null;
+        setActiveAnalysisRequestId(null);
+      }
     }
   };
-
   const loadNearbyGems = useCallback(async (loc: LocationData, lang: Language) => {
     setIsNearbyLoading(true);
     setLocationStatus('loading');
@@ -351,10 +410,6 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    if (cachedLocation && nearbyGems.length === 0 && !isNearbyLoading && locationStatus === 'ready') loadNearbyGems(cachedLocation, language);
-  }, [cachedLocation, language, nearbyGems.length, isNearbyLoading, locationStatus, loadNearbyGems]);
-
-  useEffect(() => {
     if (nearbyLanguageRef.current === language) return;
     nearbyLanguageRef.current = language;
     if (!cachedLocation) return;
@@ -363,7 +418,14 @@ const App: React.FC = () => {
     void loadNearbyGems(cachedLocation, language);
   }, [cachedLocation, language, loadNearbyGems]);
 
-  useEffect(() => { getCurrentCoords(); }, [getCurrentCoords]);
+  useEffect(() => {
+    return () => {
+      currentRequestIdRef.current = null;
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+      isAnalyzingRef.current = false;
+    };
+  }, []);
 
   const handleHistorySelection = (item: HistoryItem) => {
     setCurrentResultId(item.id);
@@ -436,7 +498,7 @@ const App: React.FC = () => {
       {isQuotaExceeded && (
         <div className="fixed top-20 left-4 right-4 z-[100] bg-amber-500 rounded-2xl p-4 shadow-2xl border border-white/20">
           <div className="flex items-center gap-3 mb-2">
-            <span className="material-symbols-outlined">warning</span>
+            <Icon name="warning" />
             <p className="text-sm font-black text-white">{t('quotaExceeded')}</p>
           </div>
           <div className="flex gap-2">
@@ -448,7 +510,7 @@ const App: React.FC = () => {
       {isApiRateLimited && (
         <div className="fixed top-20 left-4 right-4 z-[100] bg-red-500 rounded-2xl p-4 shadow-2xl border border-white/20">
           <div className="flex items-center gap-3 mb-2">
-            <span className="material-symbols-outlined">hourglass_empty</span>
+            <Icon name="hourglass_empty" />
             <p className="text-sm font-black text-white">[{t('error')}] API 서버 접속량이 많습니다.</p>
           </div>
           <p className="text-xs text-white/90 font-bold mb-3">{language === 'ko' ? '잠시 후 다시 시도해 주세요.' : 'Please try again shortly.'}</p>
@@ -458,41 +520,75 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {analysisError && (
+        <div role="alert" className="fixed top-20 left-4 right-4 z-[100] bg-rose-600 rounded-2xl p-4 shadow-2xl border border-white/20">
+          <div className="flex items-center gap-3 mb-2">
+            <Icon name="error" />
+            <p className="text-sm font-black text-white">{analysisError}</p>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-3">
+            {retryFile && (
+              <button onClick={() => { const file = pendingFileRef.current; setAnalysisError(null); if (file) void handleStartAnalysis(file); }} className="min-h-11 px-3 py-1.5 bg-white text-rose-700 text-xs font-bold rounded-xl shadow transition-all">
+                {language === 'ko' ? '같은 사진 다시 시도' : 'Retry Same Photo'}
+              </button>
+            )}
+            <button onClick={() => { setAnalysisError(null); fileInputRef.current?.click(); }} className="min-h-11 px-3 py-1.5 bg-white/20 text-white text-xs font-bold rounded-xl transition-all">
+              {language === 'ko' ? '새 사진 선택' : 'Choose New Photo'}
+            </button>
+            <button onClick={() => { setAnalysisError(null); pendingFileRef.current = null; setRetryFile(null); }} className="min-h-11 px-3 py-1.5 bg-black/20 text-white text-xs font-bold rounded-xl transition-all">
+              {t('cancel')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeAnalysisRequestId && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] flex items-center gap-3 px-4 py-2 bg-slate-900/90 border border-white/20 rounded-full shadow-2xl backdrop-blur-md">
+          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+          <span className="text-xs font-bold text-white">{language === 'ko' ? '분석 중...' : 'Analyzing...'}</span>
+          <button onClick={handleCancelAnalysis} className="min-h-11 px-3 py-1 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold rounded-full transition-all">
+            {language === 'ko' ? '취소' : 'Cancel'}
+          </button>
+        </div>
+      )}
+
       <input type="file" ref={fileInputRef} accept="image/*" onChange={handleFileInputChange} className="hidden" />
       <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" onChange={handleFileInputChange} className="hidden" />
       
       <main className="flex-1 relative">
-        <div key={appState} className="flex flex-col flex-1 t-screen">
-          {appState === 'welcome' && (
-            <WelcomeScreen 
-              onUploadClick={() => fileInputRef.current?.click()} 
-              onCameraClick={() => cameraInputRef.current?.click()} 
-              language={language} user={user} onLogin={() => setLoginModalOpen(true)} 
-              recentHistory={history} onSelectHistory={handleHistorySelection} 
-              credits={credits} onReload={handleReload} isSyncing={isSyncing}
-              nearbyGems={nearbyGems} nearbyAreaName={nearbyAreaName} nearbyWeather={nearbyWeather} weatherStatus={weatherStatus} onRetryWeather={()=>{if(cachedLocation)setWeatherRevision(v=>v+1);else void handleRefreshLocation();}}
-              isNearbyLoading={isNearbyLoading} onRefreshLocation={handleRefreshLocation}
-              locationStatus={locationStatus}
-              tasteRecommendations={<TasteRecommendations key={user?.id || 'guest'} language={language} location={cachedLocation} onRequestLocation={() => getCurrentCoords()} onLogin={() => setLoginModalOpen(true)} userId={user?.id} />}
-              onStartGuide={handleStartGuide} onShowMoreNearby={handleLoadMoreNearby} isMoreNearbyLoading={isMoreNearbyLoading}
-            />
-          )}
-          {appState === 'result' && history.find(i => i.id === currentResultId) && (
-            <ResultScreen 
-              result={history.find(i => i.id === currentResultId)!} 
-              onReset={() => { setAppState('welcome'); setCurrentResultId(null); }} 
-              onNewPhoto={() => { setAppState('welcome'); setCurrentResultId(null); setTimeout(() => cameraInputRef.current?.click(), 300); }} 
-              language={language} credits={credits} 
-              onDelete={handleDeleteResult}
-            />
-          )}
-          {appState === 'guide' && guideLandmark && (
-            <GuideScreen landmarkName={guideLandmark} language={language} onBack={() => { setAppState('welcome'); setGuideLandmark(null); }} locationHint={guideLocationHint} />
-          )}
-          {appState === 'about' && (
-            <AboutScreen language={language} onBack={() => setAppState('welcome')} />
-          )}
-        </div>
+        <Suspense fallback={<div role="status" className="flex-1 flex items-center justify-center min-h-[300px] text-slate-400 text-sm">{language === 'ko' ? '불러오는 중…' : 'Loading…'}</div>}>
+          <div key={appState} className="flex flex-col flex-1 t-screen">
+            {appState === 'welcome' && (
+              <WelcomeScreen
+                onUploadClick={() => fileInputRef.current?.click()}
+                onCameraClick={() => cameraInputRef.current?.click()}
+                language={language} user={user} onLogin={() => setLoginModalOpen(true)}
+                recentHistory={history} onSelectHistory={handleHistorySelection}
+                credits={credits} onReload={handleReload} isSyncing={isSyncing}
+                nearbyGems={nearbyGems} nearbyAreaName={nearbyAreaName} nearbyWeather={nearbyWeather} weatherStatus={weatherStatus} onRetryWeather={()=>{if(cachedLocation)setWeatherRevision(v=>v+1);else void handleRefreshLocation();}}
+                isNearbyLoading={isNearbyLoading} onRefreshLocation={handleRefreshLocation}
+                locationStatus={locationStatus}
+                tasteRecommendations={<TasteEntry key={user?.id || 'guest'} language={language} location={cachedLocation} onRequestLocation={() => getCurrentCoords()} onLogin={() => setLoginModalOpen(true)} userId={user?.id} />}
+                onStartGuide={handleStartGuide} onShowMoreNearby={handleLoadMoreNearby} isMoreNearbyLoading={isMoreNearbyLoading}
+              />
+            )}
+            {appState === 'result' && history.find(i => i.id === currentResultId) && (
+              <ResultScreen
+                result={history.find(i => i.id === currentResultId)!}
+                onReset={() => { if (activeAnalysisRequestId) handleCancelAnalysis(); else { setAppState('welcome'); setCurrentResultId(null); } }}
+                onNewPhoto={() => { if (activeAnalysisRequestId) handleCancelAnalysis(); setAppState('welcome'); setCurrentResultId(null); setTimeout(() => cameraInputRef.current?.click(), 300); }}
+                language={language} credits={credits}
+                onDelete={handleDeleteResult}
+              />
+            )}
+            {appState === 'guide' && guideLandmark && (
+              <GuideScreen landmarkName={guideLandmark} language={language} onBack={() => { setAppState('welcome'); setGuideLandmark(null); }} locationHint={guideLocationHint} />
+            )}
+            {appState === 'about' && (
+              <AboutScreen language={language} onBack={() => setAppState('welcome')} />
+            )}
+          </div>
+        </Suspense>
       </main>
       <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 px-4 py-3 text-center text-[11px] text-slate-400">
         <a href="mailto:contact@slaptrip.com?subject=%5BSlapTrip%20Support%5D%20Inquiry" className="underline underline-offset-4 hover:text-white">{t('contactDev')}</a>
@@ -501,8 +597,16 @@ const App: React.FC = () => {
         <span className="mx-2">·</span><a href="/terms.html" className="underline underline-offset-4 hover:text-white">Terms · 이용약관</a>
         <a href="mailto:contact@slaptrip.com" className="basis-full underline-offset-4 hover:text-white hover:underline">contact@slaptrip.com</a>
       </footer>
-      <HistorySidebar history={history} onSelect={handleHistorySelection} isOpen={isSidebarOpen} onClose={handleCloseHistory} language={language} onClearHistory={handleClearHistory} user={user} isSyncing={isSyncing} onRefresh={() => user && syncUserData(user.id)} />
-      <LoginModal isOpen={isLoginModalOpen} onClose={() => setLoginModalOpen(false)} onLogin={() => {}} language={language} />
+      {isSidebarOpen && (
+        <Suspense fallback={null}>
+          <HistorySidebar history={history} onSelect={handleHistorySelection} isOpen={isSidebarOpen} onClose={handleCloseHistory} language={language} onClearHistory={handleClearHistory} user={user} isSyncing={isSyncing} onRefresh={() => user && syncUserData(user.id)} />
+        </Suspense>
+      )}
+      {isLoginModalOpen && (
+        <Suspense fallback={null}>
+          <LoginModal isOpen={isLoginModalOpen} onClose={() => setLoginModalOpen(false)} onLogin={() => {}} language={language} />
+        </Suspense>
+      )}
       </div>
     </div>
   );

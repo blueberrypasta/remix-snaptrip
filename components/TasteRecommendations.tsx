@@ -15,6 +15,7 @@ interface Props {
   onRequestLocation: () => Promise<LocationData | null>;
   onLogin: () => void;
   userId?: string;
+  initialOpen?: boolean;
 }
 
 const MAX_EXCLUSIONS = 10;
@@ -37,8 +38,8 @@ const LABELS: Record<string, Partial<Record<Language, string>>> = {
   footer: { ko: '거리: 직선 기준 · Qloo 추천', en: 'Distance: Straight line · Powered by Qloo' },
 };
 
-export const TasteRecommendations: React.FC<Props> = ({ language, location, onRequestLocation, onLogin, userId }) => {
-  const [isOpen, setIsOpen] = useState(false);
+export const TasteRecommendations: React.FC<Props> = ({ language, location, onRequestLocation, onLogin, userId, initialOpen = false }) => {
+  const [isOpen, setIsOpen] = useState(initialOpen);
   const [viewport,setViewport]=useState<{height:number;top:number}|null>(null);
   const [viewState, setViewState] = useState<'composer' | 'results'>('composer');
   const [inputText, setInputText] = useState('');

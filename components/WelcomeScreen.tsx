@@ -3,6 +3,7 @@ import NearbyPlaceList from './NearbyPlaceList';
 import React, { useState, useEffect } from 'react';
 import { useTranslations } from '../translations';
 import type { Language, User, HistoryItem } from '../types';
+import { Icon } from './Icon';
 
 interface WelcomeScreenProps {
   tasteRecommendations?: React.ReactNode;
@@ -69,7 +70,16 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
       <section className="p-4 w-full">
         <div className="relative w-full overflow-hidden rounded-[2.25rem] sm:rounded-[2.5rem] shadow-2xl h-[390px] sm:h-auto sm:aspect-video flex flex-col items-center justify-center p-5 sm:p-6 text-center group min-h-[300px] border border-white/5">
-          <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=1000')" }}></div>
+          <img
+            src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=1000"
+            srcSet="https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=480 480w, https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=768 768w, https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=1200 1200w"
+            sizes="(max-width: 640px) 100vw, 576px"
+            width={1200}
+            height={675}
+            fetchPriority="high"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          />
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/90"></div>
 
           {/* Corner Reticles */}
@@ -86,7 +96,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
           <div className="relative z-10 flex flex-col items-center gap-3 mt-auto w-full mb-2 sm:mb-4">
             <h2 className="text-[28px] sm:text-5xl font-serif italic text-[#F4EFE6] leading-tight break-keep drop-shadow-2xl">{t('welcomeMessage')}</h2>
-            <p className="text-[#D5DCE3] text-[11px] sm:text-xs font-semibold max-w-[340px] mx-auto leading-relaxed mb-2 sm:mb-4 break-keep font-sans tracking-wide">{t('welcomeSub')}</p>
+            <p className="text-[#D5DCE3] text-[14px] font-semibold max-w-[340px] mx-auto leading-relaxed mb-2 sm:mb-4 break-keep font-sans tracking-wide">{t('welcomeSub')}</p>
 
             <div className="flex w-full gap-3 px-2">
               <button
@@ -98,7 +108,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
                 ) : (
                   <>
-                    <span className="material-symbols-outlined text-[20px]">photo_camera</span>
+                    <Icon name="photo_camera" className="text-[20px]" />
                     {t('identifyCamera')}
                   </>
                 )}
@@ -112,7 +122,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   <span className="text-[10px] animate-pulse uppercase tracking-widest">{t('syncing')}</span>
                 ) : (
                   <>
-                    <span className="material-symbols-outlined text-[20px]">upload_file</span>
+                    <Icon name="upload_file" className="text-[20px]" />
                     {t('choosePhoto')}
                   </>
                 )}
@@ -130,14 +140,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
            >
               <div className="flex items-center gap-3">
                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary animate-pulse">
-                    <span className="material-symbols-outlined">record_voice_over</span>
+                    <Icon name="record_voice_over" />
                  </div>
                  <div className="text-left">
                     <p className="text-[10px] font-black text-primary uppercase tracking-widest">{t('resumeGuide')}</p>
                     <h4 className="text-sm font-black text-white truncate max-w-[200px]">{activeGuide.landmarkName}</h4>
                  </div>
               </div>
-              <span className="material-symbols-outlined text-primary group-hover:translate-x-1 transition-transform">arrow_forward</span>
+              <Icon name="arrow_forward" className="text-primary group-hover:translate-x-1 transition-transform" />
            </button>
         </section>
       )}
@@ -159,19 +169,36 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     <button aria-label={t('retryLocation')} onClick={()=>onRefreshLocation?.()} className="w-11 h-11 text-white/60 flex items-center justify-center rounded-full hover:bg-white/5"><svg aria-hidden="true" className={`w-3.5 h-3.5 ${isNearbyLoading?'animate-spin':''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 6M4 12l2 6a7 7 0 0 0 12-1"/></svg></button>
                 </div>
                 <div className="flex items-center gap-1.5 min-h-11" data-nearby-context>
-                    <div className="min-w-0 flex-1 text-[11px] text-white/55 truncate" title={nearbyAreaName}>
+                    <div className="min-w-0 flex-1 text-[14px] text-white/55 truncate" title={nearbyAreaName}>
                       {nearbyAreaName ? `📍 ${nearbyAreaName}` : language==='ko' ? (locationStatus==='denied'?'위치 권한 필요':isNearbyLoading?'주변 찾는 중…':'내 주변') : (locationStatus==='denied'?'Location needed':isNearbyLoading?'Finding nearby…':'Nearby')}
                     </div>
+                    {locationStatus === 'idle' && !nearbyAreaName && (
+                      <button
+                        type="button"
+                        onClick={() => onRefreshLocation?.()}
+                        className="shrink-0 min-h-11 px-3 inline-flex items-center gap-1 text-[14px] font-semibold text-emerald-400 hover:text-emerald-300 rounded-lg hover:bg-white/5"
+                      >
+                        <Icon name="my_location" className="text-[16px]" />
+                        <span>{language === 'ko' ? '위치 확인하기' : 'Enable Location'}</span>
+                      </button>
+                    )}
                     {nearbyWeather && Number.isFinite(nearbyWeather.tempC) ? (
                         <button data-weather-display title={language==='ko'?'현재 날씨 · °C/°F 전환':'Current weather · switch °C/°F'} onClick={()=>setTempUnit(prev=>prev==='C'?'F':'C')} className="shrink-0 min-h-11 px-1.5 inline-flex items-center gap-1 text-[12px] text-white/85 rounded-lg hover:bg-white/5">
                           <span aria-hidden="true">{nearbyWeather.emoji}</span><span>{getDisplayTemp()}</span>
                         </button>
                     ) : (
-                        <button data-weather-status disabled={weatherStatus==='loading'} onClick={()=>onRetryWeather?.()} className="shrink-0 min-h-11 px-1 text-[11px] text-white/55 rounded-lg hover:bg-white/5" aria-label={language==='ko'?'날씨 다시 불러오기':'Retry weather'}>
+                        <button data-weather-status disabled={weatherStatus==='loading'} onClick={()=>onRetryWeather?.()} className="shrink-0 min-h-11 px-1 text-[14px] text-white/70 rounded-lg hover:bg-white/5" aria-label={language==='ko'?'날씨 다시 불러오기':'Retry weather'}>
                           {language==='ko'?(weatherStatus==='loading'?'날씨 확인 중…':weatherStatus==='error'?'날씨 재시도':'날씨 · 위치 필요'):(weatherStatus==='loading'?'Weather…':weatherStatus==='error'?'Retry weather':'Weather · location')}
                         </button>
                     )}
                 </div>
+                {locationStatus === 'idle' && !nearbyAreaName && (
+                  <p className="text-[14px] text-white/60 leading-relaxed mt-1 mb-2">
+                    {language === 'ko'
+                      ? '현재 위치를 기반으로 주변 추천 명소와 날씨 정보를 확인해보세요.'
+                      : 'Find nearby recommended landmarks and local weather based on your current location.'}
+                  </p>
+                )}
                 {nearbyWeather && <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" className="self-start text-[9px] leading-3 text-white/40 hover:text-white/70">Weather: Open-Meteo</a>}
             </div>
 
@@ -198,7 +225,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                   <div className="w-4 h-4 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin"></div>
                                 ) : (
                                   <>
-                                    <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                                    <Icon name="add_circle" className="text-[18px]" />
                                     {t('findMore')}
                                   </>
                                 )}
@@ -207,7 +234,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         </div>
                     ) : (
                         <div className="py-12 flex flex-col items-center justify-center text-center px-6 gap-4">
-                            <span className="material-symbols-outlined text-emerald-400 text-4xl opacity-70">{locationStatus === 'denied' ? 'location_off' : locationStatus === 'empty' ? 'explore_off' : 'wifi_off'}</span>
+                            <Icon name={locationStatus === 'denied' ? 'location_off' : locationStatus === 'empty' ? 'explore_off' : 'wifi_off'} className="text-emerald-400 text-4xl opacity-70" />
                             <div className="flex flex-col gap-1">
                                 <p className="text-sm font-black text-white">{locationStatus === 'denied' ? t('locationDenied') : locationStatus === 'empty' ? t('noGemsFound') : t('locationUnavailable')}</p>
                                 <p className="text-[11px] text-slate-300 font-bold leading-relaxed">{locationStatus === 'empty' ? t('emptyNearbyGuide') : t('locationPermissionGuide')}</p>
@@ -224,8 +251,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       </section>
 
       <div className="px-6 pt-10 pb-2 flex justify-between items-center">
-        <h3 className="text-[19px] font-bold tracking-[-0.01em] text-white flex items-center gap-2"><span className="material-symbols-outlined text-primary text-[20px]">history</span>{t('recentActivity')}</h3>
-        {isSyncing && <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 tracking-widest uppercase"><span className="material-symbols-outlined text-sm animate-spin">sync</span>{t('syncing')}</div>}
+        <h3 className="text-[19px] font-bold tracking-[-0.01em] text-white flex items-center gap-2"><Icon name="history" className="text-primary text-[20px]" />{t('recentActivity')}</h3>
+        {isSyncing && <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 tracking-widest uppercase"><Icon name="sync" className="text-sm animate-spin" />{t('syncing')}</div>}
       </div>
 
       <section className="flex flex-col gap-6 px-4 pt-4 flex-1">
@@ -233,7 +260,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           visibleHistory.map((item, index) => (
             <article key={item.id} style={{ '--i': index % HISTORY_PAGE_SIZE } as React.CSSProperties} onClick={() => (item.status === 'success' || item.status === 'processing') && onSelectHistory(item)} className="rounded-[1.75rem] bg-card-dark overflow-hidden border border-white/[0.06] shadow-[0_14px_34px_-20px_rgba(0,0,0,0.9)] cursor-pointer active:scale-[0.98] transition-transform t-stagger-item">
                 <div className="relative h-48 sm:h-56">
-                    {item.imageData ? <img src={item.imageData} alt="" loading="lazy" decoding="async" onLoad={e => e.currentTarget.classList.add('is-loaded')} ref={el => { if (el?.complete) el.classList.add('is-loaded'); }} className={`w-full h-full object-cover ${item.status === 'processing' ? 'blur-sm opacity-50' : 't-img'}`} /> : <span className="material-symbols-outlined text-slate-500">image_not_supported</span>}
+                    {item.imageData ? <img src={item.imageData} alt="" loading="lazy" decoding="async" onLoad={e => e.currentTarget.classList.add('is-loaded')} ref={el => { if (el?.complete) el.classList.add('is-loaded'); }} className={`w-full h-full object-cover ${item.status === 'processing' ? 'blur-sm opacity-50' : 't-img'}`} /> : <Icon name="image_not_supported" className="text-slate-500" />}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                     {item.status === 'processing' && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-black/40 backdrop-blur-[2px]">
@@ -244,13 +271,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     <div className="absolute bottom-4 left-4 right-4"><h4 className="text-lg font-bold text-white truncate">{item.title || (item.status === 'processing' ? t('exploring') : '')}</h4></div>
                 </div>
                 <div className="p-4 flex justify-between items-center text-[10px] font-bold text-slate-400">
-                    <div className="flex items-center gap-1.5"><span className="material-symbols-outlined text-[14px] text-primary/60">schedule</span><span>{new Date(item.timestamp).toLocaleDateString()}</span></div>
+                    <div className="flex items-center gap-1.5"><Icon name="schedule" className="text-[14px] text-primary/60" /><span>{new Date(item.timestamp).toLocaleDateString()}</span></div>
                     <span className="text-primary font-semibold">{item.status === 'processing' ? t('processing') : t('viewResult')}</span>
                 </div>
             </article>
           ))
         ) : (
-          <div className="py-14 text-center flex flex-col items-center gap-4 text-slate-300"><span className="material-symbols-outlined text-5xl text-[#D9B26A]/70">travel_explore</span><div><p className="font-black text-sm text-white">{isSyncing ? t('loadingHistory') : t('noHistory')}</p>{!isSyncing && <p className="mt-1 text-xs text-slate-300">{t('historyEmptyGuide')}</p>}</div>{!isSyncing && <button onClick={onCameraClick} className="min-h-11 px-6 rounded-full bg-[#D9B26A] text-[#1B130A] text-xs font-black shadow-lg">{t('scanFirstLandmark')}</button>}</div>
+          <div className="py-14 text-center flex flex-col items-center gap-4 text-slate-300"><Icon name="travel_explore" className="text-5xl text-[#D9B26A]/70" /><div><p className="font-black text-sm text-white">{isSyncing ? t('loadingHistory') : t('noHistory')}</p>{!isSyncing && <p className="mt-1 text-xs text-slate-300">{t('historyEmptyGuide')}</p>}</div>{!isSyncing && <button onClick={onCameraClick} className="min-h-11 px-6 rounded-full bg-[#D9B26A] text-[#1B130A] text-xs font-black shadow-lg">{t('scanFirstLandmark')}</button>}</div>
         )}
         {recentHistory.length > displayLimit && (
           <button
