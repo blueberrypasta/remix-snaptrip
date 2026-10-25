@@ -145,7 +145,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
       <nav data-html2canvas-ignore="true" className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-xl z-50 flex items-center justify-between px-5 py-4 pt-[env(safe-area-inset-top,20px)] pointer-events-none">
         <button 
           onClick={onReset}
-          aria-label={language === 'ko' ? '뒤로' : 'Back'} 
+          aria-label={language === 'ko' ? '뒤로' : 'Back'}
           className="pointer-events-auto flex items-center justify-center w-11 h-11 bg-black/40 backdrop-blur-xl rounded-full text-white border border-white/10 active:scale-95 transition-all shadow-xl"
         >
           <Icon name="arrow_back_ios_new" className="text-[18px]" />
@@ -159,7 +159,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
         <div className="pointer-events-auto flex items-center gap-2">
            <button 
             onClick={handleAction}
-            aria-label={language === 'ko' ? '공유 이미지 저장' : 'Share or save image'} 
+            aria-label={language === 'ko' ? '공유 이미지 저장' : 'Share or save image'}
             disabled={isProcessing || isStreaming}
             className="w-11 h-11 bg-black/40 backdrop-blur-xl rounded-full text-white border border-white/10 active:scale-95 transition-all shadow-xl flex items-center justify-center disabled:opacity-30"
           >
