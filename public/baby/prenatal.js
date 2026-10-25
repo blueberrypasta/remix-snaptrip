@@ -67,7 +67,7 @@
       clearBar.id='prenatalClearDataBar';
       clearBar.className='storage-privacy-bar';
       clearBar.innerHTML='<span>예정일과 완료 표시는 이 브라우저에만 저장돼요.</span><button type="button" class="btn-text-clear" id="clearPrenatalDataBtn">저장된 기록 초기화</button>';
-      statusInfo.appendChild(clearBar);
+      document.querySelector('.status-bar').appendChild(clearBar);
       var clearBtn=document.getElementById('clearPrenatalDataBtn');
       if(clearBtn){
         clearBtn.addEventListener('click',function(){
@@ -388,6 +388,8 @@
         visible=isDone;
       }else if(activeFilter==='current'){
         visible=(status==='current' && !isDone);
+      }else if(activeFilter==='past'){
+        visible=(status==='done' && !isDone);
       }else if(activeFilter==='upcoming'){
         visible=(status==='upcoming' && !isDone);
       }else if(activeFilter==='ultrasound'||activeFilter==='blood'||activeFilter==='vaccine'){
@@ -396,6 +398,8 @@
       card.style.display=visible?'block':'none';
     });
 
+    var empty=document.getElementById('prenatalEmptyFilter');if(!empty){empty=document.createElement('p');empty.id='prenatalEmptyFilter';empty.setAttribute('role','status');empty.style.padding='24px 0';document.getElementById('timeline').after(empty);}
+    empty.hidden=Array.from(cards).some(c=>c.style.display!=='none');empty.textContent=activeFilter==='current'&&calculatedCurrentWeek===null?'예정일을 입력하면 현재 주차의 검사를 볼 수 있어요.':'이 조건에 해당하는 검사가 없어요.';
     var headers=document.querySelectorAll('#timeline .trimester-header');
     headers.forEach(function(hdr){
       var next=hdr.nextElementSibling;
@@ -414,6 +418,7 @@
   function setupFilterButtons(){
     var container=document.getElementById('filterBtns');
     if(!container)return;
+    if(!container.querySelector('[data-filter="past"]')){var past=document.createElement('button');past.type='button';past.className='quick-btn';past.dataset.filter='past';past.textContent='시기 지남';container.appendChild(past);}
     var buttons=container.querySelectorAll('button.quick-btn');
     buttons.forEach(function(oldBtn){
       var newBtn=oldBtn.cloneNode(true);
