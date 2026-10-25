@@ -1,3 +1,4 @@
+/* global window, document, localStorage, TESTS */
 (function(){
   'use strict';
   var STORAGE_KEY_DATE='babyDueDate';
@@ -6,9 +7,9 @@
   var calculatedCurrentWeek=null;
 
   var completedMemory=[];
-  try {var parsed=JSON.parse(localStorage.getItem(STORAGE_KEY_COMPLETED)||'[]'); if(Array.isArray(parsed))completedMemory=parsed.map(String);}catch(e){}
+  try {var parsed=JSON.parse(localStorage.getItem(STORAGE_KEY_COMPLETED)||'[]'); if(Array.isArray(parsed))completedMemory=parsed.map(String);}catch{/* Storage may be unavailable; the current session still works. */}
   function getCompletedList(){return completedMemory.slice();}
-  function saveCompletedList(list){completedMemory=list.map(String);try{localStorage.setItem(STORAGE_KEY_COMPLETED,JSON.stringify(completedMemory));}catch(e){}}
+  function saveCompletedList(list){completedMemory=list.map(String);try{localStorage.setItem(STORAGE_KEY_COMPLETED,JSON.stringify(completedMemory));}catch{/* Storage may be unavailable; the current session still works. */}}
 
   function isTestCompleted(id){
     return getCompletedList().indexOf(String(id))!==-1;
@@ -71,8 +72,8 @@
       if(clearBtn){
         clearBtn.addEventListener('click',function(){
           if(window.confirm('저장된 출산 예정일과 검사 완료 기록을 모두 삭제할까요?')){
-            try{ localStorage.removeItem(STORAGE_KEY_DATE); }catch(e){}
-            try{ localStorage.removeItem(STORAGE_KEY_COMPLETED); }catch(e){}
+            try{ localStorage.removeItem(STORAGE_KEY_DATE); }catch{/* Storage may be unavailable; the current session still works. */}
+            try{ localStorage.removeItem(STORAGE_KEY_COMPLETED); }catch{/* Storage may be unavailable; the current session still works. */}
             completedMemory=[];
             var input=document.getElementById('dueDate');
             if(input) input.value='';
@@ -147,7 +148,7 @@
       return currentWeek>=t.weekStart && currentWeek<=t.weekEnd && !isTestCompleted(t.id);
     });
     var targetTest=null;
-    var headerText='';
+    var headerText;
     if(activeTests.length>0){
       targetTest=activeTests[0];
       var names=activeTests.map(function(t){ return t.title; }).join(', ');
@@ -444,7 +445,7 @@
     }
 
     if(!input||!input.value||!input.value.trim()){
-      try{ localStorage.removeItem(STORAGE_KEY_DATE); }catch(e){}
+      try{ localStorage.removeItem(STORAGE_KEY_DATE); }catch{/* Storage may be unavailable; the current session still works. */}
       if(statusInfo) statusInfo.style.display='none';
       if(timelineSub) timelineSub.textContent='출산 예정일을 입력하면 주수별 권장 일정이 맞춤 정렬됩니다.';
       window.renderTimeline(null);
@@ -486,7 +487,7 @@
       return;
     }
 
-    try{ localStorage.setItem(STORAGE_KEY_DATE,val); }catch(e){}
+    try{ localStorage.setItem(STORAGE_KEY_DATE,val); }catch{/* Storage may be unavailable; the current session still works. */}
 
     var elapsedDays=Math.max(0,280-diffDays);
     var currentWeek=Math.floor(elapsedDays/7);
@@ -555,7 +556,7 @@
     if(savedDate && dateInput && !dateInput.value){
       dateInput.value=savedDate;
     }
-  }catch(e){}
+  }catch{/* Storage may be unavailable; the current session still works. */}
 
   window.updateTimeline();
 })();
