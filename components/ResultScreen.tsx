@@ -144,8 +144,9 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
       {/* Top Bar — Cinematic Glass */}
       <nav data-html2canvas-ignore="true" className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-xl z-50 flex items-center justify-between px-5 py-4 pt-[env(safe-area-inset-top,20px)] pointer-events-none">
         <button 
-          onClick={onReset} 
-          className="pointer-events-auto flex items-center justify-center w-10 h-10 bg-black/40 backdrop-blur-xl rounded-full text-white border border-white/10 active:scale-95 transition-all shadow-xl"
+          onClick={onReset}
+          aria-label={language === 'ko' ? '뒤로' : 'Back'} 
+          className="pointer-events-auto flex items-center justify-center w-11 h-11 bg-black/40 backdrop-blur-xl rounded-full text-white border border-white/10 active:scale-95 transition-all shadow-xl"
         >
           <Icon name="arrow_back_ios_new" className="text-[18px]" />
         </button>
@@ -157,9 +158,10 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
         <div className="pointer-events-auto flex items-center gap-2">
            <button 
-            onClick={handleAction} 
+            onClick={handleAction}
+            aria-label={language === 'ko' ? '공유 이미지 저장' : 'Share or save image'} 
             disabled={isProcessing || isStreaming}
-            className="w-10 h-10 bg-black/40 backdrop-blur-xl rounded-full text-white border border-white/10 active:scale-95 transition-all shadow-xl flex items-center justify-center disabled:opacity-30"
+            className="w-11 h-11 bg-black/40 backdrop-blur-xl rounded-full text-white border border-white/10 active:scale-95 transition-all shadow-xl flex items-center justify-center disabled:opacity-30"
           >
             {isProcessing ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -170,7 +172,8 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
           
           <button 
             onClick={() => onDelete(result.id)}
-            className="w-10 h-10 bg-black/40 backdrop-blur-xl rounded-full text-[#F4EFE6]/60 border border-white/10 active:scale-95 transition-all shadow-xl flex items-center justify-center"
+            aria-label={language === 'ko' ? '결과 삭제' : 'Delete result'}
+            className="w-11 h-11 bg-black/40 backdrop-blur-xl rounded-full text-[#F4EFE6]/60 border border-white/10 active:scale-95 transition-all shadow-xl flex items-center justify-center"
           >
             <Icon name="delete" className="text-[20px]" />
           </button>

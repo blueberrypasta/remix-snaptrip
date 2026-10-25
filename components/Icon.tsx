@@ -12,12 +12,13 @@ export const Icon: React.FC<IconProps> = ({
   ...props
 }) => {
   const validName = /^[a-z0-9_]+$/.test(name) ? name : 'help';
+  const hasSize = /text-(?:\[(?:\d|\.)|(?:xs|sm|base|lg|xl|[2-9]xl)\b)/.test(className);
   const baseClasses = 'inline-block w-[1em] h-[1em] shrink-0 fill-current align-middle';
-  const combinedClassName = className ? `${baseClasses} ${className}` : baseClasses;
+  const combinedClassName = `${baseClasses} ${hasSize ? '' : 'text-2xl'} ${className}`;
 
   return (
     <svg
-      viewBox="0 -960 960 960"
+      viewBox="0 0 960 960"
       aria-hidden={ariaHidden}
       focusable={focusable}
       className={combinedClassName}
