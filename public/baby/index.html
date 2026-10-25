@@ -129,6 +129,8 @@ a{color:var(--primary);text-decoration:none}
   .footer{max-width:600px;margin:0 auto}
 }
 </style>
+
+<link rel="stylesheet" href="prenatal.css?v=20261025">
 </head>
 <body>
 
@@ -140,7 +142,7 @@ a{color:var(--primary);text-decoration:none}
 
 <div class="status-bar">
   <div class="date-input-group">
-    <label>📅 출산 예정일 (Due Date)</label>
+    <label for="dueDate">출산 예정일</label>
     <input type="date" id="dueDate" onchange="updateTimeline()">
   </div>
   <div class="status-info" id="statusInfo">
@@ -165,22 +167,22 @@ a{color:var(--primary);text-decoration:none}
 
 <div class="quick-btns" id="filterBtns">
   <button class="quick-btn active" data-filter="all">전체</button>
-  <button class="quick-btn" data-filter="done">✅ 완료</button>
-  <button class="quick-btn" data-filter="current">🟡 지금</button>
-  <button class="quick-btn" data-filter="upcoming">⬜ 예정</button>
-  <button class="quick-btn" data-filter="ultrasound">🔊 초음파</button>
-  <button class="quick-btn" data-filter="blood">🩸 혈액</button>
-  <button class="quick-btn" data-filter="vaccine">💉 백신</button>
+  <button class="quick-btn" data-filter="done">완료한 검사</button>
+  <button class="quick-btn" data-filter="current">지금 살펴보기</button>
+  <button class="quick-btn" data-filter="upcoming">예정</button>
+  <button class="quick-btn" data-filter="ultrasound">초음파</button>
+  <button class="quick-btn" data-filter="blood">혈액검사</button>
+  <button class="quick-btn" data-filter="vaccine">예방접종</button>
 </div>
 
 <div class="section">
-  <div class="section-title">📋 검사 타임라인</div>
+  <div class="section-title">검사 타임라인</div>
   <div class="section-sub" id="timelineSub">예정일을 입력하면 검사 상태가 자동으로 표시됩니다</div>
   <div id="timeline"></div>
 </div>
 
-<div class="tips-section">
-  <div class="section-title" style="margin-bottom:16px">💡 미국 산전관리 꿀팁</div>
+<details class="reference-notes"><summary>미국 진료·보험 참고 정보</summary><div class="tips-section">
+  <div class="section-title" style="margin-bottom:16px">진료 전 알아둘 것</div>
 
   <div class="tip-card">
     <h3>🏥 첫 진료가 8~10주?</h3>
@@ -217,6 +219,7 @@ a{color:var(--primary);text-decoration:none}
   ⚠️ <strong>면책조항:</strong> 본 페이지는 일반적인 정보 제공 목적으로 작성되었으며, 개인의 건강 상태에 따른 맞춤형 의학적 조언이나 진단을 대신할 수 없습니다. 구체적인 검사 계획은 담당 전문의와 상담하세요.
 </div>
 
+</details>
 <div class="footer">
   <p>미국 ACOG 2025-2026 가이드라인 · CDC 백신 권장 · CA CDPH PNS 기준<br>
   Sources: ACOG, CDC, CDPH, NCBI, Kaiser Permanente</p>
@@ -490,8 +493,8 @@ function renderTimeline(currentWeek){
 
     let status = 'upcoming', badge = '예정', statusLabel = 'upcoming';
     if(currentWeek !== null){
-      if(currentWeek > test.weekEnd) { status = 'done'; badge = '✅ 완료'; statusLabel = 'done'; }
-      else if(currentWeek >= test.weekStart) { status = 'current'; badge = '🟡 지금!'; statusLabel = 'current'; }
+      if(currentWeek > test.weekEnd) { status = 'done'; badge = '완료한 검사'; statusLabel = 'done'; }
+      else if(currentWeek >= test.weekStart) { status = 'current'; badge = '지금 살펴보기!'; statusLabel = 'current'; }
     }
 
     html += `<div class="test-card ${status}" data-status="${statusLabel}" data-category="${test.category}" id="test-${test.id}">
@@ -556,14 +559,7 @@ document.getElementById('filterBtns').addEventListener('click', e => {
   });
 });
 
-// Init
-(function(){
-  try{
-    const saved = localStorage.getItem('babyDueDate');
-    if(saved){document.getElementById('dueDate').value = saved; updateTimeline()}
-    else renderTimeline(null);
-  }catch(e){renderTimeline(null)}
-})();
 </script>
+<script src="prenatal.js?v=20261025"></script>
 </body>
 </html>
