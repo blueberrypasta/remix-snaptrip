@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from '../translations';
 import type { HistoryItem, Language } from '../types';
 import { Icon } from './Icon';
+import { buildDirectionsUrl, buildStreetViewUrl } from '../utils/mapsLinks';
 
 interface ResultScreenProps {
   result: HistoryItem;
@@ -217,6 +218,25 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
            {t('docentNote')}
         </div>
       </div>
+
+      {!isStreaming && result.locationData && (() => {
+        const directionsUrl = buildDirectionsUrl(result.locationData.latitude, result.locationData.longitude);
+        const streetViewUrl = buildStreetViewUrl(result.locationData.latitude, result.locationData.longitude);
+        if (!directionsUrl || !streetViewUrl) return null;
+        const linkClass = 'inline-flex items-center gap-2 min-h-[44px] px-4 rounded-full border border-[#D9B26A]/30 text-[12px] font-bold text-[#F4EFE6]/80 font-sans focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#D9B26A]';
+        return (
+          <div className="flex flex-wrap gap-3 px-8 py-4 border-b border-white/5">
+            <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className={linkClass}>
+              <Icon name="location_on" className="text-[14px] text-[#D9B26A]" />
+              {t('getDirections')}
+            </a>
+            <a href={streetViewUrl} target="_blank" rel="noopener noreferrer" className={linkClass}>
+              <Icon name="my_location" className="text-[14px] text-[#D9B26A]" />
+              {t('viewStreetView')}
+            </a>
+          </div>
+        );
+      })()}
 
       {/* Content Area */}
       <div className="px-8 pt-10 flex flex-col gap-10">

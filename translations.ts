@@ -84,6 +84,8 @@ export const translations: Translations = {
   crowdsDesc: { en: 'Moderate', ko: '보통', ja: '普通', zh: '中等', es: 'Moderado', fr: 'Modéré', de: 'Mäßig', it: 'Moderato' },
   quotaExceeded: { en: 'Quota Exceeded', ko: '할당량 초과', ja: 'クォータ超過', zh: '配额已超', es: 'Cuota excedida', fr: 'Quota dépassé', de: 'Kontingent überschritten', it: 'Quota superata' },
   useOwnKey: { en: 'Use Own Key', ko: '내 API 키 사용', ja: '自分のキーを使用', zh: '使用自己的密钥', es: 'Usar mi propia clave', fr: 'Utiliser ma propre clé', de: 'Eigener Key', it: 'Usa la tua chiave' },
+  getDirections: { en: 'Walking directions', ko: '길찾기', ja: '徒歩ルート', zh: '步行路线', es: 'Cómo llegar', fr: 'Itinéraire', de: 'Route', it: 'Indicazioni' },
+  viewStreetView: { en: 'Street View', ko: '스트리트뷰', ja: 'ストリートビュー', zh: '街景', es: 'Street View', fr: 'Street View', de: 'Street View', it: 'Street View' },
   guide: { en: 'Guide', ko: '가이드', ja: 'ガイド', zh: '指南', es: 'Guía', fr: 'Guide', de: 'Guide', it: 'Guida' },
   aboutSnapTrip: { en: 'About SlapTrip', ko: '슬랩트립 소개', ja: 'SlapTripについて', zh: '关于 SlapTrip', es: 'Sobre SlapTrip', fr: 'À propos de SlapTrip', de: 'Über SlapTrip', it: 'Info su SlapTrip' },
   aboutOriginTitle: { en: 'Origin / The Story', ko: '시작과 이야기', ja: 'はじまり / 物語', zh: '起源 / 故事', es: 'Origen / La historia', fr: 'Origine / L\'histoire', de: 'Ursprung / Die Geschichte', it: 'Origine / La storia' },

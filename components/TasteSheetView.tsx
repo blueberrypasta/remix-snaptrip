@@ -1,5 +1,6 @@
 import { formatOpeningHours } from '../services/placePresentationService';
 import React from 'react';
+import { buildDirectionsUrl } from '../utils/mapsLinks';
 import { createPortal } from 'react-dom';
 import type { QlooPlace } from '../services/qlooService';
 import type { Language, LocationData } from '../types';
@@ -354,6 +355,20 @@ export function TasteSheetView(props: Props) {
 
                          {place.rankingSource && <p className="text-[12px] text-white/50">{place.rankingSource==='qloo'?(language==='ko'?'Qloo 취향 순위 반영':'Ranked with Qloo taste affinity'):(language==='ko'?'요청 조건에 맞는 검색 결과':'Search results matching your request')}</p>}
                          {place.googleAttributions?.map((a,i)=><a key={i} href={/^https:\/\//.test(a.uri)?a.uri:undefined} target="_blank" rel="noopener noreferrer" className="block text-[12px] text-white/60">{a.displayName}</a>)}
+                         {(() => {
+                           const directionsUrl = buildDirectionsUrl(place.latitude as number, place.longitude as number);
+                           return directionsUrl ? (
+                             <a
+                               href={directionsUrl}
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               className="inline-flex items-center gap-1.5 text-[13px] text-emerald-400 hover:text-emerald-300 bg-white/[0.07] hover:bg-white/[0.12] px-3 py-2 rounded-lg transition-colors min-h-[44px] mr-2"
+                             >
+                               <ExternalLinkIcon />
+                               <span>{language === 'ko' ? '길찾기' : 'Directions'}</span>
+                             </a>
+                           ) : null;
+                         })()}
                          {isValidGoogleMapUrl(place.url) && (
                            <a
                              href={place.url}
