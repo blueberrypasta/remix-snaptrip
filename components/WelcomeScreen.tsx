@@ -1,14 +1,19 @@
-
 import NearbyPlaceList from './NearbyPlaceList';
 import React, { useState, useEffect } from 'react';
 import { useTranslations } from '../translations';
 import type { Language, User, HistoryItem } from '../types';
 import { Icon } from './Icon';
+import {
+  SAMPLE_IMAGE_URL,
+  SAMPLE_COMMONS_URL,
+  SAMPLE_LICENSE_URL,
+} from '../utils/sampleLandmark';
 
 interface WelcomeScreenProps {
   tasteRecommendations?: React.ReactNode;
   onUploadClick: () => void;
   onCameraClick: () => void;
+  onTrySample?: () => void;
   language: Language;
   user: User | null;
   onLogin: () => void;
@@ -17,11 +22,18 @@ interface WelcomeScreenProps {
   credits: number;
   onReload: () => void;
   isSyncing?: boolean;
-  nearbyGems?: {name: string, type: string, rating: string | number, reviewCount: string | number, description: string, url: string}[];
+  nearbyGems?: {
+    name: string;
+    type: string;
+    rating: string | number;
+    reviewCount: string | number;
+    description: string;
+    url: string;
+  }[];
   nearbyAreaName?: string;
-  nearbyWeather?: {emoji: string, tempC: number} | null;
-  weatherStatus?: 'idle'|'loading'|'ready'|'error';
-  onRetryWeather?:()=>void;
+  nearbyWeather?: { emoji: string; tempC: number } | null;
+  weatherStatus?: 'idle' | 'loading' | 'ready' | 'error';
+  onRetryWeather?: () => void;
   isNearbyLoading?: boolean;
   locationStatus?: 'idle' | 'loading' | 'ready' | 'denied' | 'unavailable' | 'error' | 'empty';
   onRefreshLocation?: () => void;
@@ -30,264 +42,345 @@ interface WelcomeScreenProps {
   isMoreNearbyLoading?: boolean;
 }
 
-const HISTORY_PAGE_SIZE = 6;
-
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
-  onUploadClick, onCameraClick, language, user, onLogin, recentHistory, onSelectHistory, credits, onReload, isSyncing = false,
-  nearbyGems = [], nearbyAreaName = '', nearbyWeather = null, isNearbyLoading = false, locationStatus = 'idle', onRefreshLocation, onStartGuide,
-  onShowMoreNearby, isMoreNearbyLoading = false, tasteRecommendations, weatherStatus='idle', onRetryWeather
+  onUploadClick,
+  onCameraClick,
+  onTrySample,
+  language,
+  nearbyGems = [],
+  nearbyAreaName = '',
+  nearbyWeather = null,
+  isNearbyLoading = false,
+  locationStatus = 'idle',
+  onRefreshLocation,
+  onStartGuide,
+  onShowMoreNearby,
+  isMoreNearbyLoading = false,
+  tasteRecommendations,
+  weatherStatus = 'idle',
+  onRetryWeather,
 }) => {
   const t = useTranslations(language);
-  const [displayLimit, setDisplayLimit] = useState(HISTORY_PAGE_SIZE);
-  const [isNearbyExpanded, setIsNearbyExpanded] = useState(false);
+  const [isExploreExpanded, setIsExploreExpanded] = useState(false);
   const [tempUnit, setTempUnit] = useState<'C' | 'F'>('C');
-  const [activeGuide, setActiveGuide] = useState<{landmarkName: string} | null>(null);
+  const [activeGuide, setActiveGuide] = useState<{ landmarkName: string } | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('snaptrip_active_guide');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('snaptrip_active_guide');
+      if (saved) {
         const parsed = JSON.parse(saved);
-        if (Date.now() - parsed.lastUpdated < 24 * 60 * 60 * 1000) {
+        if (Date.now() - parsed.lastUpdated < 24 * 60 * 60 * 1000 && parsed.landmarkName) {
           setActiveGuide({ landmarkName: parsed.landmarkName });
         }
-      } catch (e) {}
+      }
+    } catch {
+      // Ignore storage parse failures
     }
   }, []);
 
-  const visibleHistory = recentHistory.slice(0, displayLimit);
-
   const getDisplayTemp = () => {
-    if (!nearbyWeather) return "";
+    if (!nearbyWeather) return '';
     const { tempC } = nearbyWeather;
     if (tempUnit === 'C') return `${Math.round(tempC)}°C`;
-    const tempF = (tempC * 9/5) + 32;
-    return `${Math.round(tempF)}°F`;
+    return `${Math.round((tempC * 9) / 5 + 32)}°F`;
   };
 
   return (
-    <div className="flex flex-col w-full max-w-xl mx-auto pb-32 animate-fade-in min-h-[500px]">
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-8 lg:pt-14 pb-12 animate-fade-in">
+      {/* Wide Editorial Hero Grid */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-center">
+        {/* Left: Copy & Controls */}
+        <div className="lg:col-span-6 flex flex-col gap-4 sm:gap-5">
+          <h1 className="text-[32px] sm:text-[46px] lg:text-[56px] font-bold tracking-[-0.03em] leading-[1.06] text-[#111517] break-keep">
+            {t('heroHeadline')}
+          </h1>
 
-      <section className="p-4 w-full">
-        <div className="relative w-full overflow-hidden rounded-[2.25rem] sm:rounded-[2.5rem] shadow-2xl h-[390px] sm:h-auto sm:aspect-video flex flex-col items-center justify-center p-5 sm:p-6 text-center group min-h-[300px] border border-white/5">
-          <img
-            src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=1000"
-            srcSet="https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=480 480w, https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=768 768w, https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=1200 1200w"
-            sizes="(max-width: 640px) 100vw, 576px"
-            width={1200}
-            height={675}
-            fetchPriority="high"
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/90"></div>
+          <p className="text-[15px] sm:text-[18px] leading-[1.55] text-[#4A5356] max-w-lg break-keep">
+            {t('heroSubtitle')}
+          </p>
 
-          {/* Corner Reticles */}
-          <div className="absolute top-6 left-6 w-5 h-5 border-t-[1.5px] border-l-[1.5px] border-[#D9B26A]/60 rounded-tl-sm pointer-events-none" />
-          <div className="absolute top-6 right-6 w-5 h-5 border-t-[1.5px] border-r-[1.5px] border-[#D9B26A]/60 rounded-tr-sm pointer-events-none" />
-          <div className="absolute bottom-6 left-6 w-5 h-5 border-b-[1.5px] border-l-[1.5px] border-[#D9B26A]/60 rounded-bl-sm pointer-events-none" />
-          <div className="absolute bottom-6 right-6 w-5 h-5 border-b-[1.5px] border-r-[1.5px] border-[#D9B26A]/60 rounded-br-sm pointer-events-none" />
-
-          {/* Docent Ready Overlay */}
-          <div className="absolute top-8 left-1/2 -translate-x-1/2 flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#D9B26A] animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D9B26A]">{t('docentReady') || 'Docent Ready'}</span>
-          </div>
-
-          <div className="relative z-10 flex flex-col items-center gap-3 mt-auto w-full mb-2 sm:mb-4">
-            <h2 className="text-[28px] sm:text-5xl font-serif italic text-[#F4EFE6] leading-tight break-keep drop-shadow-2xl">{t('welcomeMessage')}</h2>
-            <p className="text-[#D5DCE3] text-[14px] font-semibold max-w-[340px] mx-auto leading-relaxed mb-2 sm:mb-4 break-keep font-sans tracking-wide">{t('welcomeSub')}</p>
-
-            <div className="flex w-full gap-3 px-2">
+          <div className="flex flex-col gap-2.5 pt-1">
+            <div className="flex flex-wrap items-center gap-2.5">
               <button
-                onClick={onCameraClick}
-                disabled={isSyncing}
-                className="flex-1 flex items-center justify-center gap-2.5 rounded-full bg-gradient-to-b from-[#E6C079] to-[#C99A4F] h-14 text-[#1B130A] text-sm font-black shadow-[0_10px_30px_-10px_rgba(217,178,106,0.5),0_0_40px_-10px_rgba(217,178,106,0.3)] active:scale-95 disabled:opacity-50 transition-all font-sans ring-1 ring-white/20 ring-inset"
-              >
-                {isSyncing ? (
-                  <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    <Icon name="photo_camera" className="text-[20px]" />
-                    {t('identifyCamera')}
-                  </>
-                )}
-              </button>
-              <button
+                type="button"
                 onClick={onUploadClick}
-                disabled={isSyncing}
-                className="flex-1 flex items-center justify-center gap-2.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 h-14 text-white text-sm font-black active:scale-95 disabled:opacity-50 transition-all font-sans hover:bg-white/10"
+                className="min-h-[48px] px-6 rounded-full bg-[#2EE5A8] hover:bg-[#22D398] active:scale-[0.98] text-[#0D1412] text-[15px] font-semibold inline-flex items-center justify-center gap-2 shadow-sm transition-all"
               >
-                {isSyncing ? (
-                  <span className="text-[10px] animate-pulse uppercase tracking-widest">{t('syncing')}</span>
-                ) : (
-                  <>
-                    <Icon name="upload_file" className="text-[20px]" />
-                    {t('choosePhoto')}
-                  </>
-                )}
+                <Icon name="upload_file" className="text-[20px]" />
+                <span>{t('choosePhoto')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onCameraClick}
+                className="min-h-[48px] px-5 rounded-full border border-[#111517]/15 bg-transparent hover:bg-[#111517]/[0.05] active:scale-[0.98] text-[#111517] text-[15px] font-medium inline-flex items-center justify-center gap-2 transition-all"
+              >
+                <Icon name="photo_camera" className="text-[20px]" />
+                <span>{t('takePhoto')}</span>
               </button>
             </div>
+
+            {onTrySample && (
+              <button
+                type="button"
+                onClick={onTrySample}
+                className="self-start min-h-[44px] px-1 inline-flex items-center gap-1.5 text-sm font-medium text-[#0A7553] hover:text-[#075B40] underline underline-offset-4 transition-colors"
+              >
+                <span>{t('trySample')}</span>
+                <Icon name="arrow_forward" className="text-[16px]" />
+              </button>
+            )}
           </div>
+        </div>
+
+        {/* Right: Edge-to-edge Travel Photo in an Offset Rounded Frame */}
+        <div className="lg:col-span-6 lg:pl-2">
+          <figure className="m-0">
+            <div className="relative overflow-hidden rounded-[24px] lg:rounded-[32px] bg-[#EAE4D9] border border-[#111517]/10 shadow-[0_24px_60px_-28px_rgba(17,21,23,0.28)] aspect-[16/10] sm:aspect-[16/9] lg:aspect-[4/3] lg:translate-y-2">
+              <img
+                src={SAMPLE_IMAGE_URL}
+                width={1200}
+                height={900}
+                fetchPriority="high"
+                alt="Eiffel Tower in Paris, Champ de Mars"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <figcaption className="mt-3 lg:mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#525B5E]">
+              <a
+                href={SAMPLE_COMMONS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-[#111517]"
+              >
+                {t('photoAttributionLabel')}
+              </a>
+              <span aria-hidden="true">·</span>
+              <a
+                href={SAMPLE_LICENSE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-[#111517]"
+              >
+                CC BY-SA 4.0
+              </a>
+            </figcaption>
+          </figure>
         </div>
       </section>
 
+      {/* Reachable Resume Guide when active */}
       {activeGuide && (
-        <section className="px-5 mt-2 animate-fade-in-up">
-           <button
-             onClick={() => onStartGuide?.(activeGuide.landmarkName)}
-             className="w-full p-4 bg-primary/20 border border-primary/30 rounded-2xl flex items-center justify-between group active:scale-[0.98] transition-all"
-           >
-              <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary animate-pulse">
-                    <Icon name="record_voice_over" />
-                 </div>
-                 <div className="text-left">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">{t('resumeGuide')}</p>
-                    <h4 className="text-sm font-black text-white truncate max-w-[200px]">{activeGuide.landmarkName}</h4>
-                 </div>
+        <section className="mt-8">
+          <button
+            type="button"
+            onClick={() => onStartGuide?.(activeGuide.landmarkName)}
+            className="w-full min-h-[52px] px-4 py-3 rounded-2xl bg-[#F2EDE3] hover:bg-[#EAE3D5] border border-[#111517]/10 flex items-center justify-between gap-3 transition-colors"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="w-9 h-9 rounded-full bg-[#2EE5A8]/25 text-[#0A7553] flex items-center justify-center shrink-0">
+                <Icon name="record_voice_over" className="text-[20px]" />
+              </span>
+              <div className="text-left min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-[#0A7553]">
+                  {t('resumeGuide')}
+                </p>
+                <p className="text-sm font-semibold text-[#111517] truncate">
+                  {activeGuide.landmarkName}
+                </p>
               </div>
-              <Icon name="arrow_forward" className="text-primary group-hover:translate-x-1 transition-transform" />
-           </button>
+            </div>
+            <Icon name="arrow_forward" className="text-[18px] text-[#525B5E] shrink-0" />
+          </button>
         </section>
       )}
 
-
-
-      {tasteRecommendations && (
-        <section className="px-4 mt-3 mb-3" onClick={e=>e.stopPropagation()}>{tasteRecommendations}</section>
-      )}
-
-      <section className="px-4 mt-1">
-        <div className={`bg-[#111b19]/80 rounded-[1.5rem] shadow-[0_10px_30px_-18px_rgba(0,0,0,0.9)] border border-white/[0.08] overflow-hidden transition-all duration-300 `}>
-            <div className="px-3 py-2.5 sm:px-4 flex flex-col gap-0">
-                <div className="flex items-center justify-between gap-2">
-                    <button type="button" aria-expanded={isNearbyExpanded} aria-controls="nearby-popular-list" onClick={() => setIsNearbyExpanded(!isNearbyExpanded)} className="min-h-11 min-w-0 flex items-center gap-1.5 text-left text-[14px] font-semibold text-white focus-visible:outline-emerald-300 rounded-lg">
-                        <span>{language==='ko'?'주변 유명 장소':t('nearbyGems')}</span>
-                        <svg aria-hidden="true" className={`w-3.5 h-3.5 shrink-0 text-white/50 transition-transform ${isNearbyExpanded?'rotate-180':''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
-                    </button>
-                    <button aria-label={t('retryLocation')} onClick={()=>onRefreshLocation?.()} className="w-11 h-11 text-white/60 flex items-center justify-center rounded-full hover:bg-white/5"><svg aria-hidden="true" className={`w-3.5 h-3.5 ${isNearbyLoading?'animate-spin':''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 6M4 12l2 6a7 7 0 0 0 12-1"/></svg></button>
-                </div>
-                <div className="flex items-center gap-1.5 min-h-11" data-nearby-context>
-                    <div className="min-w-0 flex-1 text-[14px] text-white/55 truncate" title={nearbyAreaName}>
-                      {nearbyAreaName ? `📍 ${nearbyAreaName}` : language==='ko' ? (locationStatus==='denied'?'위치 권한 필요':isNearbyLoading?'주변 찾는 중…':'내 주변') : (locationStatus==='denied'?'Location needed':isNearbyLoading?'Finding nearby…':'Nearby')}
-                    </div>
-                    {locationStatus === 'idle' && !nearbyAreaName && (
-                      <button
-                        type="button"
-                        onClick={() => onRefreshLocation?.()}
-                        className="shrink-0 min-h-11 px-3 inline-flex items-center gap-1 text-[14px] font-semibold text-emerald-400 hover:text-emerald-300 rounded-lg hover:bg-white/5"
-                      >
-                        <Icon name="my_location" className="text-[16px]" />
-                        <span>{language === 'ko' ? '위치 확인하기' : 'Enable Location'}</span>
-                      </button>
-                    )}
-                    {nearbyWeather && Number.isFinite(nearbyWeather.tempC) ? (
-                        <button data-weather-display title={language==='ko'?'현재 날씨 · °C/°F 전환':'Current weather · switch °C/°F'} onClick={()=>setTempUnit(prev=>prev==='C'?'F':'C')} className="shrink-0 min-h-11 px-1.5 inline-flex items-center gap-1 text-[12px] text-white/85 rounded-lg hover:bg-white/5">
-                          <span aria-hidden="true">{nearbyWeather.emoji}</span><span>{getDisplayTemp()}</span>
-                        </button>
-                    ) : (
-                        <button data-weather-status disabled={weatherStatus==='loading'} onClick={()=>onRetryWeather?.()} className="shrink-0 min-h-11 px-1 text-[14px] text-white/70 rounded-lg hover:bg-white/5" aria-label={language==='ko'?'날씨 다시 불러오기':'Retry weather'}>
-                          {language==='ko'?(weatherStatus==='loading'?'날씨 확인 중…':weatherStatus==='error'?'날씨 재시도':'날씨 · 위치 필요'):(weatherStatus==='loading'?'Weather…':weatherStatus==='error'?'Retry weather':'Weather · location')}
-                        </button>
-                    )}
-                </div>
-                {locationStatus === 'idle' && !nearbyAreaName && (
-                  <p className="text-[14px] text-white/60 leading-relaxed mt-1 mb-2">
-                    {language === 'ko'
-                      ? '현재 위치를 기반으로 주변 추천 명소와 날씨 정보를 확인해보세요.'
-                      : 'Find nearby recommended landmarks and local weather based on your current location.'}
-                  </p>
-                )}
-                {nearbyWeather && <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" className="self-start text-[9px] leading-3 text-white/40 hover:text-white/70">Weather: Open-Meteo</a>}
-            </div>
-
-
-            <div id="nearby-popular-list" hidden={!isNearbyExpanded} className={`overflow-hidden transition-all duration-300 ${isNearbyExpanded ? 'max-h-[3000px] opacity-100 mb-3' : 'max-h-0 opacity-0'}`}>
-                <div className="px-4 sm:px-5 pt-0">
-                    <div className="w-full h-px bg-white/5 mb-3"></div>
-                    {isNearbyLoading && nearbyGems.length === 0 ? (
-                        <div className="py-16 flex flex-col items-center gap-4">
-                            <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-                            <p className="text-[10px] font-black text-emerald-500/60 uppercase tracking-widest animate-pulse">{t('findingGems')}</p>
-                        </div>
-                    ) : nearbyGems.length > 0 ? (
-                        <div className="flex flex-col gap-3">
-                            <NearbyPlaceList places={nearbyGems} language={language} onStartGuide={onStartGuide} />
-
-                            {nearbyGems.length < 20 && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); onShowMoreNearby?.(); }}
-                                disabled={isMoreNearbyLoading}
-                                className="mt-2 w-full h-12 rounded-full bg-white/5 border border-white/[0.08] text-[13px] font-semibold text-emerald-300 flex items-center justify-center gap-2 hover:bg-white/10 active:scale-[0.98] transition-all disabled:opacity-50"
-                              >
-                                {isMoreNearbyLoading ? (
-                                  <div className="w-4 h-4 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin"></div>
-                                ) : (
-                                  <>
-                                    <Icon name="add_circle" className="text-[18px]" />
-                                    {t('findMore')}
-                                  </>
-                                )}
-                              </button>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="py-12 flex flex-col items-center justify-center text-center px-6 gap-4">
-                            <Icon name={locationStatus === 'denied' ? 'location_off' : locationStatus === 'empty' ? 'explore_off' : 'wifi_off'} className="text-emerald-400 text-4xl opacity-70" />
-                            <div className="flex flex-col gap-1">
-                                <p className="text-sm font-black text-white">{locationStatus === 'denied' ? t('locationDenied') : locationStatus === 'empty' ? t('noGemsFound') : t('locationUnavailable')}</p>
-                                <p className="text-[11px] text-slate-300 font-bold leading-relaxed">{locationStatus === 'empty' ? t('emptyNearbyGuide') : t('locationPermissionGuide')}</p>
-                            </div>
-                            <div className="flex flex-wrap justify-center gap-2">
-                              <button onClick={onRefreshLocation} className="min-h-11 px-5 rounded-full border border-emerald-400/30 text-emerald-300 text-xs font-black hover:bg-emerald-400/10">{t('retryLocation')}</button>
-                              <button onClick={onCameraClick} className="min-h-11 px-5 rounded-full bg-[#D9B26A] text-[#1B130A] text-xs font-black">{t('identifyCamera')}</button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-      </section>
-
-      <div className="px-6 pt-10 pb-2 flex justify-between items-center">
-        <h3 className="text-[19px] font-bold tracking-[-0.01em] text-white flex items-center gap-2"><Icon name="history" className="text-primary text-[20px]" />{t('recentActivity')}</h3>
-        {isSyncing && <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 tracking-widest uppercase"><Icon name="sync" className="text-sm animate-spin" />{t('syncing')}</div>}
-      </div>
-
-      <section className="flex flex-col gap-6 px-4 pt-4 flex-1">
-        {visibleHistory.length > 0 ? (
-          visibleHistory.map((item, index) => (
-            <article key={item.id} style={{ '--i': index % HISTORY_PAGE_SIZE } as React.CSSProperties} onClick={() => (item.status === 'success' || item.status === 'processing') && onSelectHistory(item)} className="rounded-[1.75rem] bg-card-dark overflow-hidden border border-white/[0.06] shadow-[0_14px_34px_-20px_rgba(0,0,0,0.9)] cursor-pointer active:scale-[0.98] transition-transform t-stagger-item">
-                <div className="relative h-48 sm:h-56">
-                    {item.imageData ? <img src={item.imageData} alt="" loading="lazy" decoding="async" onLoad={e => e.currentTarget.classList.add('is-loaded')} ref={el => { if (el?.complete) el.classList.add('is-loaded'); }} className={`w-full h-full object-cover ${item.status === 'processing' ? 'blur-sm opacity-50' : 't-img'}`} /> : <Icon name="image_not_supported" className="text-slate-500" />}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                    {item.status === 'processing' && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-black/40 backdrop-blur-[2px]">
-                            <div className="w-14 h-14 border-4 border-white/10 rounded-full animate-spin border-t-primary mb-4"></div>
-                            <span className="text-xs font-black text-white">{Math.round(item.progress || 0)}%</span>
-                        </div>
-                    )}
-                    <div className="absolute bottom-4 left-4 right-4"><h4 className="text-lg font-bold text-white truncate">{item.title || (item.status === 'processing' ? t('exploring') : '')}</h4></div>
-                </div>
-                <div className="p-4 flex justify-between items-center text-[10px] font-bold text-slate-400">
-                    <div className="flex items-center gap-1.5"><Icon name="schedule" className="text-[14px] text-primary/60" /><span>{new Date(item.timestamp).toLocaleDateString()}</span></div>
-                    <span className="text-primary font-semibold">{item.status === 'processing' ? t('processing') : t('viewResult')}</span>
-                </div>
-            </article>
-          ))
-        ) : (
-          <div className="py-14 text-center flex flex-col items-center gap-4 text-slate-300"><Icon name="travel_explore" className="text-5xl text-[#D9B26A]/70" /><div><p className="font-black text-sm text-white">{isSyncing ? t('loadingHistory') : t('noHistory')}</p>{!isSyncing && <p className="mt-1 text-xs text-slate-300">{t('historyEmptyGuide')}</p>}</div>{!isSyncing && <button onClick={onCameraClick} className="min-h-11 px-6 rounded-full bg-[#D9B26A] text-[#1B130A] text-xs font-black shadow-lg">{t('scanFirstLandmark')}</button>}</div>
-        )}
-        {recentHistory.length > displayLimit && (
-          <button
-            type="button"
-            onClick={() => setDisplayLimit(prev => prev + HISTORY_PAGE_SIZE)}
-            className="w-full h-12 rounded-full bg-white/5 border border-white/[0.08] text-[13px] font-semibold text-white/80 hover:bg-white/10 active:scale-[0.98] transition-all"
+      {/* Secondary More / Explore Details Accordion */}
+      <section className="mt-8 sm:mt-10 pt-6 border-t border-[#111517]/10">
+        <button
+          type="button"
+          aria-expanded={isExploreExpanded}
+          aria-controls="explore-details-panel"
+          onClick={() => setIsExploreExpanded((prev) => !prev)}
+          className="w-full min-h-[48px] px-5 py-3 rounded-2xl bg-[#F2EDE3] hover:bg-[#EAE3D5] border border-[#111517]/10 flex items-center justify-between gap-3 text-left text-sm font-semibold text-[#111517] transition-colors"
+        >
+          <span>{t('exploreMore')}</span>
+          <svg
+            aria-hidden="true"
+            className={`w-5 h-5 text-[#525B5E] transition-transform ${
+              isExploreExpanded ? 'rotate-180' : ''
+            }`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            {t('showMoreHistory')} ({recentHistory.length - displayLimit})
-          </button>
-        )}
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+
+        <div
+          id="explore-details-panel"
+          hidden={!isExploreExpanded}
+          className="mt-3 rounded-2xl bg-[#14191B] text-white p-4 sm:p-5 border border-[#111517]/15 space-y-4"
+        >
+          {tasteRecommendations && (
+            <div onClick={(e) => e.stopPropagation()}>{tasteRecommendations}</div>
+          )}
+
+          <div className="rounded-2xl bg-white/[0.04] border border-white/[0.08] p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-white">
+                  {language === 'ko' ? '주변 유명 장소' : t('nearbyGems')}
+                </h2>
+                <p className="text-xs text-white/60 truncate mt-0.5" title={nearbyAreaName}>
+                  {nearbyAreaName
+                    ? nearbyAreaName
+                    : language === 'ko'
+                    ? locationStatus === 'denied'
+                      ? '위치 권한 필요'
+                      : isNearbyLoading
+                      ? '주변 찾는 중…'
+                      : '내 주변'
+                    : locationStatus === 'denied'
+                    ? 'Location needed'
+                    : isNearbyLoading
+                    ? 'Finding nearby…'
+                    : 'Nearby'}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label={t('retryLocation')}
+                onClick={() => onRefreshLocation?.()}
+                className="min-h-[44px] min-w-[44px] rounded-full hover:bg-white/10 text-white/75 flex items-center justify-center shrink-0"
+              >
+                <Icon
+                  name="sync"
+                  className={`text-[20px] ${isNearbyLoading ? 'motion-safe:animate-spin' : ''}`}
+                />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {locationStatus === 'idle' && !nearbyAreaName && (
+                <button
+                  type="button"
+                  onClick={() => onRefreshLocation?.()}
+                  className="min-h-[44px] px-4 rounded-full bg-[#2EE5A8] text-[#0D1412] text-xs font-semibold inline-flex items-center gap-1.5"
+                >
+                  <Icon name="my_location" className="text-[16px]" />
+                  <span>{language === 'ko' ? '위치 확인하기' : 'Enable Location'}</span>
+                </button>
+              )}
+
+              {nearbyWeather && Number.isFinite(nearbyWeather.tempC) ? (
+                <button
+                  type="button"
+                  data-weather-display
+                  title={
+                    language === 'ko'
+                      ? '현재 날씨 · °C/°F 전환'
+                      : 'Current weather · switch °C/°F'
+                  }
+                  onClick={() => setTempUnit((prev) => (prev === 'C' ? 'F' : 'C'))}
+                  className="min-h-[44px] px-3 rounded-full bg-white/10 text-xs font-medium text-white inline-flex items-center gap-1.5 hover:bg-white/15"
+                >
+                  <span aria-hidden="true">{nearbyWeather.emoji}</span>
+                  <span>{getDisplayTemp()}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  data-weather-status
+                  disabled={weatherStatus === 'loading'}
+                  onClick={() => onRetryWeather?.()}
+                  aria-label={language === 'ko' ? '날씨 다시 불러오기' : 'Retry weather'}
+                  className="min-h-[44px] px-3 rounded-full bg-white/5 text-xs text-white/75 hover:bg-white/10"
+                >
+                  {language === 'ko'
+                    ? weatherStatus === 'loading'
+                      ? '날씨 확인 중…'
+                      : weatherStatus === 'error'
+                      ? '날씨 재시도'
+                      : '날씨 · 위치 필요'
+                    : weatherStatus === 'loading'
+                    ? 'Weather…'
+                    : weatherStatus === 'error'
+                    ? 'Retry weather'
+                    : 'Weather · location'}
+                </button>
+              )}
+
+              {nearbyWeather && (
+                <a
+                  href="https://open-meteo.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-white/50 hover:text-white/80 underline underline-offset-2"
+                >
+                  Open-Meteo
+                </a>
+              )}
+            </div>
+
+            {isNearbyLoading && nearbyGems.length === 0 ? (
+              <div className="py-6 text-center text-xs text-white/70">{t('findingGems')}</div>
+            ) : nearbyGems.length > 0 ? (
+              <div className="space-y-3 pt-1">
+                <NearbyPlaceList
+                  places={nearbyGems}
+                  language={language}
+                  onStartGuide={onStartGuide}
+                />
+                {nearbyGems.length < 20 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onShowMoreNearby?.();
+                    }}
+                    disabled={isMoreNearbyLoading}
+                    className="w-full min-h-[44px] rounded-full bg-white/10 hover:bg-white/15 text-xs font-semibold text-[#2EE5A8] flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isMoreNearbyLoading ? (
+                      <span>…</span>
+                    ) : (
+                      <>
+                        <Icon name="add_circle" className="text-[18px]" />
+                        <span>{t('findMore')}</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            ) : locationStatus !== 'idle' ? (
+              <div className="py-4 text-center space-y-3">
+                <p className="text-xs font-semibold text-white">
+                  {locationStatus === 'denied'
+                    ? t('locationDenied')
+                    : locationStatus === 'empty'
+                    ? t('noGemsFound')
+                    : t('locationUnavailable')}
+                </p>
+                <p className="text-xs text-white/65">
+                  {locationStatus === 'empty' ? t('emptyNearbyGuide') : t('locationPermissionGuide')}
+                </p>
+                <button
+                  type="button"
+                  onClick={onRefreshLocation}
+                  className="min-h-[44px] px-4 rounded-full border border-white/20 text-xs font-semibold text-white hover:bg-white/10"
+                >
+                  {t('retryLocation')}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
       </section>
     </div>
   );

@@ -1,9 +1,13 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from '../translations';
 import type { HistoryItem, Language } from '../types';
 import { Icon } from './Icon';
 import { buildDirectionsUrl, buildStreetViewUrl } from '../utils/mapsLinks';
+import {
+  SAMPLE_COMMONS_URL,
+  SAMPLE_LICENSE_URL,
+  getSamplePlaceLabel,
+} from '../utils/sampleLandmark';
 
 interface ResultScreenProps {
   result: HistoryItem;
@@ -12,10 +16,16 @@ interface ResultScreenProps {
   language: Language;
   credits: number;
   onDelete: (id: string) => void;
+  isSample?: boolean;
 }
 
-export const ResultScreen: React.FC<ResultScreenProps> = ({ 
-    result, onReset, onNewPhoto, language, onDelete
+export const ResultScreen: React.FC<ResultScreenProps> = ({
+  result,
+  onReset,
+  onNewPhoto,
+  language,
+  onDelete,
+  isSample = false,
 }) => {
   const t = useTranslations(language);
   const resultRef = useRef<HTMLDivElement>(null);
@@ -30,21 +40,23 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
       const canvas = await html2canvas(resultRef.current, {
         useCORS: true,
         scale: 2,
-        backgroundColor: '#101922',
+        backgroundColor: '#FAF7F2',
         logging: false,
         width: resultRef.current.offsetWidth,
-        height: resultRef.current.offsetHeight
+        height: resultRef.current.offsetHeight,
       });
-      return new Promise((resolve) => canvas.toBlob((blob: Blob | null) => resolve(blob), 'image/png', 1.0));
-    } catch (e) {
+      return new Promise((resolve) =>
+        canvas.toBlob((blob: Blob | null) => resolve(blob), 'image/png', 1.0)
+      );
+    } catch {
       return null;
     }
   };
-  // iOS Safari only allows navigator.share() during a fresh tap. Rendering the card with
-  // html2canvas takes long enough that the tap "expires", so the first share silently failed.
-  // Keep the rendered file, and if the browser refuses, the next tap shares it instantly.
+
   const preparedFile = useRef<File | null>(null);
-  useEffect(() => { preparedFile.current = null; }, [result.title, result.status]);
+  useEffect(() => {
+    preparedFile.current = null;
+  }, [result.title, result.status, isSample]);
 
   const downloadFile = (file: File) => {
     const url = URL.createObjectURL(file);
@@ -63,34 +75,42 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
     if (isProcessing) return;
     setIsProcessing(true);
     let file = preparedFile.current;
+    const safeTitle = (result.title || 'SlapTrip_Discovery').replace(/[\\/:*?"<>|]+/g, '_');
     try {
-        if (!file) {
-          const blob = await generateBlob();
-          if (!blob) throw new Error('render_failed');
-          file = new File([blob], `SlapTrip_${result.title.replace(/[\\/:*?"<>|]+/g, '_')}.png`, { type: 'image/png' });
-          preparedFile.current = file;
-        }
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: 'SlapTrip Discovery',
-              text: `[SlapTrip] ${result.title}`
-            });
-        } else {
-            downloadFile(file);
-        }
+      if (!file) {
+        const blob = await generateBlob();
+        if (!blob) throw new Error('render_failed');
+        file = new File([blob], `SlapTrip_${safeTitle}.png`, { type: 'image/png' });
+        preparedFile.current = file;
+      }
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'SlapTrip Discovery',
+          text: `[SlapTrip] ${result.title || t('discoveryFallback')}`,
+        });
+      } else {
+        downloadFile(file);
+      }
     } catch (e) {
       const name = e instanceof Error ? e.name : '';
       if (name === 'AbortError') {
         // User closed the share sheet.
       } else if (name === 'NotAllowedError' && file) {
-        setNotification(language === 'ko' ? '이미지가 준비됐어요. 한 번 더 누르면 공유돼요.' : 'Image ready. Tap share again.');
+        setNotification(
+          language === 'ko'
+            ? '이미지가 준비됐어요. 한 번 더 누르면 공유돼요.'
+            : 'Image ready. Tap share again.'
+        );
         setTimeout(() => setNotification(''), 4000);
       } else if (file) {
         downloadFile(file);
       } else {
-        console.error("Share error:", e);
-        setNotification(language === 'ko' ? '공유 이미지를 만들지 못했어요. 다시 시도해주세요.' : 'Could not create the share image. Please try again.');
+        setNotification(
+          language === 'ko'
+            ? '공유 이미지를 만들지 못했어요. 다시 시도해주세요.'
+            : 'Could not create the share image. Please try again.'
+        );
         setTimeout(() => setNotification(''), 3000);
       }
     }
@@ -100,276 +120,438 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
   const isStreaming = result.status === 'processing';
 
   const clean = (txt: string | undefined) => {
-    if (!txt) return "";
-    return txt.replace(/\[TITLE\]:?/gi, '')
-              .replace(/\[FACT\]:?/gi, '')
-              .replace(/\[STORY\]:?/gi, '')
-              .replace(/(\*\*|\*|#|_)/g, '')
-              .trim();
+    if (!txt) return '';
+    return txt
+      .replace(/\[TITLE\]:?/gi, '')
+      .replace(/\[FACT\]:?/gi, '')
+      .replace(/\[STORY\]:?/gi, '')
+      .replace(/(\*\*|\*|#|_)/g, '')
+      .trim();
   };
 
-  const cleanTitle = clean(result.title) || (isStreaming ? t('analyzing') : '');
+  const cleanedResultTitle = clean(result.title);
+  const cleanTitle =
+    cleanedResultTitle || (isStreaming ? t('analyzing') : t('discoveryFallback'));
   const cleanFact = clean(result.fact);
   const status = result.identificationStatus || 'confirmed';
-  const isLowConfidence = !isStreaming && (status === 'uncertain' || status === 'needs_retake' || (result.confidence ?? 1) < 0.55);
-  const isProbable = !isStreaming && !isLowConfidence && (status === 'probable' || (result.confidence ?? 1) < 0.8);
-  const confidencePercent = Math.round((result.confidence ?? 1) * 100);
+  const isLowConfidence =
+    !isStreaming &&
+    (status === 'uncertain' || status === 'needs_retake' || (result.confidence ?? 1) < 0.55);
+  const isProbable =
+    !isStreaming && !isLowConfidence && (status === 'probable' || (result.confidence ?? 1) < 0.8);
+  const isConfirmed = !isStreaming && !isLowConfidence && !isProbable;
+
+  // Sample carries curated landmark coordinates; real EXIF/device GPS marks camera/user only.
+  const directionsUrl =
+    isSample && isConfirmed && result.locationData
+      ? buildDirectionsUrl(result.locationData.latitude, result.locationData.longitude)
+      : null;
+  const streetViewUrl =
+    isSample && isConfirmed && result.locationData
+      ? buildStreetViewUrl(result.locationData.latitude, result.locationData.longitude)
+      : null;
+  const mapsSearchUrl =
+    !isSample && isConfirmed && cleanedResultTitle
+      ? `https://www.google.com/maps/search/?${new URLSearchParams({
+          api: '1',
+          query: cleanedResultTitle,
+        }).toString()}`
+      : null;
+
   const visitCards = [
-    result.visit?.atAGlance && { label: t('atAGlance'), value: result.visit.atAGlance, icon: 'near_me' },
-    result.visit?.bestLight && { label: t('bestLight'), value: result.visit.bestLight, icon: 'light_mode' },
-    result.visit?.crowds && { label: t('crowds'), value: result.visit.crowds, icon: 'groups' }
+    result.visit?.atAGlance && {
+      label: t('atAGlance'),
+      value: clean(result.visit.atAGlance),
+      icon: 'near_me',
+    },
+    result.visit?.bestLight && {
+      label: t('bestLight'),
+      value: clean(result.visit.bestLight),
+      icon: 'light_mode',
+    },
+    result.visit?.crowds && {
+      label: t('crowds'),
+      value: clean(result.visit.crowds),
+      icon: 'groups',
+    },
   ].filter(Boolean) as { label: string; value: string; icon: string }[];
 
-  // 위치 출처에 따른 배지 정보 설정
-  const getLocationBadge = () => {
-    if (result.locationSource === 'exif') {
-        return { 
-            text: language === 'ko' ? '사진 속 위치 확인됨' : 'Location found in photo', 
-            icon: 'gps_fixed', 
-            color: 'bg-emerald-500/90' 
-        };
-    } else if (result.locationSource === 'device') {
-        return { 
-            text: language === 'ko' ? '현재 위치 주변 탐색' : 'Searching near you', 
-            icon: 'my_location', 
-            color: 'bg-blue-500/90' 
-        };
-    }
-    return null;
-  };
-
-  const locationBadge = getLocationBadge();
+  const placeContextLabel = isSample ? getSamplePlaceLabel(language) : null;
+  const storyParagraphs = (result.story || '')
+    .split('\n')
+    .map((line) => clean(line))
+    .filter(Boolean);
+  const hasStorySection = !isStreaming && !isLowConfidence && (storyParagraphs.length > 0 || !!clean(result.hiddenStory));
+  const hasVisitSection = !isStreaming && !isLowConfidence && (visitCards.length > 0 || !!streetViewUrl);
+  const hasFiguresSection =
+    !isStreaming && !isLowConfidence && !!result.depictedFigures && result.depictedFigures.length > 0;
+  const hasSourcesSection = !isStreaming && !!result.sources && result.sources.length > 0;
 
   return (
-    <div className={`w-full max-w-xl mx-auto animate-fade-in pb-48 px-0 relative ${isStreaming ? 'min-h-[130dvh]' : ''}`}>
-      {/* Top Bar — Cinematic Glass */}
-      <nav data-html2canvas-ignore="true" className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-xl z-50 flex items-center justify-between px-5 py-4 pt-[env(safe-area-inset-top,20px)] pointer-events-none">
-        <button 
-          onClick={onReset}
-          aria-label={language === 'ko' ? '뒤로' : 'Back'}
-          className="pointer-events-auto flex items-center justify-center w-11 h-11 bg-black/40 backdrop-blur-xl rounded-full text-white border border-white/10 active:scale-95 transition-all shadow-xl"
-        >
-          <Icon name="arrow_back_ios_new" className="text-[18px]" />
-        </button>
-        
-        <div className="pointer-events-auto flex items-center gap-2.5 px-4 py-2 bg-black/40 backdrop-blur-xl rounded-full border border-white/10 shadow-xl">
-           <Icon name="spark" className="text-[#D9B26A] text-[16px] animate-pulse" />
-           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D9B26A]">Docent</span>
-        </div>
+    <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 pb-16 animate-fade-in">
+      {/* Top Action Bar */}
+      <nav
+        data-html2canvas-ignore="true"
+        className="sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#111517]/10 flex items-center justify-between gap-3"
+      >
+        {isStreaming ? (
+          <div className="min-h-[44px]" aria-hidden="true" />
+        ) : (
+          <button
+            type="button"
+            onClick={onReset}
+            aria-label={t('back')}
+            className="min-h-[44px] min-w-[44px] px-3 inline-flex items-center justify-center gap-1.5 rounded-full hover:bg-[#111517]/[0.06] text-sm font-medium text-[#111517] transition-colors"
+          >
+            <Icon name="arrow_back" className="text-[20px]" />
+            <span className="hidden sm:inline">{t('back')}</span>
+          </button>
+        )}
 
-        <div className="pointer-events-auto flex items-center gap-2">
-           <button 
-            onClick={handleAction}
-            aria-label={language === 'ko' ? '공유 이미지 저장' : 'Share or save image'}
-            disabled={isProcessing || isStreaming}
-            className="w-11 h-11 bg-black/40 backdrop-blur-xl rounded-full text-white border border-white/10 active:scale-95 transition-all shadow-xl flex items-center justify-center disabled:opacity-30"
-          >
-            {isProcessing ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-            ) : (
-                <Icon name="ios_share" className="text-[20px]" />
-            )}
-          </button>
-          
-          <button 
-            onClick={() => onDelete(result.id)}
-            aria-label={language === 'ko' ? '결과 삭제' : 'Delete result'}
-            className="w-11 h-11 bg-black/40 backdrop-blur-xl rounded-full text-[#F4EFE6]/60 border border-white/10 active:scale-95 transition-all shadow-xl flex items-center justify-center"
-          >
-            <Icon name="delete" className="text-[20px]" />
-          </button>
+        {isSample && (
+          <span className="px-3 py-1 rounded-full bg-[#2EE5A8]/25 text-[#0A7553] text-xs font-semibold">
+            {t('sampleResult')}
+          </span>
+        )}
+
+        <div className="flex items-center gap-1.5 min-h-[44px]">
+          {!isStreaming && (
+            <>
+              <button
+                type="button"
+                onClick={handleAction}
+                aria-label={t('share')}
+                disabled={isProcessing}
+                className="min-h-[44px] min-w-[44px] px-3 rounded-full border border-[#111517]/12 bg-[#F2EDE3] hover:bg-[#EAE3D5] text-[#111517] text-xs font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-40 transition-colors"
+              >
+                <Icon name="ios_share" className="text-[18px]" />
+                <span className="hidden sm:inline">{t('share')}</span>
+              </button>
+
+              {!isSample && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(result.id)}
+                  aria-label={t('delete')}
+                  className="min-h-[44px] min-w-[44px] rounded-full hover:bg-rose-500/10 text-[#525B5E] hover:text-rose-700 inline-flex items-center justify-center transition-colors"
+                >
+                  <Icon name="delete" className="text-[20px]" />
+                </button>
+              )}
+            </>
+          )}
         </div>
       </nav>
 
-      <div ref={resultRef} className="w-full flex flex-col">
-      {/* Hero Header Area */}
-      <div className="relative w-full h-[520px] sm:h-[540px] overflow-hidden">
-        {result.imageData ? <img src={result.imageData} alt={cleanTitle} className="w-full h-full object-cover" crossOrigin="anonymous" /> : <div className="w-full h-full grid place-items-center bg-slate-800 text-slate-400"><Icon name="image_not_supported" className="text-4xl" /></div>}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/40 to-[#0B0F14]"></div>
-        
-        {isStreaming && (
-          <>
-            <div className="st-beam" />
-            <div className="st-beam-glow" />
-          </>
+      {/* Concise Share Capture Area: Photo + Place + Title + One-line Fact (+ Sample Credit) */}
+      <div
+        ref={resultRef}
+        className="mt-5 rounded-[24px] bg-[#FAF7F2] border border-[#111517]/12 overflow-hidden shadow-[0_16px_40px_-24px_rgba(17,21,23,0.18)]"
+      >
+        {result.imageData ? (
+          <div className="w-full bg-[#EAE4D9] overflow-hidden">
+            <img
+              src={result.imageData}
+              alt={isLowConfidence ? t('needsCloserLook') : cleanTitle}
+              crossOrigin="anonymous"
+              className="w-full max-h-[420px] object-cover"
+            />
+          </div>
+        ) : (
+          <div className="w-full py-10 bg-[#EFEAE0] flex items-center justify-center text-[#525B5E]">
+            <Icon name="image_not_supported" className="text-3xl" />
+          </div>
         )}
 
-        <div className="absolute bottom-9 left-6 right-6 sm:left-8 sm:right-8 animate-fade-in-up">
-           <div className="inline-flex items-center gap-2 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-[#D9B26A]/30 mb-4">
-              <Icon name="location_on" className="text-[#D9B26A] text-[12px]" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#F4EFE6]/70 font-sans">
-                {result.locationData ? `${result.locationData.latitude.toFixed(4)}°, ${result.locationData.longitude.toFixed(4)}°` : 'Discovery'}
-              </span>
-           </div>
-           <h1 className="text-[2rem] min-[420px]:text-4xl sm:text-5xl font-serif font-medium text-[#F4EFE6] leading-[1.08] tracking-tight mb-4 drop-shadow-2xl break-keep">{isLowConfidence ? t('needsCloserLook') : cleanTitle}</h1>
-           <p className="text-lg sm:text-xl font-serif italic text-[#F4EFE6]/70 leading-relaxed sm:pr-6">{cleanFact ? `"${cleanFact}"` : ""}</p>
-        </div>
-      </div>
-
-      {/* Metadata Strip */}
-      <div className="flex items-center gap-6 px-8 py-6 border-b border-white/5 font-sans">
-        <div className="flex items-center gap-2 text-[11px] font-bold text-[#F4EFE6]/40 uppercase tracking-widest">
-           <Icon name="schedule" className="text-[14px]" />
-           3 {t('minutesRead')}
-        </div>
-        <div className="w-px h-3 bg-white/10" />
-        <div className="flex items-center gap-2 text-[11px] font-bold text-[#F4EFE6]/40 uppercase tracking-widest">
-           <Icon name="history_edu" className="text-[14px]" />
-           {t('docentNote')}
-        </div>
-      </div>
-
-      {!isStreaming && result.locationData && (() => {
-        const directionsUrl = buildDirectionsUrl(result.locationData.latitude, result.locationData.longitude);
-        const streetViewUrl = buildStreetViewUrl(result.locationData.latitude, result.locationData.longitude);
-        if (!directionsUrl || !streetViewUrl) return null;
-        const linkClass = 'inline-flex items-center gap-2 min-h-[44px] px-4 rounded-full border border-[#D9B26A]/30 text-[12px] font-bold text-[#F4EFE6]/80 font-sans focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#D9B26A]';
-        return (
-          <div className="flex flex-wrap gap-3 px-8 py-4 border-b border-white/5">
-            <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className={linkClass}>
-              <Icon name="location_on" className="text-[14px] text-[#D9B26A]" />
-              {t('getDirections')}
-            </a>
-            <a href={streetViewUrl} target="_blank" rel="noopener noreferrer" className={linkClass}>
-              <Icon name="my_location" className="text-[14px] text-[#D9B26A]" />
-              {t('viewStreetView')}
-            </a>
-          </div>
-        );
-      })()}
-
-      {/* Content Area */}
-      <div className="px-8 pt-10 flex flex-col gap-10">
-          {!isStreaming && (isLowConfidence || isProbable) && (
-            <section className={`rounded-[1.8rem] p-6 border ${isLowConfidence ? 'bg-amber-400/10 border-amber-300/30' : 'bg-[#5EC9C2]/10 border-[#5EC9C2]/25'}`}>
-              <div className="flex items-start gap-4">
-                <Icon name={isLowConfidence ? 'document_scanner' : 'fact_check'} className={` text-3xl ${isLowConfidence ? 'text-amber-300' : 'text-[#5EC9C2]'}`} />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F4EFE6]/55 mb-2">{isLowConfidence ? t('needsCloserLook') : t('likelyMatch')}</div>
-                  <p className="text-base text-[#F4EFE6] leading-relaxed">{isLowConfidence ? (result.retakeReason || t('retakeTextHelp')) : cleanFact}</p>
-                  <div className="mt-4 flex items-center gap-3">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#F4EFE6]/40">{t('resultConfidence')}</span>
-                    <div className="h-1.5 flex-1 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full bg-current text-[#D9B26A]" style={{ width: `${confidencePercent}%` }} /></div>
-                    <span className="text-xs font-black text-[#F4EFE6]/70">{confidencePercent}%</span>
-                  </div>
-                </div>
-              </div>
-            </section>
+        <div className="p-5 sm:p-7 space-y-2.5">
+          {placeContextLabel && (
+            <p className="text-xs font-semibold text-[#0A7553] tracking-tight">
+              {placeContextLabel}
+            </p>
           )}
-          <div className="flex flex-col gap-6">
-              <div className="text-[10px] font-black uppercase tracking-[0.3em] text-[#D9B26A] mb-2 antialiased">{t('theStory')}</div>
-              <div className="text-lg sm:text-[21px] font-serif font-regular text-[#F4EFE6]/90 leading-[1.65] break-keep tracking-[-0.01em]">
-                  {result.story ? result.story.split('\n').map((l, i) => {
-                    const cleanedLine = clean(l);
-                    if (!cleanedLine) return null;
-                    return (
-                      <p key={i} className="mb-8">
-                        {i === 0 ? (
-                          <span className="float-left text-6xl font-serif leading-[0.8] mr-3 mt-1 text-[#D9B26A] font-medium">{cleanedLine.charAt(0)}</span>
-                        ) : null}
-                        {i === 0 ? cleanedLine.slice(1) : cleanedLine}
+
+          <h1 className="text-2xl sm:text-[34px] font-bold tracking-[-0.025em] leading-[1.15] text-[#111517] break-keep">
+            {isLowConfidence ? t('needsCloserLook') : cleanTitle}
+          </h1>
+
+          {cleanFact && !isLowConfidence && (
+            <p className="text-[15px] sm:text-[17px] leading-[1.55] text-[#353D40] break-keep">
+              {cleanFact}
+            </p>
+          )}
+
+          {isSample && (
+            <p className="pt-2 border-t border-[#111517]/10 text-xs text-[#525B5E] flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>{t('sampleResult')}</span>
+              <span aria-hidden="true">·</span>
+              <a
+                href={SAMPLE_COMMONS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-[#111517]"
+              >
+                {t('photoAttributionLabel')}
+              </a>
+              <span aria-hidden="true">·</span>
+              <a
+                href={SAMPLE_LICENSE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-[#111517]"
+              >
+                CC BY-SA 4.0
+              </a>
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Directly Useful Google Maps Action (Confirmed & Valid Only) */}
+      {(directionsUrl || mapsSearchUrl) && (
+        <div className="mt-4">
+          <a
+            href={directionsUrl || mapsSearchUrl!}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full min-h-[48px] px-5 py-3 rounded-full bg-[#2EE5A8] hover:bg-[#22D398] text-[#0D1412] text-[15px] font-semibold inline-flex items-center justify-center gap-2 shadow-sm transition-colors"
+          >
+            <Icon name={directionsUrl ? 'near_me' : 'location_on'} className="text-[20px]" />
+            <span>{directionsUrl ? t('getDirections') : t('searchOnMaps')}</span>
+          </a>
+        </div>
+      )}
+
+      {/* Low Confidence: Reason + Primary Retake */}
+      {!isStreaming && isLowConfidence && (
+        <section className="mt-5 rounded-2xl p-5 bg-[#FFF6E6] border border-[#C98A1A]/35 space-y-4">
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#8A5A00]">
+              {t('needsCloserLook')}
+            </p>
+            <p className="text-sm sm:text-base leading-relaxed text-[#111517] break-keep">
+              {result.retakeReason || clean(result.story) || t('retakeTextHelp')}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onNewPhoto}
+            className="w-full sm:w-auto min-h-[48px] px-6 rounded-full bg-[#2EE5A8] hover:bg-[#22D398] text-[#0D1412] text-sm font-semibold inline-flex items-center justify-center gap-2 transition-colors"
+          >
+            <Icon name="photo_camera" className="text-[20px]" />
+            <span>{t('retakeText')}</span>
+          </button>
+        </section>
+      )}
+
+      {/* Probable Match Notice (Walking directions suppressed) */}
+      {!isStreaming && isProbable && (
+        <section className="mt-4 rounded-2xl px-4 py-3.5 bg-[#F2EDE3] border border-[#111517]/10">
+          <p className="text-xs font-semibold text-[#0A7553]">{t('likelyMatch')}</p>
+        </section>
+      )}
+
+      {/* Progressive Disclosure Sections */}
+      <div className="mt-6 space-y-3">
+        {hasStorySection && (
+          <details className="group rounded-2xl border border-[#111517]/10 bg-[#F2EDE3]/70 overflow-hidden">
+            <summary className="min-h-[48px] px-5 py-3.5 cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-[#111517]">
+              <span>{t('theStory')}</span>
+              <svg
+                aria-hidden="true"
+                className="w-5 h-5 text-[#525B5E] transition-transform group-open:rotate-180 shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </summary>
+            <div className="px-5 pb-5 pt-1 space-y-4 border-t border-[#111517]/8">
+              {storyParagraphs.map((paragraph, index) => (
+                <p
+                  key={index}
+                  className="text-[15px] sm:text-base leading-[1.7] text-[#22282B] break-keep"
+                >
+                  {paragraph}
+                </p>
+              ))}
+              {clean(result.hiddenStory) && (
+                <div className="rounded-xl bg-[#FAF7F2] border border-[#111517]/10 p-4 space-y-1.5">
+                  <p className="text-xs font-semibold text-[#0A7553]">{t('hiddenStory')}</p>
+                  <p className="text-sm leading-relaxed text-[#22282B] break-keep">
+                    {clean(result.hiddenStory)}
+                  </p>
+                </div>
+              )}
+            </div>
+          </details>
+        )}
+
+        {hasVisitSection && (
+          <details className="group rounded-2xl border border-[#111517]/10 bg-[#F2EDE3]/70 overflow-hidden">
+            <summary className="min-h-[48px] px-5 py-3.5 cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-[#111517]">
+              <span>{t('visitDetails')}</span>
+              <svg
+                aria-hidden="true"
+                className="w-5 h-5 text-[#525B5E] transition-transform group-open:rotate-180 shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </summary>
+            <div className="px-5 pb-5 pt-2 space-y-3 border-t border-[#111517]/8">
+              {visitCards.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {visitCards.map((card, idx) => (
+                    <div
+                      key={card.label}
+                      className={`rounded-xl bg-[#FAF7F2] border border-[#111517]/10 p-3.5 space-y-1 ${
+                        idx === 0 && visitCards.length % 2 === 1 ? 'sm:col-span-2' : ''
+                      }`}
+                    >
+                      <p className="text-xs font-semibold text-[#0A7553] flex items-center gap-1.5">
+                        <Icon name={card.icon} className="text-[15px]" />
+                        <span>{card.label}</span>
                       </p>
-                    );
-                  }) : (isStreaming && (
-                    <div className="space-y-4 animate-pulse">
-                      <div className="h-4 bg-white/5 rounded-full w-full"></div>
-                      <div className="h-4 bg-white/5 rounded-full w-5/6"></div>
-                      <div className="h-4 bg-white/5 rounded-full w-4/6"></div>
+                      <p className="text-sm text-[#111517] leading-snug">{card.value}</p>
                     </div>
                   ))}
-              </div>
-          </div>
-
-          {!isStreaming && !isLowConfidence && result.hiddenStory && (
-            <section className="rounded-[1.8rem] p-6 border border-[#D9B26A]/30 bg-gradient-to-br from-[#D9B26A]/15 to-[#5EC9C2]/10 shadow-[0_18px_50px_-35px_rgba(217,178,106,0.8)]">
-              <div className="flex items-start gap-4">
-                <Icon name="auto_awesome" className="text-3xl text-[#D9B26A]" />
-                <div className="min-w-0">
-                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D9B26A] mb-3">{t('hiddenStory')}</div>
-                  <p className="text-lg font-serif text-[#F4EFE6] leading-[1.65]">{clean(result.hiddenStory)}</p>
                 </div>
-              </div>
-            </section>
-          )}
+              )}
 
-          {!isStreaming && !isLowConfidence && result.depictedFigures && result.depictedFigures.length > 0 && (
-            <section className="rounded-[1.8rem] p-6 border border-[#5EC9C2]/30 bg-[#5EC9C2]/10">
-              <div className="flex items-center gap-3 mb-5">
-                <Icon name="sculpture" className="text-3xl text-[#5EC9C2]" />
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#5EC9C2]">{t('depictedFigures')}</div>
-              </div>
-              <div className="flex flex-col gap-5">
-                {result.depictedFigures.map((figure, index) => (
-                  <div key={`${figure.name}-${index}`} className="border-l-2 border-[#5EC9C2]/40 pl-4">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <h3 className="text-xl font-serif text-[#F4EFE6]">{clean(figure.name)}</h3>
-                      {figure.certainty !== 'confirmed' && (
-                        <span className="rounded-full bg-black/25 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-[#F4EFE6]/55">
-                          {figure.certainty === 'probable' ? t('figureProbable') : t('figureUnknown')}
-                        </span>
-                      )}
-                    </div>
-                    {figure.role && <p className="text-sm leading-relaxed text-[#F4EFE6]/75">{clean(figure.role)}</p>}
-                    {figure.visualCue && <p className="mt-2 text-xs leading-relaxed text-[#F4EFE6]/45">{clean(figure.visualCue)}</p>}
+              {streetViewUrl && (
+                <a
+                  href={streetViewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-h-[44px] px-4 rounded-xl bg-[#FAF7F2] border border-[#111517]/15 hover:bg-[#EAE3D5] text-sm font-semibold text-[#111517] inline-flex items-center gap-2 transition-colors"
+                >
+                  <Icon name="my_location" className="text-[18px] text-[#0A7553]" />
+                  <span>{t('viewStreetView')}</span>
+                </a>
+              )}
+            </div>
+          </details>
+        )}
+
+        {hasFiguresSection && (
+          <details className="group rounded-2xl border border-[#111517]/10 bg-[#F2EDE3]/70 overflow-hidden">
+            <summary className="min-h-[48px] px-5 py-3.5 cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-[#111517]">
+              <span>{t('depictedFigures')}</span>
+              <svg
+                aria-hidden="true"
+                className="w-5 h-5 text-[#525B5E] transition-transform group-open:rotate-180 shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </summary>
+            <div className="px-5 pb-5 pt-2 space-y-3 border-t border-[#111517]/8">
+              {result.depictedFigures!.map((figure, index) => (
+                <div
+                  key={`${figure.name}-${index}`}
+                  className="rounded-xl bg-[#FAF7F2] border border-[#111517]/10 p-3.5 space-y-1"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-bold text-[#111517]">{clean(figure.name)}</h3>
+                    {figure.certainty !== 'confirmed' && (
+                      <span className="rounded-full bg-[#EAE3D5] px-2.5 py-0.5 text-[11px] font-medium text-[#525B5E]">
+                        {figure.certainty === 'probable' ? t('figureProbable') : t('figureUnknown')}
+                      </span>
+                    )}
                   </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {!isStreaming && !isLowConfidence && visitCards.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-              {visitCards.map((card, index) => (
-                <div key={card.label} className={`${index === 0 && visitCards.length % 2 === 1 ? 'sm:col-span-2' : ''} p-6 rounded-[1.8rem] bg-white/5 border border-white/10`}>
-                  <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-[#D9B26A] mb-3"><Icon name={card.icon} className="text-[16px]" />{card.label}</div>
-                  <div className="text-xl font-serif text-[#F4EFE6] leading-snug">{card.value}</div>
+                  {figure.role && <p className="text-sm text-[#353D40]">{clean(figure.role)}</p>}
+                  {figure.visualCue && (
+                    <p className="text-xs text-[#525B5E]">{clean(figure.visualCue)}</p>
+                  )}
                 </div>
               ))}
             </div>
-          )}
+          </details>
+        )}
 
-          {!isStreaming && <p className="text-xs text-center text-[#F4EFE6]/35 leading-relaxed px-4">{t('aiCaution')}</p>}
-
-          {!isStreaming && result.sources && result.sources.length > 0 && (
-            <div className="mt-8 pt-8 border-t border-white/5">
-              <h5 className="text-[10px] font-black text-[#F4EFE6]/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                <Icon name="verified" className="text-[16px]" />
-                {t('verifiedSources')}
-              </h5>
-              <div className="flex flex-col gap-2">
-                {result.sources.map((source, idx) => (
-                  <a 
-                    key={idx} 
-                    href={source.uri} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex justify-between items-center px-5 py-4 bg-white/5 border border-white/5 rounded-2xl text-[13px] text-[#F4EFE6]/70 hover:text-[#D9B26A] hover:bg-white/10 transition-all font-medium"
-                  >
-                    <span className="truncate pr-4">{source.title}</span>
-                    <Icon name="open_in_new" className="text-[18px] opacity-40" />
-                  </a>
-                ))}
-              </div>
+        {hasSourcesSection && (
+          <details className="group rounded-2xl border border-[#111517]/10 bg-[#F2EDE3]/70 overflow-hidden">
+            <summary className="min-h-[48px] px-5 py-3.5 cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-[#111517]">
+              <span>{t('verifiedSources')}</span>
+              <svg
+                aria-hidden="true"
+                className="w-5 h-5 text-[#525B5E] transition-transform group-open:rotate-180 shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </summary>
+            <div className="px-5 pb-5 pt-2 flex flex-col gap-2 border-t border-[#111517]/8">
+              {result.sources!.map((source, idx) => (
+                <a
+                  key={idx}
+                  href={source.uri}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#111517]/10 hover:bg-[#EAE3D5] flex items-center justify-between gap-3 text-sm font-medium text-[#111517] transition-colors"
+                >
+                  <span className="truncate">{source.title}</span>
+                  <Icon name="open_in_new" className="text-[16px] text-[#525B5E] shrink-0" />
+                </a>
+              ))}
             </div>
-          )}
-      </div>
+          </details>
+        )}
       </div>
 
-      {/* Primary Action Button */}
-      <div data-html2canvas-ignore="true" className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-xl px-8 z-40">
-        <button 
-          onClick={onNewPhoto} 
-          className="w-full h-16 rounded-full bg-gradient-to-b from-[#E6C079] to-[#C99A4F] text-[#1B130A] font-black text-base shadow-[0_10px_30px_-10px_rgba(217,178,106,0.6),0_0_50px_-10px_rgba(217,178,106,0.4)] active:scale-95 transition-all flex items-center justify-center gap-3 ring-1 ring-white/30 ring-inset"
-        >
-          <Icon name="photo_camera" className="text-[24px]" />
-          {isLowConfidence ? t('retakeText') : t('captureNewStory')}
-        </button>
-      </div>
+      {/* Non-sticky Bottom Actions */}
+      {!isStreaming && (
+        <div className="mt-8 pt-6 border-t border-[#111517]/10 space-y-4">
+          {!isSample && (
+            <p className="text-xs text-[#525B5E] leading-relaxed">{t('aiCaution')}</p>
+          )}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={onNewPhoto}
+              className="min-h-[44px] px-5 rounded-full border border-[#111517]/15 bg-[#F2EDE3] hover:bg-[#EAE3D5] text-sm font-medium text-[#111517] inline-flex items-center gap-2 transition-colors"
+            >
+              <Icon name="upload_file" className="text-[18px]" />
+              <span>{t('choosePhoto')}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onReset}
+              className="min-h-[44px] px-4 rounded-full text-sm font-medium text-[#525B5E] hover:text-[#111517] hover:bg-[#111517]/[0.05] transition-colors"
+            >
+              {t('backHome')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {notification && (
-        <div className="fixed top-32 left-1/2 transform -translate-x-1/2 bg-[#F4EFE6] text-[#0B0F14] px-6 py-3 rounded-full shadow-2xl z-[60] text-xs font-black flex items-center gap-2 animate-fade-in-up">
-          <Icon name="check_circle" className="text-[#5EC9C2] text-sm" />
-          {notification}
+        <div
+          role="status"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#111517] text-[#FAF7F2] px-5 py-3 rounded-full shadow-xl z-[60] text-xs font-semibold flex items-center gap-2"
+        >
+          <Icon name="check_circle" className="text-[#2EE5A8] text-[16px]" />
+          <span>{notification}</span>
         </div>
       )}
     </div>

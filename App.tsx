@@ -19,11 +19,14 @@ import type { AppState, HistoryItem, Language, User, LocationData, LocationSourc
 import { useTranslations } from './translations';
 import { Icon } from './components/Icon';
 
+import { getSampleLandmark } from './utils/sampleLandmark';
+
 const NEARBY_LIMIT = 20;
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>('welcome');
   const [currentResultId, setCurrentResultId] = useState<string | null>(null);
+  const [isSampleOpen, setIsSampleOpen] = useState(false);
   const [guideLandmark, setGuideLandmark] = useState<string | null>(null);
   const [guideLocationHint, setGuideLocationHint] = useState<string | undefined>(undefined);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -300,6 +303,7 @@ const App: React.FC = () => {
       };
       
       setHistory(prev => [newItem, ...prev]);
+      setIsSampleOpen(false);
       setCurrentResultId(requestId);
       setAppState('result'); 
       
@@ -428,10 +432,20 @@ const App: React.FC = () => {
   }, []);
 
   const handleHistorySelection = (item: HistoryItem) => {
+    setIsSampleOpen(false);
+    setSidebarOpen(false);
     setCurrentResultId(item.id);
     setAppState('result');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
+
+  const handleOpenSample = useCallback(() => {
+    if (isAnalyzingRef.current) handleCancelAnalysis();
+    setIsSampleOpen(true);
+    setCurrentResultId(null);
+    setAppState('result');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [handleCancelAnalysis]);
 
   const handleClearHistory = async () => {
     if (user) {
@@ -471,19 +485,17 @@ const App: React.FC = () => {
       try { await localPhotoService.remove(user.id, id); } catch (e) { console.warn('[SlapTrip] Local photo cleanup failed:', e); }
     }
     setHistory(prev => prev.filter(item => item.id !== id));
+    setCurrentResultId(null);
+    setIsSampleOpen(false);
     setAppState('welcome');
   };
 
-  return (
-    <div className="min-h-screen bg-[#070A0E] text-white font-display flex flex-col relative overflow-x-hidden">
-      {/* Background Aesthetics */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="st-aurora-far" />
-        <div className="st-aurora-a" />
-        <div className="st-aurora-b" />
-        <div className="st-grain" />
-      </div>
+  const activeResult = isSampleOpen
+    ? getSampleLandmark(language)
+    : history.find(i => i.id === currentResultId) || null;
 
+  return (
+    <div className="min-h-screen bg-[#FAF7F2] text-[#111517] flex flex-col relative overflow-x-hidden">
       <div className="relative z-10 flex flex-col flex-1">
         {(appState === 'welcome' || appState === 'about') && (
         <Header 
@@ -492,50 +504,51 @@ const App: React.FC = () => {
           user={user} onLogin={() => setLoginModalOpen(true)} onLogout={() => supabase.auth.signOut()} 
           credits={credits} maxCredits={10} isSyncing={isSyncing} 
           onShowAbout={() => { setAppState('about'); window.scrollTo({ top: 0, behavior: 'instant' }); }}
+          onGoHome={() => { setIsSampleOpen(false); setCurrentResultId(null); setAppState('welcome'); }}
         />
       )}
       
       {isQuotaExceeded && (
-        <div className="fixed top-20 left-4 right-4 z-[100] bg-amber-500 rounded-2xl p-4 shadow-2xl border border-white/20">
+        <div className="fixed top-20 left-4 right-4 max-w-xl mx-auto z-[100] bg-amber-100 text-[#111517] rounded-2xl p-4 shadow-xl border border-amber-300">
           <div className="flex items-center gap-3 mb-2">
-            <Icon name="warning" />
-            <p className="text-sm font-black text-white">{t('quotaExceeded')}</p>
+            <Icon name="warning" className="text-amber-700" />
+            <p className="text-sm font-bold">{t('quotaExceeded')}</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setIsQuotaExceeded(false)} className="px-4 bg-black/20 text-white text-[10px] font-black py-2 rounded-xl transition-all">{t('cancel')}</button>
+            <button onClick={() => setIsQuotaExceeded(false)} className="min-h-[44px] px-4 bg-[#111517] text-[#FAF7F2] text-xs font-semibold rounded-xl transition-colors">{t('cancel')}</button>
           </div>
         </div>
       )}
 
       {isApiRateLimited && (
-        <div className="fixed top-20 left-4 right-4 z-[100] bg-red-500 rounded-2xl p-4 shadow-2xl border border-white/20">
+        <div className="fixed top-20 left-4 right-4 max-w-xl mx-auto z-[100] bg-rose-100 text-[#111517] rounded-2xl p-4 shadow-xl border border-rose-300">
           <div className="flex items-center gap-3 mb-2">
-            <Icon name="hourglass_empty" />
-            <p className="text-sm font-black text-white">[{t('error')}] API 서버 접속량이 많습니다.</p>
+            <Icon name="hourglass_empty" className="text-rose-700" />
+            <p className="text-sm font-bold">[{t('error')}] API 서버 접속량이 많습니다.</p>
           </div>
-          <p className="text-xs text-white/90 font-bold mb-3">{language === 'ko' ? '잠시 후 다시 시도해 주세요.' : 'Please try again shortly.'}</p>
+          <p className="text-xs text-[#525B5E] mb-3">{language === 'ko' ? '잠시 후 다시 시도해 주세요.' : 'Please try again shortly.'}</p>
           <div className="flex gap-2">
-            <button onClick={() => setIsApiRateLimited(false)} className="px-4 bg-black/20 text-white text-[10px] font-black py-2 rounded-xl transition-all">{t('cancel')}</button>
+            <button onClick={() => setIsApiRateLimited(false)} className="min-h-[44px] px-4 bg-[#111517] text-[#FAF7F2] text-xs font-semibold rounded-xl transition-colors">{t('cancel')}</button>
           </div>
         </div>
       )}
 
       {analysisError && (
-        <div role="alert" className="fixed top-20 left-4 right-4 z-[100] bg-rose-600 rounded-2xl p-4 shadow-2xl border border-white/20">
+        <div role="alert" className="fixed top-20 left-4 right-4 max-w-xl mx-auto z-[100] bg-rose-600 rounded-2xl p-4 shadow-2xl border border-rose-500 text-white">
           <div className="flex items-center gap-3 mb-2">
             <Icon name="error" />
-            <p className="text-sm font-black text-white">{analysisError}</p>
+            <p className="text-sm font-bold">{analysisError}</p>
           </div>
           <div className="flex flex-wrap gap-2 mt-3">
             {retryFile && (
-              <button onClick={() => { const file = pendingFileRef.current; setAnalysisError(null); if (file) void handleStartAnalysis(file); }} className="min-h-11 px-3 py-1.5 bg-white text-rose-700 text-xs font-bold rounded-xl shadow transition-all">
+              <button onClick={() => { const file = pendingFileRef.current; setAnalysisError(null); if (file) void handleStartAnalysis(file); }} className="min-h-[44px] px-3.5 py-1.5 bg-white text-rose-700 text-xs font-bold rounded-xl shadow transition-all">
                 {language === 'ko' ? '같은 사진 다시 시도' : 'Retry Same Photo'}
               </button>
             )}
-            <button onClick={() => { setAnalysisError(null); fileInputRef.current?.click(); }} className="min-h-11 px-3 py-1.5 bg-white/20 text-white text-xs font-bold rounded-xl transition-all">
+            <button onClick={() => { setAnalysisError(null); fileInputRef.current?.click(); }} className="min-h-[44px] px-3.5 py-1.5 bg-white/20 text-white text-xs font-bold rounded-xl transition-all">
               {language === 'ko' ? '새 사진 선택' : 'Choose New Photo'}
             </button>
-            <button onClick={() => { setAnalysisError(null); pendingFileRef.current = null; setRetryFile(null); }} className="min-h-11 px-3 py-1.5 bg-black/20 text-white text-xs font-bold rounded-xl transition-all">
+            <button onClick={() => { setAnalysisError(null); pendingFileRef.current = null; setRetryFile(null); }} className="min-h-[44px] px-3.5 py-1.5 bg-black/25 text-white text-xs font-bold rounded-xl transition-all">
               {t('cancel')}
             </button>
           </div>
@@ -543,11 +556,11 @@ const App: React.FC = () => {
       )}
 
       {activeAnalysisRequestId && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] flex items-center gap-3 px-4 py-2 bg-slate-900/90 border border-white/20 rounded-full shadow-2xl backdrop-blur-md">
-          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-          <span className="text-xs font-bold text-white">{language === 'ko' ? '분석 중...' : 'Analyzing...'}</span>
-          <button onClick={handleCancelAnalysis} className="min-h-11 px-3 py-1 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold rounded-full transition-all">
-            {language === 'ko' ? '취소' : 'Cancel'}
+        <div role="status" aria-live="polite" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] flex items-center gap-3 px-4 py-1.5 bg-[#111517] text-[#FAF7F2] border border-[#111517]/15 rounded-full shadow-xl">
+          <span className="w-2 h-2 rounded-full bg-[#2EE5A8] motion-safe:animate-pulse" />
+          <span className="text-xs font-semibold">{t('analyzing')}</span>
+          <button onClick={handleCancelAnalysis} className="min-h-[44px] px-3 text-xs font-semibold text-[#2EE5A8] hover:underline">
+            {t('cancel')}
           </button>
         </div>
       )}
@@ -555,13 +568,14 @@ const App: React.FC = () => {
       <input type="file" ref={fileInputRef} accept="image/*" onChange={handleFileInputChange} className="hidden" />
       <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" onChange={handleFileInputChange} className="hidden" />
       
-      <main className="flex-1 relative">
-        <Suspense fallback={<div role="status" className="flex-1 flex items-center justify-center min-h-[300px] text-slate-400 text-sm">{language === 'ko' ? '불러오는 중…' : 'Loading…'}</div>}>
+      <main className="flex-1 relative flex flex-col">
+        <Suspense fallback={<div role="status" className="flex-1 flex items-center justify-center min-h-[300px] text-[#525B5E] text-sm">{language === 'ko' ? '불러오는 중…' : 'Loading…'}</div>}>
           <div key={appState} className="flex flex-col flex-1 t-screen">
             {appState === 'welcome' && (
               <WelcomeScreen
                 onUploadClick={() => fileInputRef.current?.click()}
                 onCameraClick={() => cameraInputRef.current?.click()}
+                onTrySample={handleOpenSample}
                 language={language} user={user} onLogin={() => setLoginModalOpen(true)}
                 recentHistory={history} onSelectHistory={handleHistorySelection}
                 credits={credits} onReload={handleReload} isSyncing={isSyncing}
@@ -572,11 +586,23 @@ const App: React.FC = () => {
                 onStartGuide={handleStartGuide} onShowMoreNearby={handleLoadMoreNearby} isMoreNearbyLoading={isMoreNearbyLoading}
               />
             )}
-            {appState === 'result' && history.find(i => i.id === currentResultId) && (
+            {appState === 'result' && activeResult && (
               <ResultScreen
-                result={history.find(i => i.id === currentResultId)!}
-                onReset={() => { if (activeAnalysisRequestId) handleCancelAnalysis(); else { setAppState('welcome'); setCurrentResultId(null); } }}
-                onNewPhoto={() => { if (activeAnalysisRequestId) handleCancelAnalysis(); setAppState('welcome'); setCurrentResultId(null); setTimeout(() => cameraInputRef.current?.click(), 300); }}
+                result={activeResult}
+                isSample={isSampleOpen}
+                onReset={() => {
+                  if (activeAnalysisRequestId) {
+                    handleCancelAnalysis();
+                  } else {
+                    setIsSampleOpen(false);
+                    setAppState('welcome');
+                    setCurrentResultId(null);
+                  }
+                }}
+                onNewPhoto={() => {
+                  if (activeAnalysisRequestId) handleCancelAnalysis();
+                  fileInputRef.current?.click();
+                }}
                 language={language} credits={credits}
                 onDelete={handleDeleteResult}
               />
@@ -590,12 +616,13 @@ const App: React.FC = () => {
           </div>
         </Suspense>
       </main>
-      <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 px-4 py-3 text-center text-[11px] text-slate-400">
-        <a href="mailto:contact@slaptrip.com?subject=%5BSlapTrip%20Support%5D%20Inquiry" className="underline underline-offset-4 hover:text-white">{t('contactDev')}</a>
-        <a href="/identify-landmark-from-photo.html" className="underline underline-offset-4 hover:text-white">{t('howToIdentify')}</a>
-        <a href="/privacy.html" className="underline underline-offset-4 hover:text-white">Privacy · 개인정보처리방침</a>
-        <span className="mx-2">·</span><a href="/terms.html" className="underline underline-offset-4 hover:text-white">Terms · 이용약관</a>
-        <a href="mailto:contact@slaptrip.com" className="basis-full underline-offset-4 hover:text-white hover:underline">contact@slaptrip.com</a>
+      <footer className="border-t border-[#111517]/10 px-4 py-5">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs text-[#525B5E]">
+          <a href="mailto:contact@slaptrip.com?subject=%5BSlapTrip%20Support%5D%20Inquiry" className="min-h-[44px] inline-flex items-center underline underline-offset-4 hover:text-[#111517]">{t('contactDev')}</a>
+          <a href="/identify-landmark-from-photo.html" className="min-h-[44px] inline-flex items-center underline underline-offset-4 hover:text-[#111517]">{t('howToIdentify')}</a>
+          <a href="/privacy.html" className="min-h-[44px] inline-flex items-center underline underline-offset-4 hover:text-[#111517]">Privacy · 개인정보처리방침</a>
+          <a href="/terms.html" className="min-h-[44px] inline-flex items-center underline underline-offset-4 hover:text-[#111517]">Terms · 이용약관</a>
+        </div>
       </footer>
       {isSidebarOpen && (
         <Suspense fallback={null}>

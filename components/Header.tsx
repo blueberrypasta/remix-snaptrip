@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import type { Language, User } from '../types';
 import { useTranslations, translations } from '../translations';
@@ -10,13 +9,14 @@ interface HeaderProps {
   onToggleSidebar: () => void;
   language: Language;
   setLanguage: (lang: Language) => void;
-  user: User & { id: string } | null;
+  user: (User & { id: string }) | null;
   onLogin: () => void;
   onLogout: () => void;
   credits: number;
   maxCredits: number;
   isSyncing?: boolean;
   onShowAbout: () => void;
+  onGoHome?: () => void;
 }
 
 const LANGUAGES: { code: Language }[] = [
@@ -27,82 +27,87 @@ const LANGUAGES: { code: Language }[] = [
   { code: 'es' },
   { code: 'fr' },
   { code: 'de' },
-  { code: 'it' }
+  { code: 'it' },
 ];
 
-export const Header: React.FC<HeaderProps> = ({ 
-  onToggleSidebar, 
-  language, 
-  setLanguage, 
-  user, 
-  onLogin, 
+export const Header: React.FC<HeaderProps> = ({
+  onToggleSidebar,
+  language,
+  setLanguage,
+  user,
+  onLogin,
   onLogout,
   credits,
   maxCredits,
   isSyncing = false,
-  onShowAbout
+  onShowAbout,
+  onGoHome,
 }) => {
   const t = useTranslations(language);
-  const [openMenu, setOpenMenu] = useState<null | 'language' | 'promo' | 'settings' | 'profile' | 'mobile'>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [promoMessage, setPromoMessage] = useState({ text: '', type: '' });
   const [isApplying, setIsApplying] = useState(false);
-  const settingsRef = useRef<HTMLDivElement>(null);
-  const langRef = useRef<HTMLDivElement>(null);
-  const promoRef = useRef<HTMLDivElement>(null);
-  const profileRef = useRef<HTMLDivElement>(null);
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  const settingsContainerRef = useRef<HTMLDivElement>(null);
+  const settingsTriggerRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  const closeSettings = (restoreFocus: boolean) => {
+    setIsSettingsOpen(false);
+    if (restoreFocus) {
+      requestAnimationFrame(() => {
+        settingsTriggerRef.current?.focus();
+      });
+    }
+  };
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    if (!isSettingsOpen) return;
+
+    closeButtonRef.current?.focus();
+
+    const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      const clickedInsideMenu =
-        settingsRef.current?.contains(target) ||
-        langRef.current?.contains(target) ||
-        promoRef.current?.contains(target) ||
-        profileRef.current?.contains(target) ||
-        mobileMenuRef.current?.contains(target);
-
-      if (!clickedInsideMenu) {
-        setOpenMenu(null);
+      if (!settingsContainerRef.current?.contains(target)) {
+        setIsSettingsOpen(false);
       }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    };
 
-  useEffect(() => {
-    if (!openMenu) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setOpenMenu(null);
+        event.preventDefault();
+        closeSettings(true);
       }
-    }
+    };
 
+    document.addEventListener('mousedown', handleClickOutside);
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openMenu]);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSettingsOpen]);
 
   const handleApplyPromo = async () => {
     if (!user || isApplying) return;
-    
+
     const targetCode = promoCode.trim();
     if (!targetCode) return;
-    
+
     setIsApplying(true);
     setPromoMessage({ text: '', type: '' });
 
     try {
       const result = await usageService.applyPromoCode(user.id, targetCode);
       if (result.success) {
-        setPromoMessage({ text: `✨ Success!`, type: 'success' });
-        setTimeout(() => window.location.reload(), 1500);
+        setPromoMessage({ text: 'Success!', type: 'success' });
+        setTimeout(() => window.location.reload(), 1200);
       } else {
         setPromoMessage({ text: 'Invalid code', type: 'error' });
         setIsApplying(false);
       }
-    } catch (e) {
+    } catch {
       setPromoMessage({ text: 'Error', type: 'error' });
       setIsApplying(false);
     }
@@ -113,227 +118,237 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const handleSupportDev = () => {
-    window.open('https://buymeacoffee.com/blueberrypastaco', '_blank');
+    window.open('https://buymeacoffee.com/blueberrypastaco', '_blank', 'noopener,noreferrer');
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-background-dark/80 backdrop-blur-lg border-b border-white/5 pt-[env(safe-area-inset-top,0px)]">
-      <div className="flex items-center justify-between px-5 h-16 max-w-4xl mx-auto">
-        {/* Logo Section */}
-        <div className="flex items-center gap-2.5 cursor-pointer active:opacity-70 transition-opacity shrink-0" onClick={() => window.location.reload()}>
-          <SnapTripLogo className="size-7 text-primary" />
-          <h1 className="text-base sm:text-lg font-black tracking-tighter text-white st-shimmer">{t('appName')}</h1>
-        </div>
+    <header className="sticky top-0 z-40 w-full bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#111517]/10 pt-[env(safe-area-inset-top,0px)]">
+      <div className="flex items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 h-14 sm:h-16 max-w-6xl mx-auto">
+        <button
+          type="button"
+          onClick={() => (onGoHome ? onGoHome() : window.location.reload())}
+          className="flex items-center gap-2.5 min-h-[44px] pr-2 rounded-xl text-left hover:opacity-80 transition-opacity shrink-0"
+        >
+          <SnapTripLogo className="size-7 shrink-0" />
+          <span className="text-[17px] font-bold tracking-tight text-[#111517]">SlapTrip</span>
+        </button>
 
-        {/* Action Section */}
-        <div className="flex items-center gap-1 sm:gap-2 flex-1 justify-end ml-4">
-           {/* Language Selector (Dropdown) */}
-           <div className="relative hidden sm:block" ref={langRef}>
-              <button 
-                onClick={() => setOpenMenu(openMenu === 'language' ? null : 'language')}
-                className={`w-11 h-11 flex items-center justify-center rounded-full transition-all ${openMenu === 'language' ? 'bg-primary text-[#1B130A] shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
-                aria-label={t('selectLanguage')}
-              >
-                <Icon name="language" className="text-[24px]" />
-              </button>
-              
-              {openMenu === 'language' && (
-                <>
-                <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setOpenMenu(null)}></div>
-                <div className="fixed top-[70px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 mt-3 w-auto sm:w-64 bg-slate-900/95 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/10 p-4 z-50 t-dropdown">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-3 px-2">{t('selectLanguage')}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {LANGUAGES.map((lang) => (
-                      <button 
-                        key={lang.code}
-                        onClick={() => { setLanguage(lang.code); setOpenMenu(null); }}
-                        className={`flex flex-col items-center justify-center py-3 rounded-2xl transition-all border relative ${language === lang.code ? 'bg-primary border-primary shadow-lg ring-2 ring-primary/20' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
-                      >
-                         <span className={`text-[13px] font-black ${language === lang.code ? 'text-white' : 'text-slate-200'}`}>
-                           {translations.languageName[lang.code]}
-                         </span>
-                         <span className={`text-[9px] font-bold uppercase tracking-widest mt-1 ${language === lang.code ? 'text-white/70' : 'text-slate-500'}`}>
-                           {lang.code}
-                         </span>
-                         {language === lang.code && (
-                           <div className="absolute top-2 right-2">
-                             <Icon name="check_circle" className="text-[14px] text-white" />
-                           </div>
-                         )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                </>
-              )}
-           </div>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <button
+            type="button"
+            aria-label={t('history')}
+            onClick={onToggleSidebar}
+            className="min-h-[44px] min-w-[44px] px-3 inline-flex items-center justify-center gap-1.5 rounded-full text-sm font-medium text-[#111517] hover:bg-[#111517]/[0.06] transition-colors"
+          >
+            <Icon name="bookmarks" className="text-[20px]" />
+            <span className="hidden sm:inline">{t('history')}</span>
+          </button>
 
-           <div className="relative" ref={promoRef}>
-              <button 
-                onClick={() => setOpenMenu(openMenu === 'promo' ? null : 'promo')}
-                aria-label={`${t('credits')}: ${(credits || 0)}`}
-                className="min-h-11 flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 rounded-full border border-primary/20 mr-1 hover:bg-primary/20 transition-all active:scale-95"
-              >
-                  <Icon name={'diamond'} className="text-[16px] text-primary" />
-                  <span className="text-[13px] font-black text-white">{(credits || 0)}</span>
-              </button>
-              
-              {openMenu === 'promo' && (
-                <>
-                <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setOpenMenu(null)}></div>
-                <div className="fixed top-[70px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 mt-3 w-auto sm:w-64 bg-slate-900 rounded-2xl shadow-2xl border border-white/10 p-4 z-50 t-dropdown">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-3 px-1">{t('promoCodeLabel')}</p>
-                  
-                  {!user ? (
-                    <div className="text-[11px] text-center text-slate-400 font-bold py-2">
-                       {t('loginBenefitMsg')}
-                    </div>
-                  ) : (
-                  <div className="flex flex-col gap-2">
-                    <input 
-                      type="text"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                      placeholder={t('enterCode')}
-                      className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:ring-1 focus:ring-primary outline-none"
-                      onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
-                    />
-                    <button 
-                      onClick={handleApplyPromo}
-                      disabled={isApplying}
-                      className="w-full bg-primary py-2.5 rounded-xl text-white font-black text-[10px] uppercase transition-transform active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+          <div className="relative" ref={settingsContainerRef}>
+            <button
+              ref={settingsTriggerRef}
+              type="button"
+              aria-label={t('settings')}
+              aria-expanded={isSettingsOpen}
+              aria-controls="header-settings-panel"
+              onClick={() => setIsSettingsOpen((prev) => !prev)}
+              className={`min-h-[44px] min-w-[44px] px-3 inline-flex items-center justify-center gap-1.5 rounded-full border text-sm font-medium transition-colors ${
+                isSettingsOpen
+                  ? 'bg-[#111517] text-[#FAF7F2] border-[#111517]'
+                  : 'bg-[#F2EDE3] hover:bg-[#EAE3D5] text-[#111517] border-[#111517]/12'
+              }`}
+            >
+              <Icon name="settings" className="text-[20px]" />
+              <span className="hidden sm:inline">{t('settings')}</span>
+            </button>
+
+            {isSettingsOpen && (
+              <>
+                <div
+                  className="fixed inset-0 bg-[#111517]/25 z-40 sm:hidden"
+                  aria-hidden="true"
+                  onClick={() => closeSettings(true)}
+                />
+                <div
+                  id="header-settings-panel"
+                  role="dialog"
+                  aria-label={t('settings')}
+                  className="fixed top-[64px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 sm:mt-2 sm:w-[340px] max-h-[calc(100dvh-84px)] overflow-y-auto rounded-3xl bg-[#FAF7F2] text-[#111517] border border-[#111517]/15 shadow-2xl p-4 sm:p-5 z-50 t-dropdown space-y-4"
+                >
+                  <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#111517]/10">
+                    <span className="text-sm font-bold tracking-tight text-[#111517]">
+                      {t('settings')}
+                    </span>
+                    <button
+                      ref={closeButtonRef}
+                      type="button"
+                      aria-label={t('close')}
+                      onClick={() => closeSettings(true)}
+                      className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-full hover:bg-[#111517]/[0.06] text-[#111517]"
                     >
-                      {isApplying ? (
-                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      ) : t('applyPromo')}
+                      <Icon name="close" className="text-[20px]" />
                     </button>
                   </div>
-                  )}
-                  {promoMessage.text && (
-                    <p className={`mt-3 text-[9px] font-bold text-center leading-snug ${promoMessage.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {promoMessage.text}
+
+                  {/* Account & Credits */}
+                  <div className="rounded-2xl bg-[#F2EDE3] p-3.5 space-y-3 border border-[#111517]/8">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-[#525B5E]">
+                        {t('credits')}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2EE5A8]/25 text-[#0A7553] text-xs font-bold">
+                        <Icon name="diamond" className="text-[14px]" />
+                        {isSyncing ? '…' : `${credits} / ${maxCredits}`}
+                      </span>
+                    </div>
+
+                    {user ? (
+                      <div className="flex items-center justify-between gap-3 pt-2 border-t border-[#111517]/10">
+                        <div className="min-w-0 flex items-center gap-2.5">
+                          <img
+                            src={user.avatar}
+                            alt=""
+                            className="w-8 h-8 rounded-full object-cover border border-[#111517]/15 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-[#111517] truncate">{user.name}</p>
+                            {user.email && (
+                              <p className="text-[11px] text-[#525B5E] truncate">{user.email}</p>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsSettingsOpen(false);
+                            onLogout();
+                          }}
+                          className="min-h-[44px] px-3 rounded-xl text-xs font-semibold text-rose-700 hover:bg-rose-500/10 transition-colors shrink-0"
+                        >
+                          {t('logout')}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="pt-2 border-t border-[#111517]/10 space-y-2">
+                        <p className="text-xs text-[#525B5E] leading-relaxed">{t('loginBenefitMsg')}</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsSettingsOpen(false);
+                            onLogin();
+                          }}
+                          className="w-full min-h-[44px] px-4 rounded-xl bg-[#111517] text-[#FAF7F2] text-xs font-semibold hover:bg-[#22282B] transition-colors inline-flex items-center justify-center gap-2"
+                        >
+                          <Icon name="login" className="text-[18px]" />
+                          {t('login')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Promo Code */}
+                  <div className="rounded-2xl bg-[#F2EDE3] p-3.5 space-y-2.5 border border-[#111517]/8">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#525B5E]">
+                      {t('promoCodeLabel')}
                     </p>
-                  )}
+                    {user ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={promoCode}
+                          onChange={(e) => setPromoCode(e.target.value)}
+                          placeholder={t('enterCode')}
+                          onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
+                          className="min-h-[44px] min-w-0 flex-1 rounded-xl bg-[#FAF7F2] border border-[#111517]/15 px-3 text-xs font-medium text-[#111517] placeholder:text-[#525B5E]/70"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyPromo}
+                          disabled={isApplying}
+                          className="min-h-[44px] px-3.5 rounded-xl bg-[#2EE5A8] hover:bg-[#22D398] text-[#0D1412] text-xs font-semibold disabled:opacity-50 transition-colors shrink-0"
+                        >
+                          {isApplying ? '…' : t('applyPromo')}
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-[#525B5E]">{t('loginBenefitMsg')}</p>
+                    )}
+                    {promoMessage.text && (
+                      <p
+                        className={`text-xs font-semibold ${
+                          promoMessage.type === 'success' ? 'text-[#0A7553]' : 'text-rose-700'
+                        }`}
+                      >
+                        {promoMessage.text}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Languages (all 8) */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#525B5E] px-1">
+                      {t('selectLanguage')}
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {LANGUAGES.map((lang) => {
+                        const isActive = language === lang.code;
+                        return (
+                          <button
+                            key={lang.code}
+                            type="button"
+                            aria-pressed={isActive}
+                            onClick={() => {
+                              setLanguage(lang.code);
+                              closeSettings(true);
+                            }}
+                            className={`min-h-[44px] px-3 py-2 rounded-xl text-left flex items-center justify-between text-xs font-semibold border transition-colors ${
+                              isActive
+                                ? 'bg-[#2EE5A8] text-[#0D1412] border-[#1ED698]'
+                                : 'bg-[#F2EDE3] text-[#111517] border-[#111517]/8 hover:bg-[#EAE3D5]'
+                            }`}
+                          >
+                            <span className="truncate">{translations.languageName[lang.code]}</span>
+                            <span className="text-[10px] uppercase opacity-70 ml-1">{lang.code}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* About & Support */}
+                  <div className="pt-2 border-t border-[#111517]/10 flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSettingsOpen(false);
+                        onShowAbout();
+                      }}
+                      className="w-full min-h-[44px] px-3 rounded-xl flex items-center justify-between text-xs font-semibold text-[#111517] hover:bg-[#F2EDE3] transition-colors"
+                    >
+                      <span>{t('aboutSnapTrip')}</span>
+                      <Icon name="info" className="text-[18px] text-[#525B5E]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleContactDev}
+                      className="w-full min-h-[44px] px-3 rounded-xl flex items-center justify-between text-xs font-semibold text-[#111517] hover:bg-[#F2EDE3] transition-colors"
+                    >
+                      <span>{t('contactDev')}</span>
+                      <Icon name="mail" className="text-[18px] text-[#525B5E]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSupportDev}
+                      className="w-full min-h-[44px] px-3 rounded-xl flex items-center justify-between text-xs font-semibold text-[#111517] hover:bg-[#F2EDE3] transition-colors"
+                    >
+                      <span>{t('supportDev')}</span>
+                      <Icon name="coffee" className="text-[18px] text-[#525B5E]" />
+                    </button>
+                  </div>
                 </div>
-                </>
-              )}
-           </div>
-
-           <div className="relative hidden sm:block" ref={settingsRef}>
-              <button 
-                onClick={() => setOpenMenu(openMenu === 'settings' ? null : 'settings')} 
-                aria-label={t('settings')}
-                className={`w-11 h-11 flex items-center justify-center rounded-full transition-all ${openMenu === 'settings' ? 'bg-primary text-[#1B130A] shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
-              >
-                <Icon name="settings" className="text-[24px]" />
-              </button>
-              {openMenu === 'settings' && (
-                <>
-                <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setOpenMenu(null)}></div>
-                <div className="fixed top-[70px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 mt-3 w-auto sm:w-72 bg-slate-900 rounded-2xl shadow-2xl border border-white/10 p-2 flex flex-col gap-1 z-50 t-dropdown">
-                   <button 
-                     onClick={() => { setOpenMenu(null); onShowAbout(); }}
-                     className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-white/10 text-primary transition-colors group"
-                   >
-                     <span className="text-[11px] font-black uppercase tracking-widest">{t('aboutSnapTrip')}</span>
-                     <Icon name="info" className="text-[18px] group-hover:scale-110 transition-transform" />
-                   </button>
-                   
-                   <div className="h-px bg-white/5 my-1 mx-2"></div>
-
-                   <button 
-                     onClick={handleContactDev}
-                     className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-white/10 text-slate-300 transition-colors group"
-                   >
-                     <span className="text-[11px] font-black uppercase tracking-widest">{t('contactDev')}</span>
-                     <Icon name="mail" className="text-[18px] group-hover:scale-110 transition-transform" />
-                   </button>
-
-                   <button 
-                     onClick={handleSupportDev}
-                     className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-amber-500/10 text-amber-400 transition-colors group"
-                   >
-                     <span className="text-[11px] font-black uppercase tracking-widest">{t('supportDev')}</span>
-                     <Icon name="coffee" className="text-[18px] group-hover:scale-110 transition-transform" />
-                   </button>
-
-                   <div className="h-px bg-white/5 my-1 mx-2"></div>
-
-                   {user ? (
-                     <button 
-                       onClick={() => { setOpenMenu(null); onLogout(); }}
-                       className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-red-500/10 text-red-400 transition-colors group"
-                     >
-                       <span className="text-[11px] font-black uppercase tracking-widest">{t('logout')}</span>
-                       <Icon name="logout" className="text-[20px] group-hover:translate-x-1 transition-transform" />
-                     </button>
-                   ) : (
-                     <button 
-                       onClick={() => { setOpenMenu(null); onLogin(); }}
-                       className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-primary/10 text-primary transition-colors group"
-                     >
-                       <span className="text-[11px] font-black uppercase tracking-widest">{t('login')}</span>
-                       <Icon name="login" className="text-[20px] group-hover:translate-x-1 transition-transform" />
-                     </button>
-                   )}
-                </div>
-                </>
-              )}
-           </div>
-
-           <div className="relative w-11 h-11 hidden sm:flex items-center justify-center shrink-0" ref={profileRef}>
-             {user ? (
-               <button aria-label={user.name} onClick={() => setOpenMenu(openMenu === 'profile' ? null : 'profile')} className="w-11 h-11 p-1.5 rounded-full overflow-hidden border border-primary/30 transition-transform active:scale-95 text-left">
-                 <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-               </button>
-             ) : (
-               <button aria-label={t('login')} onClick={onLogin} className="w-11 h-11 flex items-center justify-center text-slate-300 hover:text-white transition-all active:scale-95">
-                 <Icon name="account_circle" className="text-[24px]" />
-               </button>
-             )}
-
-             {openMenu === 'profile' && user && (
-               <div className="fixed top-[70px] right-4 left-auto sm:absolute sm:top-full sm:left-auto sm:translate-x-0 sm:right-0 mt-3 w-48 bg-slate-900/95 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/10 p-2 flex flex-col gap-1 z-[110] t-dropdown">
-                 <div className="px-3 py-3 border-b border-white/5 mb-1 text-center">
-                   <p className="text-sm text-white font-bold truncate">{user.name}</p>
-                   <p className="text-[10px] text-slate-400 truncate">{user.email || 'User'}</p>
-                 </div>
-                 <button 
-                   onClick={() => { setOpenMenu(null); onLogout(); }}
-                   className="w-full flex items-center justify-between p-3 rounded-full hover:bg-red-500/10 text-red-400 transition-colors group"
-                 >
-                   <span className="text-[11px] font-black uppercase tracking-widest pl-2">{t('logout')}</span>
-                   <Icon name="logout" className="text-[20px] group-hover:translate-x-1 transition-transform" />
-                 </button>
-               </div>
-             )}
-           </div>
-           
-           <button aria-label={t('history')} onClick={onToggleSidebar} className="w-11 h-11 hidden sm:flex items-center justify-center rounded-full hover:bg-white/5 text-slate-300 shrink-0">
-              <Icon name="bookmarks" className="text-[22px]" />
-           </button>
-
-           <div className="relative sm:hidden" ref={mobileMenuRef}>
-             <button aria-label={t('menu')} aria-expanded={openMenu === 'mobile'} onClick={() => setOpenMenu(openMenu === 'mobile' ? null : 'mobile')} className="w-11 h-11 flex items-center justify-center rounded-full text-slate-200 hover:bg-white/10">
-               <Icon name="more_horiz" aria-hidden="true" />
-             </button>
-             {openMenu === 'mobile' && (
-               <div className="fixed top-[70px] left-4 right-4 z-[120] rounded-3xl border border-white/10 bg-slate-900/95 backdrop-blur-xl p-4 shadow-2xl animate-fade-in-up">
-                 <p className="px-1 pb-3 text-[10px] font-black uppercase tracking-widest text-primary">{t('selectLanguage')}</p>
-                 <div className="grid grid-cols-4 gap-2">
-                   {LANGUAGES.map((lang) => <button key={lang.code} onClick={() => { setLanguage(lang.code); setOpenMenu(null); }} className={`min-h-11 rounded-xl text-xs font-black ${language === lang.code ? 'bg-primary text-[#1B130A]' : 'bg-white/5 text-slate-200'}`}>{lang.code.toUpperCase()}</button>)}
-                 </div>
-                 <div className="my-4 h-px bg-white/10" />
-                 <div className="grid grid-cols-2 gap-2">
-                   <button onClick={() => { setOpenMenu(null); onToggleSidebar(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><Icon name="bookmarks" className="block text-[20px]" />{t('history')}</button>
-                   <a href="mailto:contact@slaptrip.com?subject=%5BSlapTrip%20Support%5D%20Inquiry" className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100 flex flex-col items-center justify-center"><Icon name="mail" className="block text-[20px]" />{t('contactDev')}</a>
-                   <button onClick={() => { setOpenMenu(null); onShowAbout(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><Icon name="info" className="block text-[20px]" />{t('aboutSnapTrip')}</button>
-                   <button onClick={() => { setOpenMenu(null); if (user) onLogout(); else onLogin(); }} className="min-h-14 rounded-2xl bg-white/5 text-xs font-bold text-slate-100"><Icon name="account_circle" className="block text-[20px]" />{user ? t('logout') : t('login')}</button>
-                 </div>
-
-               </div>
-             )}
-           </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </header>

@@ -85,6 +85,7 @@ export const translations: Translations = {
   quotaExceeded: { en: 'Quota Exceeded', ko: '할당량 초과', ja: 'クォータ超過', zh: '配额已超', es: 'Cuota excedida', fr: 'Quota dépassé', de: 'Kontingent überschritten', it: 'Quota superata' },
   useOwnKey: { en: 'Use Own Key', ko: '내 API 키 사용', ja: '自分のキーを使用', zh: '使用自己的密钥', es: 'Usar mi propia clave', fr: 'Utiliser ma propre clé', de: 'Eigener Key', it: 'Usa la tua chiave' },
   getDirections: { en: 'Walking directions', ko: '길찾기', ja: '徒歩ルート', zh: '步行路线', es: 'Cómo llegar', fr: 'Itinéraire', de: 'Route', it: 'Indicazioni' },
+  searchOnMaps: { en: 'Search on Google Maps', ko: 'Google 지도에서 검색', ja: 'Google マップで検索', zh: '在 Google 地图中搜索', es: 'Buscar en Google Maps', fr: 'Rechercher sur Google Maps', de: 'Auf Google Maps suchen', it: 'Cerca su Google Maps' },
   viewStreetView: { en: 'Street View', ko: '스트리트뷰', ja: 'ストリートビュー', zh: '街景', es: 'Street View', fr: 'Street View', de: 'Street View', it: 'Street View' },
   guide: { en: 'Guide', ko: '가이드', ja: 'ガイド', zh: '指南', es: 'Guía', fr: 'Guide', de: 'Guide', it: 'Guida' },
   aboutSnapTrip: { en: 'About SlapTrip', ko: '슬랩트립 소개', ja: 'SlapTripについて', zh: '关于 SlapTrip', es: 'Sobre SlapTrip', fr: 'À propos de SlapTrip', de: 'Über SlapTrip', it: 'Info su SlapTrip' },
@@ -171,7 +172,137 @@ export const translations: Translations = {
     it: 'Attiva la posizione!'
   },
   syncing: { en: 'Syncing...', ko: '동기화 중...', ja: '同期中...', zh: '同步中...', es: 'Sincronizando...', fr: 'Synchro...', de: 'Synchronisierung...', it: 'Sincro...' },
-  loadingHistory: { en: 'Loading history...', ko: '기록을 가져오는 중...', ja: '履歴を読み込み中...', zh: '加载历史记录...', es: 'Cargando historial...', fr: 'Chargement...', de: 'Verlauf laden...', it: 'Caricamento cronologia...' }
+  loadingHistory: { en: 'Loading history...', ko: '기록을 가져오는 중...', ja: '履歴を読み込み中...', zh: '加载历史记录...', es: 'Cargando historial...', fr: 'Chargement...', de: 'Verlauf laden...', it: 'Caricamento cronologia...' },
+  heroHeadline: {
+    en: 'Where is this?',
+    ko: '여기, 어디일까요?',
+    ja: 'ここはどこ？',
+    zh: '这是哪里？',
+    es: '¿Dónde es esto?',
+    fr: 'Où est-ce ?',
+    de: 'Wo ist das?',
+    it: 'Dov’è questo posto?'
+  },
+  heroSubtitle: {
+    en: 'Choose a travel photo to discover the place and its story.',
+    ko: '여행 사진을 골라 그 장소와 이야기를 만나보세요.',
+    ja: '旅の写真を選んで、その場所と物語を見つけましょう。',
+    zh: '选择一张旅行照片，探索这个地方和它的故事。',
+    es: 'Elige una foto de viaje para descubrir el lugar y su historia.',
+    fr: 'Choisissez une photo de voyage pour découvrir le lieu et son histoire.',
+    de: 'Wähle ein Reisefoto, um den Ort und seine Geschichte zu entdecken.',
+    it: 'Scegli una foto di viaggio per scoprire il luogo e la sua storia.'
+  },
+  trySample: {
+    en: 'Try Eiffel Tower sample',
+    ko: '에펠탑 예시로 미리 보기',
+    ja: 'エッフェル塔のサンプルを見る',
+    zh: '查看埃菲尔铁塔示例',
+    es: 'Probar ejemplo de la Torre Eiffel',
+    fr: 'Essayer l’exemple de la tour Eiffel',
+    de: 'Eiffelturm-Beispiel testen',
+    it: 'Prova l’esempio della Torre Eiffel'
+  },
+  sampleResult: {
+    en: 'Sample result',
+    ko: '예시 결과',
+    ja: 'サンプル結果',
+    zh: '示例结果',
+    es: 'Resultado de ejemplo',
+    fr: 'Résultat d’exemple',
+    de: 'Beispielergebnis',
+    it: 'Risultato di esempio'
+  },
+  exploreMore: {
+    en: 'Explore nearby & taste picks',
+    ko: '더 둘러보기 · 주변 명소와 취향 추천',
+    ja: 'もっと見る・周辺スポットとおすすめ',
+    zh: '探索更多 · 附近景点与口味推荐',
+    es: 'Explorar más · Lugares cercanos y gustos',
+    fr: 'Explorer plus · Lieux proches et goûts',
+    de: 'Mehr entdecken · Orte in der Nähe & Tipps',
+    it: 'Esplora di più · Luoghi vicini e gusti'
+  },
+  visitDetails: {
+    en: 'Visit details & Street View',
+    ko: '방문 팁 & 스트리트뷰',
+    ja: '訪問情報・ストリートビュー',
+    zh: '游览贴士与街景',
+    es: 'Detalles de visita y Street View',
+    fr: 'Infos pratiques et Street View',
+    de: 'Besuchstipps & Street View',
+    it: 'Dettagli visita e Street View'
+  },
+  photoLocationApprox: {
+    en: 'Photo location metadata (approximate)',
+    ko: '사진 위치 정보 (근사 위치)',
+    ja: '写真の位置情報（おおよその位置）',
+    zh: '照片位置信息（大致位置）',
+    es: 'Ubicación de la foto (aproximada)',
+    fr: 'Position de la photo (approximative)',
+    de: 'Fotostandort (ungefähr)',
+    it: 'Posizione della foto (approssimativa)'
+  },
+  deviceLocationApprox: {
+    en: 'Near your device location (approximate)',
+    ko: '현재 기기 위치 주변 (근사 위치)',
+    ja: '現在地周辺（おおよその位置）',
+    zh: '当前设备位置附近（大致位置）',
+    es: 'Cerca de tu ubicación (aproximada)',
+    fr: 'Près de votre appareil (approximatif)',
+    de: 'In deiner Nähe (ungefähr)',
+    it: 'Vicino al dispositivo (approssimativa)'
+  },
+  directionsApproxNote: {
+    en: 'Walking directions use recorded photo or device coordinates.',
+    ko: '도보 길찾기는 사진 또는 기기에 기록된 좌표를 기준으로 열립니다.',
+    ja: '徒歩ルートは写真または端末に記録された座標を基準に開きます。',
+    zh: '步行路线基于照片或设备记录的坐标打开。',
+    es: 'Las indicaciones a pie usan las coordenadas de la foto o del dispositivo.',
+    fr: 'L’itinéraire à pied utilise les coordonnées de la photo ou de l’appareil.',
+    de: 'Die Fußweg-Route nutzt die gespeicherten Foto- oder Gerätedaten.',
+    it: 'Le indicazioni a piedi usano le coordinate della foto o del dispositivo.'
+  },
+  photoAttributionLabel: {
+    en: 'Photo by Aliva Sahoo (cropped)',
+    ko: '사진: Aliva Sahoo (일부 편집)',
+    ja: '写真: Aliva Sahoo（トリミング済）',
+    zh: '照片: Aliva Sahoo（经裁剪）',
+    es: 'Foto: Aliva Sahoo (recortada)',
+    fr: 'Photo : Aliva Sahoo (recadrée)',
+    de: 'Foto: Aliva Sahoo (zugeschnitten)',
+    it: 'Foto: Aliva Sahoo (ritagliata)'
+  },
+  backHome: {
+    en: 'Back to home',
+    ko: '홈으로 돌아가기',
+    ja: 'ホームに戻る',
+    zh: '返回首页',
+    es: 'Volver al inicio',
+    fr: 'Retour à l’accueil',
+    de: 'Zur Startseite',
+    it: 'Torna alla home'
+  },
+  discoveryFallback: {
+    en: 'Saved discovery',
+    ko: '저장된 장소',
+    ja: '保存した場所',
+    zh: '已保存的地点',
+    es: 'Lugar guardado',
+    fr: 'Lieu enregistré',
+    de: 'Gespeicherter Ort',
+    it: 'Luogo salvato'
+  },
+  close: {
+    en: 'Close',
+    ko: '닫기',
+    ja: '閉じる',
+    zh: '关闭',
+    es: 'Cerrar',
+    fr: 'Fermer',
+    de: 'Schließen',
+    it: 'Chiudi'
+  }
 };
 
 /**
