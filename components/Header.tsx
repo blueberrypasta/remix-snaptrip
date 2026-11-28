@@ -5,6 +5,15 @@ import { SnapTripLogo } from './SnapTripLogo';
 import { usageService } from '../services/usageService';
 import { Icon } from './Icon';
 
+declare global {
+  interface Window {
+    slapTripAppearance?: {
+      get: () => 'system' | 'light' | 'dark';
+      set: (theme: 'system' | 'light' | 'dark') => void;
+    };
+  }
+}
+
 interface HeaderProps {
   onToggleSidebar: () => void;
   language: Language;
@@ -44,6 +53,17 @@ export const Header: React.FC<HeaderProps> = ({
   onGoHome,
 }) => {
   const t = useTranslations(language);
+  const [currentTheme, setCurrentTheme] = useState<'system' | 'light' | 'dark'>(() => {
+    return (typeof window !== 'undefined' && window.slapTripAppearance) ? window.slapTripAppearance.get() : 'system';
+  });
+
+  const handleThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value as 'system' | 'light' | 'dark';
+    setCurrentTheme(val);
+    if (window.slapTripAppearance) {
+      window.slapTripAppearance.set(val);
+    }
+  };
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [promoMessage, setPromoMessage] = useState({ text: '', type: '' });
@@ -122,7 +142,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#111517]/10 pt-[env(safe-area-inset-top,0px)]">
+    <header className="sticky top-0 z-40 w-full bg-st-surface/95 backdrop-blur-md border-b border-st-ink/10 pt-[env(safe-area-inset-top,0px)]">
       <div className="flex items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 h-14 sm:h-16 max-w-6xl mx-auto">
         <button
           type="button"
@@ -130,7 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="flex items-center gap-2.5 min-h-[44px] pr-2 rounded-xl text-left hover:opacity-80 transition-opacity shrink-0"
         >
           <SnapTripLogo className="size-7 shrink-0" />
-          <span className="text-[17px] font-bold tracking-tight text-[#111517]">SlapTrip</span>
+          <span className="text-[17px] font-bold tracking-tight text-st-ink">SlapTrip</span>
         </button>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -138,7 +158,7 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             aria-label={t('history')}
             onClick={onToggleSidebar}
-            className="min-h-[44px] min-w-[44px] px-3 inline-flex items-center justify-center gap-1.5 rounded-full text-sm font-medium text-[#111517] hover:bg-[#111517]/[0.06] transition-colors"
+            className="min-h-[44px] min-w-[44px] px-3 inline-flex items-center justify-center gap-1.5 rounded-full text-sm font-medium text-st-ink hover:bg-st-ink/[0.06] transition-colors"
           >
             <Icon name="bookmarks" className="text-[20px]" />
             <span className="hidden sm:inline">{t('history')}</span>
@@ -154,8 +174,8 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => setIsSettingsOpen((prev) => !prev)}
               className={`min-h-[44px] min-w-[44px] px-3 inline-flex items-center justify-center gap-1.5 rounded-full border text-sm font-medium transition-colors ${
                 isSettingsOpen
-                  ? 'bg-[#111517] text-[#FAF7F2] border-[#111517]'
-                  : 'bg-[#F2EDE3] hover:bg-[#EAE3D5] text-[#111517] border-[#111517]/12'
+                  ? 'bg-st-ink text-st-surface border-st-ink'
+                  : 'bg-st-surface-alt hover:bg-st-surface-muted text-st-ink border-st-ink/[0.12]'
               }`}
             >
               <Icon name="settings" className="text-[20px]" />
@@ -165,7 +185,7 @@ export const Header: React.FC<HeaderProps> = ({
             {isSettingsOpen && (
               <>
                 <div
-                  className="fixed inset-0 bg-[#111517]/25 z-40 sm:hidden"
+                  className="fixed inset-0 bg-black/25 z-40 sm:hidden"
                   aria-hidden="true"
                   onClick={() => closeSettings(true)}
                 />
@@ -173,10 +193,10 @@ export const Header: React.FC<HeaderProps> = ({
                   id="header-settings-panel"
                   role="dialog"
                   aria-label={t('settings')}
-                  className="fixed top-[64px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 sm:mt-2 sm:w-[340px] max-h-[calc(100dvh-84px)] overflow-y-auto rounded-3xl bg-[#FAF7F2] text-[#111517] border border-[#111517]/15 shadow-2xl p-4 sm:p-5 z-50 t-dropdown space-y-4"
+                  className="fixed top-[64px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 sm:mt-2 sm:w-[340px] max-h-[calc(100dvh-84px)] overflow-y-auto rounded-3xl bg-st-surface text-st-ink border border-st-ink/15 shadow-2xl p-4 sm:p-5 z-50 t-dropdown space-y-4"
                 >
-                  <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#111517]/10">
-                    <span className="text-sm font-bold tracking-tight text-[#111517]">
+                  <div className="flex items-center justify-between gap-2 pb-3 border-b border-st-ink/10">
+                    <span className="text-sm font-bold tracking-tight text-st-ink">
                       {t('settings')}
                     </span>
                     <button
@@ -184,36 +204,53 @@ export const Header: React.FC<HeaderProps> = ({
                       type="button"
                       aria-label={t('close')}
                       onClick={() => closeSettings(true)}
-                      className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-full hover:bg-[#111517]/[0.06] text-[#111517]"
+                      className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-full hover:bg-st-ink/[0.06] text-st-ink"
                     >
                       <Icon name="close" className="text-[20px]" />
                     </button>
                   </div>
 
+                  {/* Theme Selector */}
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="theme-select" className="text-xs font-medium text-st-ink">
+                      {t('themeLabel')}
+                    </label>
+                    <select
+                      id="theme-select"
+                      value={currentTheme}
+                      onChange={handleThemeChange}
+                      className="h-[44px] min-w-0 rounded-lg border border-st-ink/25 bg-st-surface px-3 text-sm text-st-ink focus-visible:border-st-mint"
+                    >
+                      <option value="system">{t('themeSystem')}</option>
+                      <option value="light">{t('themeLight')}</option>
+                      <option value="dark">{t('themeDark')}</option>
+                    </select>
+                  </div>
+
                   {/* Account & Credits */}
-                  <div className="rounded-2xl bg-[#F2EDE3] p-3.5 space-y-3 border border-[#111517]/8">
+                  <div className="rounded-2xl bg-st-surface-alt p-3.5 space-y-3 border border-st-ink/[0.08]">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-[#525B5E]">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-st-secondary">
                         {t('credits')}
                       </span>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2EE5A8]/25 text-[#0A7553] text-xs font-bold">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2EE5A8]/25 text-st-mint text-xs font-bold">
                         <Icon name="diamond" className="text-[14px]" />
                         {isSyncing ? '…' : `${credits} / ${maxCredits}`}
                       </span>
                     </div>
 
                     {user ? (
-                      <div className="flex items-center justify-between gap-3 pt-2 border-t border-[#111517]/10">
+                      <div className="flex items-center justify-between gap-3 pt-2 border-t border-st-ink/10">
                         <div className="min-w-0 flex items-center gap-2.5">
                           <img
                             src={user.avatar}
                             alt=""
-                            className="w-8 h-8 rounded-full object-cover border border-[#111517]/15 shrink-0"
+                            className="w-8 h-8 rounded-full object-cover border border-st-ink/15 shrink-0"
                           />
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold text-[#111517] truncate">{user.name}</p>
+                            <p className="text-xs font-semibold text-st-ink truncate">{user.name}</p>
                             {user.email && (
-                              <p className="text-[11px] text-[#525B5E] truncate">{user.email}</p>
+                              <p className="text-[11px] text-st-secondary truncate">{user.email}</p>
                             )}
                           </div>
                         </div>
@@ -223,21 +260,21 @@ export const Header: React.FC<HeaderProps> = ({
                             setIsSettingsOpen(false);
                             onLogout();
                           }}
-                          className="min-h-[44px] px-3 rounded-xl text-xs font-semibold text-rose-700 hover:bg-rose-500/10 transition-colors shrink-0"
+                          className="min-h-[44px] px-3 rounded-xl text-xs font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-500/10 transition-colors shrink-0"
                         >
                           {t('logout')}
                         </button>
                       </div>
                     ) : (
-                      <div className="pt-2 border-t border-[#111517]/10 space-y-2">
-                        <p className="text-xs text-[#525B5E] leading-relaxed">{t('loginBenefitMsg')}</p>
+                      <div className="pt-2 border-t border-st-ink/10 space-y-2">
+                        <p className="text-xs text-st-secondary leading-relaxed">{t('loginBenefitMsg')}</p>
                         <button
                           type="button"
                           onClick={() => {
                             setIsSettingsOpen(false);
                             onLogin();
                           }}
-                          className="w-full min-h-[44px] px-4 rounded-xl bg-[#111517] text-[#FAF7F2] text-xs font-semibold hover:bg-[#22282B] transition-colors inline-flex items-center justify-center gap-2"
+                          className="w-full min-h-[44px] px-4 rounded-xl bg-st-ink text-st-surface text-xs font-semibold hover:bg-[#22282B] dark:hover:bg-st-ink/90 transition-colors inline-flex items-center justify-center gap-2"
                         >
                           <Icon name="login" className="text-[18px]" />
                           {t('login')}
@@ -247,8 +284,8 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
 
                   {/* Promo Code */}
-                  <div className="rounded-2xl bg-[#F2EDE3] p-3.5 space-y-2.5 border border-[#111517]/8">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#525B5E]">
+                  <div className="rounded-2xl bg-st-surface-alt p-3.5 space-y-2.5 border border-st-ink/[0.08]">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-st-secondary">
                       {t('promoCodeLabel')}
                     </p>
                     {user ? (
@@ -259,7 +296,7 @@ export const Header: React.FC<HeaderProps> = ({
                           onChange={(e) => setPromoCode(e.target.value)}
                           placeholder={t('enterCode')}
                           onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
-                          className="min-h-[44px] min-w-0 flex-1 rounded-xl bg-[#FAF7F2] border border-[#111517]/15 px-3 text-xs font-medium text-[#111517] placeholder:text-[#525B5E]/70"
+                          className="min-h-[44px] min-w-0 flex-1 rounded-xl bg-st-surface border border-st-ink/15 px-3 text-xs font-medium text-st-ink placeholder:text-st-secondary/70"
                         />
                         <button
                           type="button"
@@ -271,12 +308,12 @@ export const Header: React.FC<HeaderProps> = ({
                         </button>
                       </div>
                     ) : (
-                      <p className="text-xs text-[#525B5E]">{t('loginBenefitMsg')}</p>
+                      <p className="text-xs text-st-secondary">{t('loginBenefitMsg')}</p>
                     )}
                     {promoMessage.text && (
                       <p
                         className={`text-xs font-semibold ${
-                          promoMessage.type === 'success' ? 'text-[#0A7553]' : 'text-rose-700'
+                          promoMessage.type === 'success' ? 'text-st-mint' : 'text-rose-700 dark:text-rose-300'
                         }`}
                       >
                         {promoMessage.text}
@@ -286,7 +323,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {/* Languages (all 8) */}
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#525B5E] px-1">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-st-secondary px-1">
                       {t('selectLanguage')}
                     </p>
                     <div className="grid grid-cols-2 gap-1.5">
@@ -304,7 +341,7 @@ export const Header: React.FC<HeaderProps> = ({
                             className={`min-h-[44px] px-3 py-2 rounded-xl text-left flex items-center justify-between text-xs font-semibold border transition-colors ${
                               isActive
                                 ? 'bg-[#2EE5A8] text-[#0D1412] border-[#1ED698]'
-                                : 'bg-[#F2EDE3] text-[#111517] border-[#111517]/8 hover:bg-[#EAE3D5]'
+                                : 'bg-st-surface-alt text-st-ink border-st-ink/[0.08] hover:bg-st-surface-muted'
                             }`}
                           >
                             <span className="truncate">{translations.languageName[lang.code]}</span>
@@ -316,33 +353,33 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
 
                   {/* About & Support */}
-                  <div className="pt-2 border-t border-[#111517]/10 flex flex-col gap-1">
+                  <div className="pt-2 border-t border-st-ink/10 flex flex-col gap-1">
                     <button
                       type="button"
                       onClick={() => {
                         setIsSettingsOpen(false);
                         onShowAbout();
                       }}
-                      className="w-full min-h-[44px] px-3 rounded-xl flex items-center justify-between text-xs font-semibold text-[#111517] hover:bg-[#F2EDE3] transition-colors"
+                      className="w-full min-h-[44px] px-3 rounded-xl flex items-center justify-between text-xs font-semibold text-st-ink hover:bg-st-surface-alt transition-colors"
                     >
                       <span>{t('aboutSnapTrip')}</span>
-                      <Icon name="info" className="text-[18px] text-[#525B5E]" />
+                      <Icon name="info" className="text-[18px] text-st-secondary" />
                     </button>
                     <button
                       type="button"
                       onClick={handleContactDev}
-                      className="w-full min-h-[44px] px-3 rounded-xl flex items-center justify-between text-xs font-semibold text-[#111517] hover:bg-[#F2EDE3] transition-colors"
+                      className="w-full min-h-[44px] px-3 rounded-xl flex items-center justify-between text-xs font-semibold text-st-ink hover:bg-st-surface-alt transition-colors"
                     >
                       <span>{t('contactDev')}</span>
-                      <Icon name="mail" className="text-[18px] text-[#525B5E]" />
+                      <Icon name="mail" className="text-[18px] text-st-secondary" />
                     </button>
                     <button
                       type="button"
                       onClick={handleSupportDev}
-                      className="w-full min-h-[44px] px-3 rounded-xl flex items-center justify-between text-xs font-semibold text-[#111517] hover:bg-[#F2EDE3] transition-colors"
+                      className="w-full min-h-[44px] px-3 rounded-xl flex items-center justify-between text-xs font-semibold text-st-ink hover:bg-st-surface-alt transition-colors"
                     >
                       <span>{t('supportDev')}</span>
-                      <Icon name="coffee" className="text-[18px] text-[#525B5E]" />
+                      <Icon name="coffee" className="text-[18px] text-st-secondary" />
                     </button>
                   </div>
                 </div>

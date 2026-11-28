@@ -495,7 +495,7 @@ const App: React.FC = () => {
     : history.find(i => i.id === currentResultId) || null;
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-[#111517] flex flex-col relative overflow-x-hidden">
+    <div className="min-h-screen bg-st-surface text-st-ink flex flex-col relative overflow-x-hidden">
       <div className="relative z-10 flex flex-col flex-1">
         {(appState === 'welcome' || appState === 'about') && (
         <Header 
@@ -509,26 +509,26 @@ const App: React.FC = () => {
       )}
       
       {isQuotaExceeded && (
-        <div className="fixed top-20 left-4 right-4 max-w-xl mx-auto z-[100] bg-amber-100 text-[#111517] rounded-2xl p-4 shadow-xl border border-amber-300">
+        <div className="fixed top-20 left-4 right-4 max-w-xl mx-auto z-[100] bg-amber-100 dark:bg-amber-950 text-st-ink rounded-2xl p-4 shadow-xl border border-amber-300 dark:border-amber-800">
           <div className="flex items-center gap-3 mb-2">
-            <Icon name="warning" className="text-amber-700" />
+            <Icon name="warning" className="text-amber-700 dark:text-amber-300" />
             <p className="text-sm font-bold">{t('quotaExceeded')}</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setIsQuotaExceeded(false)} className="min-h-[44px] px-4 bg-[#111517] text-[#FAF7F2] text-xs font-semibold rounded-xl transition-colors">{t('cancel')}</button>
+            <button onClick={() => setIsQuotaExceeded(false)} className="min-h-[44px] px-4 bg-st-ink text-st-surface text-xs font-semibold rounded-xl transition-colors">{t('cancel')}</button>
           </div>
         </div>
       )}
 
       {isApiRateLimited && (
-        <div className="fixed top-20 left-4 right-4 max-w-xl mx-auto z-[100] bg-rose-100 text-[#111517] rounded-2xl p-4 shadow-xl border border-rose-300">
+        <div className="fixed top-20 left-4 right-4 max-w-xl mx-auto z-[100] bg-rose-100 dark:bg-rose-950 text-st-ink rounded-2xl p-4 shadow-xl border border-rose-300 dark:border-rose-800">
           <div className="flex items-center gap-3 mb-2">
-            <Icon name="hourglass_empty" className="text-rose-700" />
+            <Icon name="hourglass_empty" className="text-rose-700 dark:text-rose-300" />
             <p className="text-sm font-bold">[{t('error')}] API 서버 접속량이 많습니다.</p>
           </div>
-          <p className="text-xs text-[#525B5E] mb-3">{language === 'ko' ? '잠시 후 다시 시도해 주세요.' : 'Please try again shortly.'}</p>
+          <p className="text-xs text-st-secondary mb-3">{language === 'ko' ? '잠시 후 다시 시도해 주세요.' : 'Please try again shortly.'}</p>
           <div className="flex gap-2">
-            <button onClick={() => setIsApiRateLimited(false)} className="min-h-[44px] px-4 bg-[#111517] text-[#FAF7F2] text-xs font-semibold rounded-xl transition-colors">{t('cancel')}</button>
+            <button onClick={() => setIsApiRateLimited(false)} className="min-h-[44px] px-4 bg-st-ink text-st-surface text-xs font-semibold rounded-xl transition-colors">{t('cancel')}</button>
           </div>
         </div>
       )}
@@ -556,7 +556,7 @@ const App: React.FC = () => {
       )}
 
       {activeAnalysisRequestId && (
-        <div role="status" aria-live="polite" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] flex items-center gap-3 px-4 py-1.5 bg-[#111517] text-[#FAF7F2] border border-[#111517]/15 rounded-full shadow-xl">
+        <div role="status" aria-live="polite" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] flex items-center gap-3 px-4 py-1.5 bg-[#111517] text-[#FAF7F2] rounded-full shadow-xl">
           <span className="w-2 h-2 rounded-full bg-[#2EE5A8] motion-safe:animate-pulse" />
           <span className="text-xs font-semibold">{t('analyzing')}</span>
           <button onClick={handleCancelAnalysis} className="min-h-[44px] px-3 text-xs font-semibold text-[#2EE5A8] hover:underline">
@@ -569,7 +569,7 @@ const App: React.FC = () => {
       <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" onChange={handleFileInputChange} className="hidden" />
       
       <main className="flex-1 relative flex flex-col">
-        <Suspense fallback={<div role="status" className="flex-1 flex items-center justify-center min-h-[300px] text-[#525B5E] text-sm">{language === 'ko' ? '불러오는 중…' : 'Loading…'}</div>}>
+        <Suspense fallback={<div role="status" className="flex-1 flex items-center justify-center min-h-[300px] text-st-secondary text-sm">{language === 'ko' ? '불러오는 중…' : 'Loading…'}</div>}>
           <div key={appState} className="flex flex-col flex-1 t-screen">
             {appState === 'welcome' && (
               <WelcomeScreen
@@ -616,12 +616,12 @@ const App: React.FC = () => {
           </div>
         </Suspense>
       </main>
-      <footer className="border-t border-[#111517]/10 px-4 py-5">
-        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs text-[#525B5E]">
-          <a href="mailto:contact@slaptrip.com?subject=%5BSlapTrip%20Support%5D%20Inquiry" className="min-h-[44px] inline-flex items-center underline underline-offset-4 hover:text-[#111517]">{t('contactDev')}</a>
-          <a href="/identify-landmark-from-photo.html" className="min-h-[44px] inline-flex items-center underline underline-offset-4 hover:text-[#111517]">{t('howToIdentify')}</a>
-          <a href="/privacy.html" className="min-h-[44px] inline-flex items-center underline underline-offset-4 hover:text-[#111517]">Privacy · 개인정보처리방침</a>
-          <a href="/terms.html" className="min-h-[44px] inline-flex items-center underline underline-offset-4 hover:text-[#111517]">Terms · 이용약관</a>
+      <footer className="border-t border-st-ink/10 px-4 py-5">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs text-st-secondary">
+          <a href="mailto:contact@slaptrip.com?subject=%5BSlapTrip%20Support%5D%20Inquiry" className="min-h-[44px] inline-flex items-center underline underline-offset-4 hover:text-st-ink">{t('contactDev')}</a>
+          <a href="/identify-landmark-from-photo.html" className="min-h-[44px] inline-flex items-center underline underline-offset-4 hover:text-st-ink">{t('howToIdentify')}</a>
+          <a href="/privacy.html" className="min-h-[44px] inline-flex items-center underline underline-offset-4 hover:text-st-ink">Privacy · 개인정보처리방침</a>
+          <a href="/terms.html" className="min-h-[44px] inline-flex items-center underline underline-offset-4 hover:text-st-ink">Terms · 이용약관</a>
         </div>
       </footer>
       {isSidebarOpen && (
