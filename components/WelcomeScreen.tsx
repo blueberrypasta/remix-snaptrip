@@ -92,11 +92,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-center">
         {/* Left: Copy & Controls */}
         <div className="lg:col-span-6 flex flex-col gap-4 sm:gap-5">
-          <h1 className="text-[32px] sm:text-[46px] lg:text-[56px] font-bold tracking-[-0.03em] leading-[1.06] text-[#111517] break-keep">
+          <h1 className="text-[32px] sm:text-[46px] lg:text-[56px] font-bold tracking-[-0.03em] leading-[1.06] text-st-ink break-keep">
             {t('heroHeadline')}
           </h1>
 
-          <p className="text-[15px] sm:text-[18px] leading-[1.55] text-[#4A5356] max-w-lg break-keep">
+          <p className="text-[15px] sm:text-[18px] leading-[1.55] text-[#4A5356] dark:text-st-secondary max-w-lg break-keep">
             {t('heroSubtitle')}
           </p>
 
@@ -114,7 +114,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               <button
                 type="button"
                 onClick={onCameraClick}
-                className="min-h-[48px] px-5 rounded-full border border-[#111517]/15 bg-transparent hover:bg-[#111517]/[0.05] active:scale-[0.98] text-[#111517] text-[15px] font-medium inline-flex items-center justify-center gap-2 transition-all"
+                className="min-h-[48px] px-5 rounded-full border border-st-ink/15 bg-transparent hover:bg-st-ink/[0.05] active:scale-[0.98] text-st-ink text-[15px] font-medium inline-flex items-center justify-center gap-2 transition-all"
               >
                 <Icon name="photo_camera" className="text-[20px]" />
                 <span>{t('takePhoto')}</span>
@@ -125,7 +125,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               <button
                 type="button"
                 onClick={onTrySample}
-                className="self-start min-h-[44px] px-1 inline-flex items-center gap-1.5 text-sm font-medium text-[#0A7553] hover:text-[#075B40] underline underline-offset-4 transition-colors"
+                className="self-start min-h-[44px] px-1 inline-flex items-center gap-1.5 text-sm font-medium text-st-mint hover:text-[#075B40] underline underline-offset-4 transition-colors"
               >
                 <span>{t('trySample')}</span>
                 <Icon name="arrow_forward" className="text-[16px]" />
@@ -137,7 +137,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         {/* Right: Edge-to-edge Travel Photo in an Offset Rounded Frame */}
         <div className="lg:col-span-6 lg:pl-2">
           <figure className="m-0">
-            <div className="relative overflow-hidden rounded-[24px] lg:rounded-[32px] bg-[#EAE4D9] border border-[#111517]/10 shadow-[0_24px_60px_-28px_rgba(17,21,23,0.28)] aspect-[16/10] sm:aspect-[16/9] lg:aspect-[4/3] lg:translate-y-2">
+            <div className="relative overflow-hidden rounded-[24px] lg:rounded-[32px] bg-st-surface-card border border-st-ink/10 shadow-[0_24px_60px_-28px_rgba(17,21,23,0.28)] aspect-[16/10] sm:aspect-[16/9] lg:aspect-[4/3] lg:translate-y-2">
               <img
                 src={SAMPLE_IMAGE_URL}
                 width={1200}
@@ -147,12 +147,12 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 className="w-full h-full object-cover"
               />
             </div>
-            <figcaption className="mt-3 lg:mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#525B5E]">
+            <figcaption className="mt-3 lg:mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-st-secondary">
               <a
                 href={SAMPLE_COMMONS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-[#111517]"
+                className="underline underline-offset-2 hover:text-st-ink"
               >
                 {t('photoAttributionLabel')}
               </a>
@@ -161,7 +161,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 href={SAMPLE_LICENSE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-[#111517]"
+                className="underline underline-offset-2 hover:text-st-ink"
               >
                 CC BY-SA 4.0
               </a>
@@ -176,39 +176,39 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           <button
             type="button"
             onClick={() => onStartGuide?.(activeGuide.landmarkName)}
-            className="w-full min-h-[52px] px-4 py-3 rounded-2xl bg-[#F2EDE3] hover:bg-[#EAE3D5] border border-[#111517]/10 flex items-center justify-between gap-3 transition-colors"
+            className="w-full min-h-[52px] px-4 py-3 rounded-2xl bg-st-surface-alt hover:bg-st-surface-muted border border-st-ink/10 flex items-center justify-between gap-3 transition-colors"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <span className="w-9 h-9 rounded-full bg-[#2EE5A8]/25 text-[#0A7553] flex items-center justify-center shrink-0">
+              <span className="w-9 h-9 rounded-full bg-[#2EE5A8]/25 text-st-mint flex items-center justify-center shrink-0">
                 <Icon name="record_voice_over" className="text-[20px]" />
               </span>
               <div className="text-left min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-[#0A7553]">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-st-mint">
                   {t('resumeGuide')}
                 </p>
-                <p className="text-sm font-semibold text-[#111517] truncate">
+                <p className="text-sm font-semibold text-st-ink truncate">
                   {activeGuide.landmarkName}
                 </p>
               </div>
             </div>
-            <Icon name="arrow_forward" className="text-[18px] text-[#525B5E] shrink-0" />
+            <Icon name="arrow_forward" className="text-[18px] text-st-secondary shrink-0" />
           </button>
         </section>
       )}
 
       {/* Secondary More / Explore Details Accordion */}
-      <section className="mt-8 sm:mt-10 pt-6 border-t border-[#111517]/10">
+      <section className="mt-8 sm:mt-10 pt-6 border-t border-st-ink/10">
         <button
           type="button"
           aria-expanded={isExploreExpanded}
           aria-controls="explore-details-panel"
           onClick={() => setIsExploreExpanded((prev) => !prev)}
-          className="w-full min-h-[48px] px-5 py-3 rounded-2xl bg-[#F2EDE3] hover:bg-[#EAE3D5] border border-[#111517]/10 flex items-center justify-between gap-3 text-left text-sm font-semibold text-[#111517] transition-colors"
+          className="w-full min-h-[48px] px-5 py-3 rounded-2xl bg-st-surface-alt hover:bg-st-surface-muted border border-st-ink/10 flex items-center justify-between gap-3 text-left text-sm font-semibold text-st-ink transition-colors"
         >
           <span>{t('exploreMore')}</span>
           <svg
             aria-hidden="true"
-            className={`w-5 h-5 text-[#525B5E] transition-transform ${
+            className={`w-5 h-5 text-st-secondary transition-transform ${
               isExploreExpanded ? 'rotate-180' : ''
             }`}
             viewBox="0 0 24 24"
@@ -225,7 +225,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         <div
           id="explore-details-panel"
           hidden={!isExploreExpanded}
-          className="mt-3 rounded-2xl bg-[#14191B] text-white p-4 sm:p-5 border border-[#111517]/15 space-y-4"
+          className="mt-3 rounded-2xl bg-[#14191B] text-white p-4 sm:p-5 border border-st-ink/15 space-y-4"
         >
           {tasteRecommendations && (
             <div onClick={(e) => e.stopPropagation()}>{tasteRecommendations}</div>

@@ -8,6 +8,14 @@ export default {
   theme: {
     extend: {
       colors: {
+        'st-surface': 'rgb(var(--color-st-surface) / <alpha-value>)',
+        'st-surface-alt': 'rgb(var(--color-st-surface-alt) / <alpha-value>)',
+        'st-surface-muted': 'rgb(var(--color-st-surface-muted) / <alpha-value>)',
+        'st-surface-card': 'rgb(var(--color-st-surface-card) / <alpha-value>)',
+        'st-ink': 'rgb(var(--color-st-text-ink) / <alpha-value>)',
+        'st-secondary': 'rgb(var(--color-st-text-secondary) / <alpha-value>)',
+        'st-mint': 'rgb(var(--color-st-accent-mint) / <alpha-value>)',
+
         primary: '#D9B26A',
         'background-light': '#f6f7f8',
         'background-dark': '#0D151D',

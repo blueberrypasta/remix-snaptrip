@@ -3,13 +3,21 @@
 @tailwind utilities;
 
 :root {
-  --st-ivory: #FAF7F2;
-  --st-ivory-elevated: #F2EDE3;
-  --st-ink: #111517;
-  --st-ink-muted: #525B5E;
+  color-scheme: light;
+  --color-st-surface: 250 247 242;
+  --color-st-surface-alt: 242 237 227;
+  --color-st-surface-muted: 234 227 213;
+  --color-st-surface-card: 234 228 217;
+  --color-st-text-ink: 17 21 23;
+  --color-st-text-secondary: 82 91 94;
+  --color-st-accent-mint: 10 117 83;
+  --st-ivory: rgb(var(--color-st-surface));
+  --st-ivory-elevated: rgb(var(--color-st-surface-alt));
+  --st-ink: rgb(var(--color-st-text-ink));
+  --st-ink-muted: rgb(var(--color-st-text-secondary));
   --st-mint: #2EE5A8;
   --st-mint-hover: #22D398;
-  --st-mint-ink: #0A7553;
+  --st-mint-ink: rgb(var(--color-st-accent-mint));
   --duration-stagger: 40ms;
   --duration-micro: 80ms;
   --duration-quick: 150ms;
@@ -26,6 +34,17 @@
   --blur-medium: 3px;
 }
 
+:root.dark {
+  color-scheme: dark;
+  --color-st-surface: 13 21 29;
+  --color-st-surface-alt: 18 24 28;
+  --color-st-surface-muted: 26 34 40;
+  --color-st-surface-card: 22 29 34;
+  --color-st-text-ink: 243 245 247;
+  --color-st-text-secondary: 160 172 176;
+  --color-st-accent-mint: 52 211 153;
+}
+
 html, body, #root {
   margin: 0;
   padding: 0;
@@ -38,7 +57,7 @@ body {
   letter-spacing: -0.01em;
 }
 
-button:focus-visible, a:focus-visible, input:focus-visible, summary:focus-visible {
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
   outline: 2px solid var(--st-mint-ink);
   outline-offset: 3px;
 }

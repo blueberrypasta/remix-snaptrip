@@ -40,7 +40,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
       const canvas = await html2canvas(resultRef.current, {
         useCORS: true,
         scale: 2,
-        backgroundColor: '#FAF7F2',
+        backgroundColor: getComputedStyle(document.body).backgroundColor,
         logging: false,
         width: resultRef.current.offsetWidth,
         height: resultRef.current.offsetHeight,
@@ -192,7 +192,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
       {/* Top Action Bar */}
       <nav
         data-html2canvas-ignore="true"
-        className="sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#111517]/10 flex items-center justify-between gap-3"
+        className="sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] bg-st-surface/95 backdrop-blur-md border-b border-st-ink/10 flex items-center justify-between gap-3"
       >
         {isStreaming ? (
           <div className="min-h-[44px]" aria-hidden="true" />
@@ -201,7 +201,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             type="button"
             onClick={onReset}
             aria-label={t('back')}
-            className="min-h-[44px] min-w-[44px] px-3 inline-flex items-center justify-center gap-1.5 rounded-full hover:bg-[#111517]/[0.06] text-sm font-medium text-[#111517] transition-colors"
+            className="min-h-[44px] min-w-[44px] px-3 inline-flex items-center justify-center gap-1.5 rounded-full hover:bg-st-ink/[0.06] text-sm font-medium text-st-ink transition-colors"
           >
             <Icon name="arrow_back" className="text-[20px]" />
             <span className="hidden sm:inline">{t('back')}</span>
@@ -209,7 +209,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
         )}
 
         {isSample && (
-          <span className="px-3 py-1 rounded-full bg-[#2EE5A8]/25 text-[#0A7553] text-xs font-semibold">
+          <span className="px-3 py-1 rounded-full bg-[#2EE5A8]/25 text-st-mint text-xs font-semibold">
             {t('sampleResult')}
           </span>
         )}
@@ -222,7 +222,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                 onClick={handleAction}
                 aria-label={t('share')}
                 disabled={isProcessing}
-                className="min-h-[44px] min-w-[44px] px-3 rounded-full border border-[#111517]/12 bg-[#F2EDE3] hover:bg-[#EAE3D5] text-[#111517] text-xs font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-40 transition-colors"
+                className="min-h-[44px] min-w-[44px] px-3 rounded-full border border-st-ink/[0.12] bg-st-surface-alt hover:bg-st-surface-muted text-st-ink text-xs font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-40 transition-colors"
               >
                 <Icon name="ios_share" className="text-[18px]" />
                 <span className="hidden sm:inline">{t('share')}</span>
@@ -233,7 +233,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                   type="button"
                   onClick={() => onDelete(result.id)}
                   aria-label={t('delete')}
-                  className="min-h-[44px] min-w-[44px] rounded-full hover:bg-rose-500/10 text-[#525B5E] hover:text-rose-700 inline-flex items-center justify-center transition-colors"
+                  className="min-h-[44px] min-w-[44px] rounded-full hover:bg-rose-500/10 text-st-secondary hover:text-rose-700 dark:hover:text-rose-300 inline-flex items-center justify-center transition-colors"
                 >
                   <Icon name="delete" className="text-[20px]" />
                 </button>
@@ -246,10 +246,10 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
       {/* Concise Share Capture Area: Photo + Place + Title + One-line Fact (+ Sample Credit) */}
       <div
         ref={resultRef}
-        className="mt-5 rounded-[24px] bg-[#FAF7F2] border border-[#111517]/12 overflow-hidden shadow-[0_16px_40px_-24px_rgba(17,21,23,0.18)]"
+        className="mt-5 rounded-[24px] bg-st-surface border border-st-ink/[0.12] overflow-hidden shadow-[0_16px_40px_-24px_rgba(17,21,23,0.18)]"
       >
         {result.imageData ? (
-          <div className="w-full bg-[#EAE4D9] overflow-hidden">
+          <div className="w-full bg-st-surface-card overflow-hidden">
             <img
               src={result.imageData}
               alt={isLowConfidence ? t('needsCloserLook') : cleanTitle}
@@ -258,37 +258,37 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             />
           </div>
         ) : (
-          <div className="w-full py-10 bg-[#EFEAE0] flex items-center justify-center text-[#525B5E]">
+          <div className="w-full py-10 bg-[#EFEAE0] dark:bg-st-surface-alt flex items-center justify-center text-st-secondary">
             <Icon name="image_not_supported" className="text-3xl" />
           </div>
         )}
 
         <div className="p-5 sm:p-7 space-y-2.5">
           {placeContextLabel && (
-            <p className="text-xs font-semibold text-[#0A7553] tracking-tight">
+            <p className="text-xs font-semibold text-st-mint tracking-tight">
               {placeContextLabel}
             </p>
           )}
 
-          <h1 className="text-2xl sm:text-[34px] font-bold tracking-[-0.025em] leading-[1.15] text-[#111517] break-keep">
+          <h1 className="text-2xl sm:text-[34px] font-bold tracking-[-0.025em] leading-[1.15] text-st-ink break-keep">
             {isLowConfidence ? t('needsCloserLook') : cleanTitle}
           </h1>
 
           {cleanFact && !isLowConfidence && (
-            <p className="text-[15px] sm:text-[17px] leading-[1.55] text-[#353D40] break-keep">
+            <p className="text-[15px] sm:text-[17px] leading-[1.55] text-[#353D40] dark:text-st-secondary break-keep">
               {cleanFact}
             </p>
           )}
 
           {isSample && (
-            <p className="pt-2 border-t border-[#111517]/10 text-xs text-[#525B5E] flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="pt-2 border-t border-st-ink/10 text-xs text-st-secondary flex flex-wrap items-center gap-x-2 gap-y-1">
               <span>{t('sampleResult')}</span>
               <span aria-hidden="true">·</span>
               <a
                 href={SAMPLE_COMMONS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-[#111517]"
+                className="underline underline-offset-2 hover:text-st-ink"
               >
                 {t('photoAttributionLabel')}
               </a>
@@ -297,7 +297,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                 href={SAMPLE_LICENSE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-[#111517]"
+                className="underline underline-offset-2 hover:text-st-ink"
               >
                 CC BY-SA 4.0
               </a>
@@ -323,12 +323,12 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
       {/* Low Confidence: Reason + Primary Retake */}
       {!isStreaming && isLowConfidence && (
-        <section className="mt-5 rounded-2xl p-5 bg-[#FFF6E6] border border-[#C98A1A]/35 space-y-4">
+        <section className="mt-5 rounded-2xl p-5 bg-[#FFF6E6] dark:bg-amber-950 border border-[#C98A1A]/35 space-y-4">
           <div className="space-y-1.5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#8A5A00]">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#8A5A00] dark:text-amber-300">
               {t('needsCloserLook')}
             </p>
-            <p className="text-sm sm:text-base leading-relaxed text-[#111517] break-keep">
+            <p className="text-sm sm:text-base leading-relaxed text-st-ink break-keep">
               {result.retakeReason || clean(result.story) || t('retakeTextHelp')}
             </p>
           </div>
@@ -345,20 +345,20 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
       {/* Probable Match Notice (Walking directions suppressed) */}
       {!isStreaming && isProbable && (
-        <section className="mt-4 rounded-2xl px-4 py-3.5 bg-[#F2EDE3] border border-[#111517]/10">
-          <p className="text-xs font-semibold text-[#0A7553]">{t('likelyMatch')}</p>
+        <section className="mt-4 rounded-2xl px-4 py-3.5 bg-st-surface-alt border border-st-ink/10">
+          <p className="text-xs font-semibold text-st-mint">{t('likelyMatch')}</p>
         </section>
       )}
 
       {/* Progressive Disclosure Sections */}
       <div className="mt-6 space-y-3">
         {hasStorySection && (
-          <details className="group rounded-2xl border border-[#111517]/10 bg-[#F2EDE3]/70 overflow-hidden">
-            <summary className="min-h-[48px] px-5 py-3.5 cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-[#111517]">
+          <details className="group rounded-2xl border border-st-ink/10 bg-st-surface-alt/70 overflow-hidden">
+            <summary className="min-h-[48px] px-5 py-3.5 cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-st-ink">
               <span>{t('theStory')}</span>
               <svg
                 aria-hidden="true"
-                className="w-5 h-5 text-[#525B5E] transition-transform group-open:rotate-180 shrink-0"
+                className="w-5 h-5 text-st-secondary transition-transform group-open:rotate-180 shrink-0"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -369,19 +369,19 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                 <path d="m6 9 6 6 6-6" />
               </svg>
             </summary>
-            <div className="px-5 pb-5 pt-1 space-y-4 border-t border-[#111517]/8">
+            <div className="px-5 pb-5 pt-1 space-y-4 border-t border-st-ink/[0.08]">
               {storyParagraphs.map((paragraph, index) => (
                 <p
                   key={index}
-                  className="text-[15px] sm:text-base leading-[1.7] text-[#22282B] break-keep"
+                  className="text-[15px] sm:text-base leading-[1.7] text-[#22282B] dark:text-st-ink break-keep"
                 >
                   {paragraph}
                 </p>
               ))}
               {clean(result.hiddenStory) && (
-                <div className="rounded-xl bg-[#FAF7F2] border border-[#111517]/10 p-4 space-y-1.5">
-                  <p className="text-xs font-semibold text-[#0A7553]">{t('hiddenStory')}</p>
-                  <p className="text-sm leading-relaxed text-[#22282B] break-keep">
+                <div className="rounded-xl bg-st-surface border border-st-ink/10 p-4 space-y-1.5">
+                  <p className="text-xs font-semibold text-st-mint">{t('hiddenStory')}</p>
+                  <p className="text-sm leading-relaxed text-[#22282B] dark:text-st-ink break-keep">
                     {clean(result.hiddenStory)}
                   </p>
                 </div>
@@ -391,12 +391,12 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
         )}
 
         {hasVisitSection && (
-          <details className="group rounded-2xl border border-[#111517]/10 bg-[#F2EDE3]/70 overflow-hidden">
-            <summary className="min-h-[48px] px-5 py-3.5 cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-[#111517]">
+          <details className="group rounded-2xl border border-st-ink/10 bg-st-surface-alt/70 overflow-hidden">
+            <summary className="min-h-[48px] px-5 py-3.5 cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-st-ink">
               <span>{t('visitDetails')}</span>
               <svg
                 aria-hidden="true"
-                className="w-5 h-5 text-[#525B5E] transition-transform group-open:rotate-180 shrink-0"
+                className="w-5 h-5 text-st-secondary transition-transform group-open:rotate-180 shrink-0"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -407,21 +407,21 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                 <path d="m6 9 6 6 6-6" />
               </svg>
             </summary>
-            <div className="px-5 pb-5 pt-2 space-y-3 border-t border-[#111517]/8">
+            <div className="px-5 pb-5 pt-2 space-y-3 border-t border-st-ink/[0.08]">
               {visitCards.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {visitCards.map((card, idx) => (
                     <div
                       key={card.label}
-                      className={`rounded-xl bg-[#FAF7F2] border border-[#111517]/10 p-3.5 space-y-1 ${
+                      className={`rounded-xl bg-st-surface border border-st-ink/10 p-3.5 space-y-1 ${
                         idx === 0 && visitCards.length % 2 === 1 ? 'sm:col-span-2' : ''
                       }`}
                     >
-                      <p className="text-xs font-semibold text-[#0A7553] flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-st-mint flex items-center gap-1.5">
                         <Icon name={card.icon} className="text-[15px]" />
                         <span>{card.label}</span>
                       </p>
-                      <p className="text-sm text-[#111517] leading-snug">{card.value}</p>
+                      <p className="text-sm text-st-ink leading-snug">{card.value}</p>
                     </div>
                   ))}
                 </div>
@@ -432,9 +432,9 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                   href={streetViewUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="min-h-[44px] px-4 rounded-xl bg-[#FAF7F2] border border-[#111517]/15 hover:bg-[#EAE3D5] text-sm font-semibold text-[#111517] inline-flex items-center gap-2 transition-colors"
+                  className="min-h-[44px] px-4 rounded-xl bg-st-surface border border-st-ink/15 hover:bg-st-surface-muted text-sm font-semibold text-st-ink inline-flex items-center gap-2 transition-colors"
                 >
-                  <Icon name="my_location" className="text-[18px] text-[#0A7553]" />
+                  <Icon name="my_location" className="text-[18px] text-st-mint" />
                   <span>{t('viewStreetView')}</span>
                 </a>
               )}
@@ -443,12 +443,12 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
         )}
 
         {hasFiguresSection && (
-          <details className="group rounded-2xl border border-[#111517]/10 bg-[#F2EDE3]/70 overflow-hidden">
-            <summary className="min-h-[48px] px-5 py-3.5 cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-[#111517]">
+          <details className="group rounded-2xl border border-st-ink/10 bg-st-surface-alt/70 overflow-hidden">
+            <summary className="min-h-[48px] px-5 py-3.5 cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-st-ink">
               <span>{t('depictedFigures')}</span>
               <svg
                 aria-hidden="true"
-                className="w-5 h-5 text-[#525B5E] transition-transform group-open:rotate-180 shrink-0"
+                className="w-5 h-5 text-st-secondary transition-transform group-open:rotate-180 shrink-0"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -459,23 +459,23 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                 <path d="m6 9 6 6 6-6" />
               </svg>
             </summary>
-            <div className="px-5 pb-5 pt-2 space-y-3 border-t border-[#111517]/8">
+            <div className="px-5 pb-5 pt-2 space-y-3 border-t border-st-ink/[0.08]">
               {result.depictedFigures!.map((figure, index) => (
                 <div
                   key={`${figure.name}-${index}`}
-                  className="rounded-xl bg-[#FAF7F2] border border-[#111517]/10 p-3.5 space-y-1"
+                  className="rounded-xl bg-st-surface border border-st-ink/10 p-3.5 space-y-1"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-bold text-[#111517]">{clean(figure.name)}</h3>
+                    <h3 className="text-sm font-bold text-st-ink">{clean(figure.name)}</h3>
                     {figure.certainty !== 'confirmed' && (
-                      <span className="rounded-full bg-[#EAE3D5] px-2.5 py-0.5 text-[11px] font-medium text-[#525B5E]">
+                      <span className="rounded-full bg-st-surface-muted px-2.5 py-0.5 text-[11px] font-medium text-st-secondary">
                         {figure.certainty === 'probable' ? t('figureProbable') : t('figureUnknown')}
                       </span>
                     )}
                   </div>
-                  {figure.role && <p className="text-sm text-[#353D40]">{clean(figure.role)}</p>}
+                  {figure.role && <p className="text-sm text-[#353D40] dark:text-st-secondary">{clean(figure.role)}</p>}
                   {figure.visualCue && (
-                    <p className="text-xs text-[#525B5E]">{clean(figure.visualCue)}</p>
+                    <p className="text-xs text-st-secondary">{clean(figure.visualCue)}</p>
                   )}
                 </div>
               ))}
@@ -484,12 +484,12 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
         )}
 
         {hasSourcesSection && (
-          <details className="group rounded-2xl border border-[#111517]/10 bg-[#F2EDE3]/70 overflow-hidden">
-            <summary className="min-h-[48px] px-5 py-3.5 cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-[#111517]">
+          <details className="group rounded-2xl border border-st-ink/10 bg-st-surface-alt/70 overflow-hidden">
+            <summary className="min-h-[48px] px-5 py-3.5 cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-st-ink">
               <span>{t('verifiedSources')}</span>
               <svg
                 aria-hidden="true"
-                className="w-5 h-5 text-[#525B5E] transition-transform group-open:rotate-180 shrink-0"
+                className="w-5 h-5 text-st-secondary transition-transform group-open:rotate-180 shrink-0"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -500,17 +500,17 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                 <path d="m6 9 6 6 6-6" />
               </svg>
             </summary>
-            <div className="px-5 pb-5 pt-2 flex flex-col gap-2 border-t border-[#111517]/8">
+            <div className="px-5 pb-5 pt-2 flex flex-col gap-2 border-t border-st-ink/[0.08]">
               {result.sources!.map((source, idx) => (
                 <a
                   key={idx}
                   href={source.uri}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="min-h-[44px] px-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#111517]/10 hover:bg-[#EAE3D5] flex items-center justify-between gap-3 text-sm font-medium text-[#111517] transition-colors"
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl bg-st-surface border border-st-ink/10 hover:bg-st-surface-muted flex items-center justify-between gap-3 text-sm font-medium text-st-ink transition-colors"
                 >
                   <span className="truncate">{source.title}</span>
-                  <Icon name="open_in_new" className="text-[16px] text-[#525B5E] shrink-0" />
+                  <Icon name="open_in_new" className="text-[16px] text-st-secondary shrink-0" />
                 </a>
               ))}
             </div>
@@ -520,15 +520,15 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
       {/* Non-sticky Bottom Actions */}
       {!isStreaming && (
-        <div className="mt-8 pt-6 border-t border-[#111517]/10 space-y-4">
+        <div className="mt-8 pt-6 border-t border-st-ink/10 space-y-4">
           {!isSample && (
-            <p className="text-xs text-[#525B5E] leading-relaxed">{t('aiCaution')}</p>
+            <p className="text-xs text-st-secondary leading-relaxed">{t('aiCaution')}</p>
           )}
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
               onClick={onNewPhoto}
-              className="min-h-[44px] px-5 rounded-full border border-[#111517]/15 bg-[#F2EDE3] hover:bg-[#EAE3D5] text-sm font-medium text-[#111517] inline-flex items-center gap-2 transition-colors"
+              className="min-h-[44px] px-5 rounded-full border border-st-ink/15 bg-st-surface-alt hover:bg-st-surface-muted text-sm font-medium text-st-ink inline-flex items-center gap-2 transition-colors"
             >
               <Icon name="upload_file" className="text-[18px]" />
               <span>{t('choosePhoto')}</span>
@@ -537,7 +537,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             <button
               type="button"
               onClick={onReset}
-              className="min-h-[44px] px-4 rounded-full text-sm font-medium text-[#525B5E] hover:text-[#111517] hover:bg-[#111517]/[0.05] transition-colors"
+              className="min-h-[44px] px-4 rounded-full text-sm font-medium text-st-secondary hover:text-st-ink hover:bg-st-ink/[0.05] transition-colors"
             >
               {t('backHome')}
             </button>
@@ -548,7 +548,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
       {notification && (
         <div
           role="status"
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#111517] text-[#FAF7F2] px-5 py-3 rounded-full shadow-xl z-[60] text-xs font-semibold flex items-center gap-2"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-st-ink text-st-surface px-5 py-3 rounded-full shadow-xl z-[60] text-xs font-semibold flex items-center gap-2"
         >
           <Icon name="check_circle" className="text-[#2EE5A8] text-[16px]" />
           <span>{notification}</span>
